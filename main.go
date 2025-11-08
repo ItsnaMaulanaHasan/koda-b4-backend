@@ -1,5 +1,25 @@
 package main
 
-func main() {
+// @title           API Documentation
+// @version         1.0
+// @description     Dokumentasi REST API menggunakan Gin dan Swagger
 
+// @host      localhost:8080
+// @BasePath  /
+
+import (
+	"back-end-daily-greens/routes"
+
+	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+)
+
+func main() {
+	r := gin.Default()
+
+	routes.SetUpRoutes(r)
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	r.Run(":8080")
 }
