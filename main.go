@@ -8,8 +8,8 @@ package main
 // @BasePath  /
 
 import (
-	"back-end-daily-greens/config"
-	"back-end-daily-greens/routes"
+	"backend-daily-greens/config"
+	"backend-daily-greens/routes"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
