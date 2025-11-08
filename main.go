@@ -8,6 +8,7 @@ package main
 // @BasePath  /
 
 import (
+	"back-end-daily-greens/config"
 	"back-end-daily-greens/routes"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,9 @@ import (
 )
 
 func main() {
+	config.ConnectDatabase()
+	defer config.CloseDatabase()
+
 	r := gin.Default()
 
 	routes.SetUpRoutes(r)
