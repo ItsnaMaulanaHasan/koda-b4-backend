@@ -361,9 +361,15 @@ func CreateUser(ctx *gin.Context) {
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
-// @Param        Authorization    header    string  true  "Bearer token"  default(Bearer <token>)
-// @Param        id   path      int     true  "User Id"
-// @Param        user formData  models.UpdateUserRequest true "User update data"
+// @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id             path      int     true  "User ID"
+// @Param        first_name     formData  string  false "User first name"
+// @Param        last_name      formData  string  false "User last name"
+// @Param        email          formData  string  false "User email"
+// @Param        phone          formData  string  false "User phone"
+// @Param        address        formData  string  false "User address"
+// @Param        role           formData  string  false "User role"
+// @Param        profilephoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
 // @Success      200  {object}  lib.ResponseSuccess{data=models.User}  "User updated successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format or invalid request body."
 // @Failure      404  {object}  lib.ResponseError  "User not found."
@@ -380,15 +386,19 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	var bodyUpdateUser models.UpdateUserRequest
-	err = ctx.ShouldBindWith(&bodyUpdateUser, binding.Form)
+	var bodyUpdate models.UpdateUserRequest
+	err = ctx.ShouldBindWith(&bodyUpdate, binding.FormMultipart)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: false, // ← Fix: was true
+			Success: false,
 			Message: "Invalid request body",
 			Error:   err.Error(),
 		})
 		return
+	}
+
+	if bodyUpdate.Role == "" {
+		bodyUpdate.Role = "customer"
 	}
 
 	userIdFromToken, exists := ctx.Get("userId")
@@ -400,48 +410,93 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	commandTag, err := config.DB.Exec(
+	var savedFilePath string
+	file, err := ctx.FormFile("profilephoto")
+	if err == nil {
+		if file.Size > 1<<20 {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "File size must be less than 1MB",
+			})
+			return
+		}
+
+		contentType := file.Header.Get("Content-Type")
+		if contentType != "image/jpeg" && contentType != "image/png" {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "Only JPEG and PNG files are allowed",
+			})
+			return
+		}
+
+		ext := filepath.Ext(file.Filename)
+		fileName := fmt.Sprintf("user_%d_%d%s", id, time.Now().Unix(), ext)
+		savedFilePath = "uploads/profiles/" + fileName
+
+		if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to save uploaded file",
+				Error:   err.Error(),
+			})
+			return
+		}
+	}
+
+	_, err = config.DB.Exec(
 		context.Background(),
 		`UPDATE users 
-		 SET first_name = $1, last_name = $2, email = $3, role = $4, updated_by = $5, updated_at = NOW()
+		 SET first_name = COALESCE(NULLIF($1, ''), first_name),
+		     last_name  = COALESCE(NULLIF($2, ''), last_name),
+		     email      = COALESCE(NULLIF($3, ''), email),
+		     role       = COALESCE(NULLIF($4, ''), role),
+		     updated_by = $5,
+		     updated_at = NOW()
 		 WHERE id = $6`,
-		bodyUpdateUser.FirstName,
-		bodyUpdateUser.LastName,
-		bodyUpdateUser.Email,
-		bodyUpdateUser.Role,
+		bodyUpdate.FirstName,
+		bodyUpdate.LastName,
+		bodyUpdate.Email,
+		bodyUpdate.Role,
 		userIdFromToken,
 		id,
 	)
-
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while updating user data.",
+			Message: "Internal server error while updating user table.",
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	if commandTag.RowsAffected() == 0 {
-		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+	_, err = config.DB.Exec(
+		context.Background(),
+		`UPDATE profiles 
+		 SET image        = COALESCE(NULLIF($1, ''), image),
+		     address      = COALESCE(NULLIF($2, ''), address),
+		     phone_number = COALESCE(NULLIF($3, ''), phone_number),
+		     updated_by   = $4,
+		     updated_at   = NOW()
+		 WHERE user_id = $5`,
+		savedFilePath,
+		bodyUpdate.Address,
+		bodyUpdate.Phone,
+		userIdFromToken,
+		id,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "User not found.",
+			Message: "Internal server error while updating user profile.",
+			Error:   err.Error(),
 		})
 		return
 	}
 
-	models.ResponseUserData = &models.UserResponse{
-		Id:        id,
-		FirstName: bodyUpdateUser.FirstName,
-		LastName:  bodyUpdateUser.LastName,
-		Email:     bodyUpdateUser.Email,
-		Role:      bodyUpdateUser.Role,
-	}
-
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
-		Message: "User updated successfully.",
-		Data:    models.ResponseUserData,
+		Message: "User updated successfully",
 	})
 }
 
