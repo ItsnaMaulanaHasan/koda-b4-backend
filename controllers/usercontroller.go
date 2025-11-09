@@ -338,3 +338,50 @@ func UpdateUser(ctx *gin.Context) {
 		Data:    responseData,
 	})
 }
+
+// DeleteUser godoc
+// @Summary      Delete user
+// @Description  Delete user by Id
+// @Tags         users
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Param        id   path      int  true  "User Id"
+// @Success      200  {object}  lib.ResponseSuccess  "User deleted successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure      404  {object}  lib.ResponseError  "User not found"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while deleting user data."
+// @Router       /users/{id} [delete]
+func DeleteUser(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	commandTag, err := config.DB.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while deleting user data.",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+			Success: false,
+			Message: "User not found.",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "User deleted successfully",
+	})
+}
