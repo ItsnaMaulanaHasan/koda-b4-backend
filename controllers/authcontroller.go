@@ -107,7 +107,7 @@ func Register(ctx *gin.Context) {
 
 // Login godoc
 // @Summary      Login user
-// @Description  Log in with existing email and username data
+// @Description  Log in with existing email data
 // @Tags         auth
 // @Accept       x-www-form-urlencoded
 // @Produce      json
