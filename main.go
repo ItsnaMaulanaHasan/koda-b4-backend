@@ -14,11 +14,14 @@ import (
 	_ "backend-daily-greens/docs"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
+	godotenv.Load()
+
 	config.ConnectDatabase()
 	defer config.CloseDatabase()
 

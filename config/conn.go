@@ -6,13 +6,11 @@ import (
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 )
 
 var DB *pgxpool.Pool
 
 func ConnectDatabase() {
-	godotenv.Load()
 	var err error
 	ctx := context.Background()
 
