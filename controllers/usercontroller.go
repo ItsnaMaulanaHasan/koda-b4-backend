@@ -82,6 +82,7 @@ func GetAllUser(ctx *gin.Context) {
 		})
 		return
 	}
+	defer rows.Close()
 
 	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.UserResponse])
 	if err != nil {
@@ -150,6 +151,7 @@ func GetUserById(ctx *gin.Context) {
 		})
 		return
 	}
+	defer rows.Close()
 
 	user, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.UserResponse])
 	if err != nil {
@@ -370,7 +372,7 @@ func CreateUser(ctx *gin.Context) {
 // @Param        address        formData  string  false "User address"
 // @Param        role           formData  string  false "User role"
 // @Param        profilephoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
-// @Success      200  {object}  lib.ResponseSuccess{data=models.User}  "User updated successfully"
+// @Success      200  {object}  lib.ResponseSuccess "User updated successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format or invalid request body."
 // @Failure      404  {object}  lib.ResponseError  "User not found."
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while updating user data."
