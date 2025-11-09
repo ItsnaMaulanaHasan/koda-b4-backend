@@ -5,6 +5,7 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+var responseData *models.UserResponse
+
 // GetAllUser godoc
 // @Summary      Get all users
 // @Description  Retrieving all user data with pagination support
@@ -20,34 +23,34 @@ import (
 // @Produce      json
 // @Param        page   query     int  false  "Page number"  default(1)  minimum(1)
 // @Param        limit  query     int  false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
-// @Success      200    {object}  object{success=bool,message=string,data=[]models.User,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Success get all users"
-// @Failure      400    {object}  lib.Response  "Invalid pagination parameters"
-// @Failure      500    {object}  lib.Response  "Invalid query"
+// @Success      200    {object}  object{success=bool,message=string,data=[]models.UserResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved user list."
+// @Failure      400    {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
+// @Failure      500    {object}  lib.ResponseError  "Internal server error while fetching or processing user data."
 // @Router       /users [get]
 func GetAllUser(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 
 	if page < 1 {
-		ctx.JSON(http.StatusBadRequest, lib.Response{
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Page must be greater than 0",
+			Message: "Invalid pagination parameter: 'page' must be greater than 0.",
 		})
 		return
 	}
 
 	if limit < 1 {
-		ctx.JSON(http.StatusBadRequest, lib.Response{
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Limit must be greater than 0",
+			Message: "Invalid pagination parameter: 'limit' must be greater than 0.",
 		})
 		return
 	}
 
 	if limit > 100 {
-		ctx.JSON(http.StatusBadRequest, lib.Response{
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Limit cannot exceed 100",
+			Message: "Invalid pagination parameter: 'limit' cannot exceed 100.",
 		})
 		return
 	}
@@ -56,9 +59,10 @@ func GetAllUser(ctx *gin.Context) {
 	err := config.DB.QueryRow(context.Background(),
 		"SELECT COUNT(*) FROM users").Scan(&totalData)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.Response{
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to count users",
+			Message: "Failed to count total users in database.",
+			Error:   err.Error(),
 		})
 		return
 	}
@@ -68,25 +72,27 @@ func GetAllUser(ctx *gin.Context) {
 		"SELECT id, first_name, last_name, email, role FROM users LIMIT $1 OFFSET $2",
 		limit, offset)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.Response{
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to query users",
+			Message: "Failed to fetch users from database.",
+			Error:   err.Error(),
 		})
 		return
 	}
 
-	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.User])
+	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.UserResponse])
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.Response{
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to collect users",
+			Message: "Failed to process user data from database.",
+			Error:   err.Error(),
 		})
 		return
 	}
 
 	totalPage := (totalData + limit - 1) / limit
 	if page > totalPage && totalData > 0 {
-		ctx.JSON(http.StatusBadRequest, lib.Response{
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
 			Message: "Page is out of range",
 		})
@@ -113,45 +119,56 @@ func GetAllUser(ctx *gin.Context) {
 // @Accept 		 x-www-form-urlencoded
 // @Produce      json
 // @Param        id   path      int  true  "User Id"
-// @Success      200  {object}  lib.Response{data=models.User}  "Success get user"
-// @Failure      400  {object}  lib.Response  "Invalid Id format"
-// @Failure      404  {object}  lib.Response  "User not found"
-// @Failure      500  {object}  lib.Response  "Failed to query users"
+// @Success      200  {object}  lib.ResponseSuccess{data=models.UserResponse}  "Successfully retrieved user."
+// @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure      404  {object}  lib.ResponseError  "User not found"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching users from database."
 // @Router       /users/{id} [get]
 func GetUserById(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, lib.Response{
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
 			Message: "Invalid Id format",
+			Error:   err.Error(),
 		})
 		return
 	}
 
-	var foundUser *models.User
-	err = config.DB.QueryRow(context.Background(),
-		"SELECT id, first_name, last_name, email, role FROM users WHERE id = $1", id).Scan(&foundUser)
-
+	rows, err := config.DB.Query(context.Background(),
+		"SELECT id, first_name, last_name, email, role FROM users WHERE id = $1", id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.Response{
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to query users",
+			Message: "Failed to fetch user from database.",
+			Error:   err.Error(),
 		})
 		return
 	}
 
-	if foundUser != nil {
-		ctx.JSON(http.StatusOK, lib.Response{
-			Success: true,
-			Message: "Success get user",
-			Data:    foundUser,
-		})
-	} else {
-		ctx.JSON(http.StatusNotFound, lib.Response{
+	user, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.UserResponse])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, lib.ResponseError{
+				Success: false,
+				Message: "User not found.",
+			})
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "User not found",
+			Message: "Failed to process user data.",
+			Error:   err.Error(),
 		})
+		return
 	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "Success get user",
+		Data:    user,
+	})
 }
 
 // CreateUser godoc
@@ -161,76 +178,163 @@ func GetUserById(ctx *gin.Context) {
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Param        user      formData  models.User true "User registration data"
-// @Param        role      formData  string false "User role" default("customer")
-// @Success      200       {object}  lib.Response{data=models.User}  "User created successfully"
-// @Failure      400       {object}  lib.Response  "Invalid request body or hash password failed"
-// @Failure      409       {object}  lib.Response  "Email or username already exists"
-// @Failure      500       {object}  lib.Response  "Failed to insert user"
+// @Param        role      formData  string false "User role" default(customer)
+// @Success      201  {object}  lib.ResponseSuccess{data=models.UserResponse}  "User created successfully."
+// @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password."
+// @Failure      409  {object}  lib.ResponseError  "Email already registered."
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while creating user."
 // @Router       /users [post]
 func CreateUser(ctx *gin.Context) {
-	var body models.User
-	err := ctx.ShouldBindWith(&body, binding.Form)
+	var bodyCreateUser models.User
+	err := ctx.ShouldBindWith(&bodyCreateUser, binding.Form)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, lib.Response{
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: true,
-			Message: err.Error(),
+			Message: "Invalid form data",
+			Error:   err.Error(),
 		})
 		return
 	}
 
-	rows, err := config.DB.Query(context.Background(),
-		"SELECT id, first_name, last_name, email, role FROM users")
+	if bodyCreateUser.Role == "" {
+		bodyCreateUser.Role = "customer"
+	}
+
+	var exists bool
+	err = config.DB.QueryRow(
+		context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", bodyCreateUser.Email,
+	).Scan(&exists)
+
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.Response{
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to query users",
+			Message: "Internal server error while checking email uniqueness.",
+			Error:   err.Error(),
 		})
 		return
 	}
 
-	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.User])
+	if exists {
+		ctx.JSON(http.StatusConflict, lib.ResponseError{
+			Success: false,
+			Message: "Email already registered.",
+		})
+		return
+	}
+
+	hashedPassword, err := lib.HashPassword(bodyCreateUser.Password)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.Response{
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Failed to get users",
+			Message: "Failed to hash password.",
+			Error:   err.Error(),
 		})
 		return
 	}
+	bodyCreateUser.Password = string(hashedPassword)
 
-	for _, user := range users {
-		if user.Email == body.Email {
-			ctx.JSON(http.StatusConflict, lib.Response{
-				Success: false,
-				Message: "Email already registered",
-			})
-			return
-		}
-	}
-
-	hashPassword, err := lib.HashPassword(body.Password)
+	err = config.DB.QueryRow(
+		context.Background(),
+		`INSERT INTO users (first_name, last_name, email, role, password)
+		 VALUES ($1, $2, $3, $4, $5)
+		 RETURNING id`,
+		bodyCreateUser.FirstName, bodyCreateUser.LastName, bodyCreateUser.Email, bodyCreateUser.Role, bodyCreateUser.Password,
+	).Scan(&bodyCreateUser.Id)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, lib.Response{
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Hash password failed",
+			Message: "Internal server error while inserting new user.",
+			Error:   err.Error(),
 		})
 		return
 	}
 
-	body.Password = string(hashPassword)
-
-	_, err = config.DB.Exec(ctx,
-		`INSERT INTO users (first_name, last_name, email, role, password) VALUES ($1, $2, $3, $4, $5)`, body.FirstName, body.LastName, body.Email, body.Role, body.Password)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.Response{
-			Success: false,
-			Message: "Failed to insert user",
-		})
-		return
+	responseData = &models.UserResponse{
+		Id:        bodyCreateUser.Id,
+		FirstName: bodyCreateUser.FirstName,
+		LastName:  bodyCreateUser.LastName,
+		Email:     bodyCreateUser.Email,
+		Role:      bodyCreateUser.Role,
 	}
 
-	ctx.JSON(http.StatusOK, lib.Response{
+	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
-		Message: "User created successfully",
-		Data:    body,
+		Message: "User created successfully.",
+		Data:    responseData,
+	})
+}
+
+// UpdateUser godoc
+// @Summary      Update user
+// @Description  Updating user data (username and email) based on Id
+// @Tags         users
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Param        id        path      int     true  "User Id"
+// @Param        user      formData  models.UpdateUserRequest true "User update data"
+// @Success      200       {object}  lib.ResponseSuccess{data=models.User}  "User updated successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid ID format or invalid request body."
+// @Failure      404  {object}  lib.ResponseError  "User not found."
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while updating user data."
+// @Router       /users/{id} [patch]
+func UpdateUser(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	var bodyUpdateUser models.UpdateUserRequest
+	err = ctx.ShouldBindWith(&bodyUpdateUser, binding.Form)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: true,
+			Message: "Invalid request body",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	commandTag, err := config.DB.Exec(
+		context.Background(),
+		`UPDATE users 
+		 SET first_name = $1, last_name = $2, email = $3, role = $4
+		 WHERE id = $5`,
+		bodyUpdateUser.FirstName, bodyUpdateUser.LastName, bodyUpdateUser.Email, bodyUpdateUser.Role, id,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while updating user data.",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+			Success: false,
+			Message: "User not found.",
+		})
+		return
+	}
+
+	responseData = &models.UserResponse{
+		Id:        id,
+		FirstName: bodyUpdateUser.FirstName,
+		LastName:  bodyUpdateUser.LastName,
+		Email:     bodyUpdateUser.Email,
+		Role:      bodyUpdateUser.Role,
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "User updated successfully.",
+		Data:    responseData,
 	})
 }
