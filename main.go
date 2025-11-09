@@ -23,6 +23,7 @@ func main() {
 	defer config.CloseDatabase()
 
 	r := gin.Default()
+	r.MaxMultipartMemory = 1 << 20
 
 	routes.SetUpRoutes(r)
 

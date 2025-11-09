@@ -6,8 +6,11 @@ import (
 	"backend-daily-greens/models"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -181,7 +184,14 @@ func GetUserById(ctx *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
-// @Param        user           formData  models.User true "User registration data"
+// @Param        first_name     formData  string  true  "User first name"
+// @Param        last_name      formData  string  true  "User last name"
+// @Param        email          formData  string  true  "User email"
+// @Param        password       formData  string  true  "User password"  format(password)
+// @Param        phone          formData  string  false "User phone"
+// @Param        address        formData  string  false "User address"
+// @Param        role           formData  string  false "User role"  default(customer)
+// @Param        profilephoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.UserResponse}  "User created successfully."
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password."
 // @Failure      409  {object}  lib.ResponseError  "Email already registered."
@@ -189,7 +199,7 @@ func GetUserById(ctx *gin.Context) {
 // @Router       /users [post]
 func CreateUser(ctx *gin.Context) {
 	var bodyCreateUser models.User
-	err := ctx.ShouldBind(&bodyCreateUser)
+	err := ctx.ShouldBindWith(&bodyCreateUser, binding.Form)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
@@ -235,13 +245,13 @@ func CreateUser(ctx *gin.Context) {
 		})
 		return
 	}
-
 	bodyCreateUser.Password = string(hashedPassword)
+
 	userIdFromToken, exists := ctx.Get("userId")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
-			Message: "User ID not found in token",
+			Message: "User Id not found in token",
 		})
 		return
 	}
@@ -268,12 +278,46 @@ func CreateUser(ctx *gin.Context) {
 		return
 	}
 
+	var savedFilePath string
+	file, err := ctx.FormFile("profilephoto")
+	if err == nil {
+		if file.Size > 1<<20 {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "File size must be less than 1MB",
+			})
+			return
+		}
+
+		contentType := file.Header.Get("Content-Type")
+		if contentType != "image/jpeg" && contentType != "image/png" {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "Only JPEG and PNG files are allowed",
+			})
+			return
+		}
+
+		ext := filepath.Ext(file.Filename)
+		fileName := fmt.Sprintf("user_%d_%d%s", bodyCreateUser.Id, time.Now().Unix(), ext)
+		savedFilePath = "uploads/profiles/" + fileName
+
+		if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to save uploaded file",
+				Error:   err.Error(),
+			})
+			return
+		}
+	}
+
 	_, err = config.DB.Exec(
 		context.Background(),
 		`INSERT INTO profiles (user_id, image, address, phone_number, created_by, updated_by)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		bodyCreateUser.Id,
-		bodyCreateUser.ProfilePhoto,
+		savedFilePath,
 		bodyCreateUser.Address,
 		bodyCreateUser.Phone,
 		userIdFromToken,
@@ -288,7 +332,7 @@ func CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	profilePhoto := bodyCreateUser.ProfilePhoto
+	profilePhoto := savedFilePath
 	phone := bodyCreateUser.Phone
 	address := bodyCreateUser.Address
 
@@ -321,7 +365,7 @@ func CreateUser(ctx *gin.Context) {
 // @Param        id   path      int     true  "User Id"
 // @Param        user formData  models.UpdateUserRequest true "User update data"
 // @Success      200  {object}  lib.ResponseSuccess{data=models.User}  "User updated successfully"
-// @Failure      400  {object}  lib.ResponseError  "Invalid ID format or invalid request body."
+// @Failure      400  {object}  lib.ResponseError  "Invalid Id format or invalid request body."
 // @Failure      404  {object}  lib.ResponseError  "User not found."
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while updating user data."
 // @Router       /users/{id} [patch]
@@ -351,7 +395,7 @@ func UpdateUser(ctx *gin.Context) {
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
-			Message: "User ID not found in token",
+			Message: "User Id not found in token",
 		})
 		return
 	}
