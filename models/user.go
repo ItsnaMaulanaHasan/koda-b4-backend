@@ -32,14 +32,14 @@ type UpdateUserRequest struct {
 }
 
 type UserResponse struct {
-	Id           int     `json:"id" db:"id"`
-	ProfilePhoto *string `json:"profilephoto" db:"image"`
-	FirstName    string  `json:"first_name" db:"first_name"`
-	LastName     string  `json:"last_name" db:"last_name"`
-	Phone        *string `json:"phone" db:"phone_number"`
-	Address      *string `json:"address" db:"address"`
-	Email        string  `json:"email" db:"email"`
-	Role         string  `json:"role" db:"role"`
+	Id           int    `json:"id" db:"id"`
+	ProfilePhoto string `json:"profilephoto" db:"image"`
+	FirstName    string `json:"first_name" db:"first_name"`
+	LastName     string `json:"last_name" db:"last_name"`
+	Phone        string `json:"phone" db:"phone_number"`
+	Address      string `json:"address" db:"address"`
+	Email        string `json:"email" db:"email"`
+	Role         string `json:"role" db:"role"`
 }
 
 var ResponseUserData *UserResponse

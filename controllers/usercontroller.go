@@ -73,7 +73,19 @@ func GetAllUser(ctx *gin.Context) {
 	offset := (page - 1) * limit
 	rows, err := config.DB.Query(
 		context.Background(),
-		`SELECT users.id, profiles.image, users.first_name, users.last_name, profiles.phone_number, profiles.address, users.email, users.role FROM users LEFT JOIN profiles ON users.id = profiles.user_id ORDER BY users.id ASC LIMIT $1 OFFSET $2`, limit, offset)
+		`SELECT 
+			users.id,
+			COALESCE(profiles.image, '') AS image,
+			COALESCE(users.first_name, '') AS first_name,
+			COALESCE(users.last_name, '') AS last_name,
+			COALESCE(profiles.phone_number, '') AS phone_number,
+			COALESCE(profiles.address, '') AS address,
+			users.email,
+			users.role
+		FROM users
+		LEFT JOIN profiles ON users.id = profiles.user_id
+		ORDER BY users.id ASC
+		LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -142,7 +154,18 @@ func GetUserById(ctx *gin.Context) {
 	}
 
 	rows, err := config.DB.Query(context.Background(),
-		"SELECT users.id, profiles.image, users.first_name, users.last_name, profiles.phone_number, profiles.address, users.email, users.role FROM users LEFT JOIN profiles ON users.id = profiles.user_id WHERE users.id = $1", id)
+		`SELECT 
+			users.id,
+			COALESCE(profiles.image, '') AS image,
+			COALESCE(users.first_name, '') AS first_name,
+			COALESCE(users.last_name, '') AS last_name,
+			COALESCE(profiles.phone_number, '') AS phone_number,
+			COALESCE(profiles.address, '') AS address,
+			users.email,
+			users.role
+		FROM users
+		LEFT JOIN profiles ON users.id = profiles.user_id
+		WHERE users.id = $1`, id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -340,11 +363,11 @@ func CreateUser(ctx *gin.Context) {
 
 	models.ResponseUserData = &models.UserResponse{
 		Id:           bodyCreateUser.Id,
-		ProfilePhoto: &profilePhoto,
+		ProfilePhoto: profilePhoto,
 		FirstName:    bodyCreateUser.FirstName,
 		LastName:     bodyCreateUser.LastName,
-		Phone:        &phone,
-		Address:      &address,
+		Phone:        phone,
+		Address:      address,
 		Email:        bodyCreateUser.Email,
 		Role:         bodyCreateUser.Role,
 	}
