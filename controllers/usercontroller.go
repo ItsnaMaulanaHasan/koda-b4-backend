@@ -14,13 +14,13 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-var responseData *models.UserResponse
-
 // GetAllUser godoc
 // @Summary      Get all users
 // @Description  Retrieving all user data with pagination support
 // @Tags         users
 // @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization    header    string  true  "Bearer token"  default(Bearer <token>)
 // @Param        page   query     int  false  "Page number"  default(1)  minimum(1)
 // @Param        limit  query     int  false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
 // @Success      200    {object}  object{success=bool,message=string,data=[]models.UserResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved user list."
@@ -118,6 +118,8 @@ func GetAllUser(ctx *gin.Context) {
 // @Tags         users
 // @Accept 		 x-www-form-urlencoded
 // @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization    header    string  true  "Bearer token"  default(Bearer <token>)
 // @Param        id   path      int  true  "User Id"
 // @Success      200  {object}  lib.ResponseSuccess{data=models.UserResponse}  "Successfully retrieved user."
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
@@ -173,12 +175,14 @@ func GetUserById(ctx *gin.Context) {
 
 // CreateUser godoc
 // @Summary      Create new user
-// @Description  Create a new user with a unique username and email
+// @Description  Create a new user with a unique email
 // @Tags         users
 // @Accept       x-www-form-urlencoded
 // @Produce      json
-// @Param        user      formData  models.User true "User registration data"
-// @Param        role      formData  string false "User role" default(customer)
+// @Security     BearerAuth
+// @Param        Authorization    header    string  true  "Bearer token"  default(Bearer <token>)
+// @Param        user formData  models.User true "User registration data"
+// @Param        role formData  string false "User role" default(customer)
 // @Success      201  {object}  lib.ResponseSuccess{data=models.UserResponse}  "User created successfully."
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password."
 // @Failure      409  {object}  lib.ResponseError  "Email already registered."
@@ -189,7 +193,7 @@ func CreateUser(ctx *gin.Context) {
 	err := ctx.ShouldBindWith(&bodyCreateUser, binding.Form)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: true,
+			Success: false, // ← Fix: was true
 			Message: "Invalid form data",
 			Error:   err.Error(),
 		})
@@ -232,15 +236,31 @@ func CreateUser(ctx *gin.Context) {
 		})
 		return
 	}
+
 	bodyCreateUser.Password = string(hashedPassword)
+	userIdFromToken, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User ID not found in token",
+		})
+		return
+	}
 
 	err = config.DB.QueryRow(
 		context.Background(),
-		`INSERT INTO users (first_name, last_name, email, role, password)
-		 VALUES ($1, $2, $3, $4, $5)
+		`INSERT INTO users (first_name, last_name, email, role, password, created_by, updated_by)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
 		 RETURNING id`,
-		bodyCreateUser.FirstName, bodyCreateUser.LastName, bodyCreateUser.Email, bodyCreateUser.Role, bodyCreateUser.Password,
+		bodyCreateUser.FirstName,
+		bodyCreateUser.LastName,
+		bodyCreateUser.Email,
+		bodyCreateUser.Role,
+		bodyCreateUser.Password,
+		userIdFromToken,
+		userIdFromToken,
 	).Scan(&bodyCreateUser.Id)
+
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -250,7 +270,7 @@ func CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	responseData = &models.UserResponse{
+	models.ResponseUserData = &models.UserResponse{
 		Id:        bodyCreateUser.Id,
 		FirstName: bodyCreateUser.FirstName,
 		LastName:  bodyCreateUser.LastName,
@@ -261,19 +281,21 @@ func CreateUser(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
 		Message: "User created successfully.",
-		Data:    responseData,
+		Data:    models.ResponseUserData,
 	})
 }
 
 // UpdateUser godoc
 // @Summary      Update user
-// @Description  Updating user data (username and email) based on Id
+// @Description  Updating user data based on Id
 // @Tags         users
 // @Accept       x-www-form-urlencoded
 // @Produce      json
-// @Param        id        path      int     true  "User Id"
-// @Param        user      formData  models.UpdateUserRequest true "User update data"
-// @Success      200       {object}  lib.ResponseSuccess{data=models.User}  "User updated successfully"
+// @Security     BearerAuth
+// @Param        Authorization    header    string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id   path      int     true  "User Id"
+// @Param        user formData  models.UpdateUserRequest true "User update data"
+// @Success      200  {object}  lib.ResponseSuccess{data=models.User}  "User updated successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid ID format or invalid request body."
 // @Failure      404  {object}  lib.ResponseError  "User not found."
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while updating user data."
@@ -293,9 +315,18 @@ func UpdateUser(ctx *gin.Context) {
 	err = ctx.ShouldBindWith(&bodyUpdateUser, binding.Form)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: true,
+			Success: false, // ← Fix: was true
 			Message: "Invalid request body",
 			Error:   err.Error(),
+		})
+		return
+	}
+
+	userIdFromToken, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User ID not found in token",
 		})
 		return
 	}
@@ -303,10 +334,16 @@ func UpdateUser(ctx *gin.Context) {
 	commandTag, err := config.DB.Exec(
 		context.Background(),
 		`UPDATE users 
-		 SET first_name = $1, last_name = $2, email = $3, role = $4
-		 WHERE id = $5`,
-		bodyUpdateUser.FirstName, bodyUpdateUser.LastName, bodyUpdateUser.Email, bodyUpdateUser.Role, id,
+		 SET first_name = $1, last_name = $2, email = $3, role = $4, updated_by = $5, updated_at = NOW()
+		 WHERE id = $6`,
+		bodyUpdateUser.FirstName,
+		bodyUpdateUser.LastName,
+		bodyUpdateUser.Email,
+		bodyUpdateUser.Role,
+		userIdFromToken,
+		id,
 	)
+
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -324,7 +361,7 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	responseData = &models.UserResponse{
+	models.ResponseUserData = &models.UserResponse{
 		Id:        id,
 		FirstName: bodyUpdateUser.FirstName,
 		LastName:  bodyUpdateUser.LastName,
@@ -335,7 +372,7 @@ func UpdateUser(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
 		Message: "User updated successfully.",
-		Data:    responseData,
+		Data:    models.ResponseUserData,
 	})
 }
 
@@ -345,6 +382,8 @@ func UpdateUser(ctx *gin.Context) {
 // @Tags         users
 // @Accept       x-www-form-urlencoded
 // @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization    header    string  true  "Bearer token"  default(Bearer <token>)
 // @Param        id   path      int  true  "User Id"
 // @Success      200  {object}  lib.ResponseSuccess  "User deleted successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
