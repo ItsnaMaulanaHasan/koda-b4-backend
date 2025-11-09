@@ -12,9 +12,9 @@ DROP CONSTRAINT "fk_coupon_usage_created_by";
 ALTER TABLE "coupon_usage"
 DROP CONSTRAINT "fk_coupon_usage_updated_by";
 
-ALTER TABLE "coupon" DROP CONSTRAINT "fk_coupons_updated_by";
+ALTER TABLE "coupons" DROP CONSTRAINT "fk_coupons_updated_by";
 
-ALTER TABLE "coupon" DROP CONSTRAINT "fk_coupons_created_by";
+ALTER TABLE "coupons" DROP CONSTRAINT "fk_coupons_created_by";
 
 ALTER TABLE "ordered_products"
 DROP CONSTRAINT "fk_ordered_products_updated_by";

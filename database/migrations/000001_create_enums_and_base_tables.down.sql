@@ -1,4 +1,4 @@
-ALTER TABLE "sizes" DROP CONSTRAINT "fk_sizes_updated_by"
+ALTER TABLE "sizes" DROP CONSTRAINT "fk_sizes_updated_by";
 
 ALTER TABLE "sizes" DROP CONSTRAINT "fk_sizes_created_by";
 
