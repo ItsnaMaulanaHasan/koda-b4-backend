@@ -16,8 +16,8 @@ import (
 	"github.com/matthewhartstonge/argon2"
 )
 
-// Register godoc
-// @Summary      Create new user
+// Register      godoc
+// @Summary      Register new user
 // @Description  Create a new user with a unique email
 // @Tags         auth
 // @Accept       x-www-form-urlencoded
@@ -109,7 +109,7 @@ func Register(ctx *gin.Context) {
 	})
 }
 
-// Login godoc
+// Login         godoc
 // @Summary      Login user
 // @Description  Log in with existing email data
 // @Tags         auth
@@ -141,10 +141,11 @@ func Login(ctx *gin.Context) {
 	type queryLogin struct {
 		Id       int    `db:"id"`
 		Password string `db:"password"`
+		Role     string `db:"role"`
 	}
 
 	rows, err := config.DB.Query(context.Background(),
-		"SELECT id, password FROM users WHERE email = $1",
+		"SELECT id, password, role FROM users WHERE email = $1",
 		bodyLogin.Email,
 	)
 	if err != nil {
@@ -195,7 +196,7 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
-	jwtToken, err := lib.GenerateToken(user.Id)
+	jwtToken, err := lib.GenerateToken(user.Id, user.Role)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
