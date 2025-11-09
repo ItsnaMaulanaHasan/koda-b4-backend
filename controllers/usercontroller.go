@@ -14,15 +14,15 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// GetAllUser godoc
+// GetAllUser    godoc
 // @Summary      Get all users
 // @Description  Retrieving all user data with pagination support
 // @Tags         users
 // @Produce      json
 // @Security     BearerAuth
-// @Param        Authorization    header    string  true  "Bearer token"  default(Bearer <token>)
-// @Param        page   query     int  false  "Page number"  default(1)  minimum(1)
-// @Param        limit  query     int  false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
+// @Param        Authorization    header string true "Bearer token" default(Bearer <token>)
+// @Param        page   query     int    false  "Page number"  default(1)  minimum(1)
+// @Param        limit  query     int    false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
 // @Success      200    {object}  object{success=bool,message=string,data=[]models.UserResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved user list."
 // @Failure      400    {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
 // @Failure      500    {object}  lib.ResponseError  "Internal server error while fetching or processing user data."
@@ -34,7 +34,7 @@ func GetAllUser(ctx *gin.Context) {
 	if page < 1 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Invalid pagination parameter: 'page' must be greater than 0.",
+			Message: "Invalid pagination parameter: 'page' must be greater than 0",
 		})
 		return
 	}
@@ -42,7 +42,7 @@ func GetAllUser(ctx *gin.Context) {
 	if limit < 1 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Invalid pagination parameter: 'limit' must be greater than 0.",
+			Message: "Invalid pagination parameter: 'limit' must be greater than 0",
 		})
 		return
 	}
@@ -50,7 +50,7 @@ func GetAllUser(ctx *gin.Context) {
 	if limit > 100 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Invalid pagination parameter: 'limit' cannot exceed 100.",
+			Message: "Invalid pagination parameter: 'limit' cannot exceed 100",
 		})
 		return
 	}
@@ -61,20 +61,20 @@ func GetAllUser(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to count total users in database.",
+			Message: "Failed to count total users in database",
 			Error:   err.Error(),
 		})
 		return
 	}
 
 	offset := (page - 1) * limit
-	rows, err := config.DB.Query(context.Background(),
-		"SELECT id, first_name, last_name, email, role FROM users LIMIT $1 OFFSET $2",
-		limit, offset)
+	rows, err := config.DB.Query(
+		context.Background(),
+		`SELECT users.id, profiles.image, users.first_name, users.last_name, profiles.phone_number, profiles.address, users.email, users.role FROM users LEFT JOIN profiles ON users.id = profiles.user_id ORDER BY users.id ASC LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to fetch users from database.",
+			Message: "Failed to fetch users from database",
 			Error:   err.Error(),
 		})
 		return
@@ -84,7 +84,7 @@ func GetAllUser(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to process user data from database.",
+			Message: "Failed to process user data from database",
 			Error:   err.Error(),
 		})
 		return
@@ -112,15 +112,15 @@ func GetAllUser(ctx *gin.Context) {
 	})
 }
 
-// GetUserById godoc
+// GetUserById   godoc
 // @Summary      Get user by Id
 // @Description  Retrieving user data based on Id
 // @Tags         users
 // @Accept 		 x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
-// @Param        Authorization    header    string  true  "Bearer token"  default(Bearer <token>)
-// @Param        id   path      int  true  "User Id"
+// @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id   			path    int     true  "User Id"
 // @Success      200  {object}  lib.ResponseSuccess{data=models.UserResponse}  "Successfully retrieved user."
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure      404  {object}  lib.ResponseError  "User not found"
@@ -138,7 +138,7 @@ func GetUserById(ctx *gin.Context) {
 	}
 
 	rows, err := config.DB.Query(context.Background(),
-		"SELECT id, first_name, last_name, email, role FROM users WHERE id = $1", id)
+		"SELECT users.id, profiles.image, users.first_name, users.last_name, profiles.phone_number, profiles.address, users.email, users.role FROM users LEFT JOIN profiles ON users.id = profiles.user_id WHERE users.id = $1", id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -173,16 +173,15 @@ func GetUserById(ctx *gin.Context) {
 	})
 }
 
-// CreateUser godoc
+// CreateUser    godoc
 // @Summary      Create new user
 // @Description  Create a new user with a unique email
 // @Tags         users
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
-// @Param        Authorization    header    string  true  "Bearer token"  default(Bearer <token>)
-// @Param        user formData  models.User true "User registration data"
-// @Param        role formData  string false "User role" default(customer)
+// @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
+// @Param        user           formData  models.User true "User registration data"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.UserResponse}  "User created successfully."
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password."
 // @Failure      409  {object}  lib.ResponseError  "Email already registered."
@@ -190,10 +189,10 @@ func GetUserById(ctx *gin.Context) {
 // @Router       /users [post]
 func CreateUser(ctx *gin.Context) {
 	var bodyCreateUser models.User
-	err := ctx.ShouldBindWith(&bodyCreateUser, binding.Form)
+	err := ctx.ShouldBind(&bodyCreateUser)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: false, // ← Fix: was true
+			Success: false,
 			Message: "Invalid form data",
 			Error:   err.Error(),
 		})
@@ -222,7 +221,7 @@ func CreateUser(ctx *gin.Context) {
 	if exists {
 		ctx.JSON(http.StatusConflict, lib.ResponseError{
 			Success: false,
-			Message: "Email already registered.",
+			Message: "Email already registered",
 		})
 		return
 	}
@@ -231,7 +230,7 @@ func CreateUser(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Failed to hash password.",
+			Message: "Failed to hash password",
 			Error:   err.Error(),
 		})
 		return
@@ -260,32 +259,58 @@ func CreateUser(ctx *gin.Context) {
 		userIdFromToken,
 		userIdFromToken,
 	).Scan(&bodyCreateUser.Id)
-
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while inserting new user.",
+			Message: "Internal server error while inserting new user",
 			Error:   err.Error(),
 		})
 		return
 	}
 
+	_, err = config.DB.Exec(
+		context.Background(),
+		`INSERT INTO profiles (user_id, image, address, phone_number, created_by, updated_by)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		bodyCreateUser.Id,
+		bodyCreateUser.ProfilePhoto,
+		bodyCreateUser.Address,
+		bodyCreateUser.Phone,
+		userIdFromToken,
+		userIdFromToken,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while inserting new user profile",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	profilePhoto := bodyCreateUser.ProfilePhoto
+	phone := bodyCreateUser.Phone
+	address := bodyCreateUser.Address
+
 	models.ResponseUserData = &models.UserResponse{
-		Id:        bodyCreateUser.Id,
-		FirstName: bodyCreateUser.FirstName,
-		LastName:  bodyCreateUser.LastName,
-		Email:     bodyCreateUser.Email,
-		Role:      bodyCreateUser.Role,
+		Id:           bodyCreateUser.Id,
+		ProfilePhoto: &profilePhoto,
+		FirstName:    bodyCreateUser.FirstName,
+		LastName:     bodyCreateUser.LastName,
+		Phone:        &phone,
+		Address:      &address,
+		Email:        bodyCreateUser.Email,
+		Role:         bodyCreateUser.Role,
 	}
 
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
-		Message: "User created successfully.",
+		Message: "User created successfully",
 		Data:    models.ResponseUserData,
 	})
 }
 
-// UpdateUser godoc
+// UpdateUser    godoc
 // @Summary      Update user
 // @Description  Updating user data based on Id
 // @Tags         users
@@ -376,15 +401,15 @@ func UpdateUser(ctx *gin.Context) {
 	})
 }
 
-// DeleteUser godoc
+// DeleteUser    godoc
 // @Summary      Delete user
 // @Description  Delete user by Id
 // @Tags         users
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
-// @Param        Authorization    header    string  true  "Bearer token"  default(Bearer <token>)
-// @Param        id   path      int  true  "User Id"
+// @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id             path    int     true  "User Id"
 // @Success      200  {object}  lib.ResponseSuccess  "User deleted successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure      404  {object}  lib.ResponseError  "User not found"
