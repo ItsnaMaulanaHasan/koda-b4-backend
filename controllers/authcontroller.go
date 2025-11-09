@@ -22,15 +22,15 @@ import (
 // @Tags         auth
 // @Accept       x-www-form-urlencoded
 // @Produce      json
-// @Param        user formData  models.User true "User registration data"
+// @Param        user formData  models.RegisterUserRequest true "User registration data"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.UserResponse}  "User created successfully."
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password."
 // @Failure      409  {object}  lib.ResponseError  "Email already registered."
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while creating user."
 // @Router       /auth/register [post]
 func Register(ctx *gin.Context) {
-	var bodyCreateUser models.User
-	err := ctx.ShouldBindWith(&bodyCreateUser, binding.Form)
+	var bodyRegister models.RegisterUserRequest
+	err := ctx.ShouldBindWith(&bodyRegister, binding.Form)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: true,
@@ -40,16 +40,20 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
+	if bodyRegister.Role == "" {
+		bodyRegister.Role = "customer"
+	}
+
 	var exists bool
 	err = config.DB.QueryRow(
 		context.Background(),
-		"SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", bodyCreateUser.Email,
+		"SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", bodyRegister.Email,
 	).Scan(&exists)
 
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while checking email uniqueness.",
+			Message: "Internal server error while checking email uniqueness",
 			Error:   err.Error(),
 		})
 		return
@@ -58,49 +62,49 @@ func Register(ctx *gin.Context) {
 	if exists {
 		ctx.JSON(http.StatusConflict, lib.ResponseError{
 			Success: false,
-			Message: "Email already registered.",
+			Message: "Email already registered",
 		})
 		return
 	}
 
-	hashedPassword, err := lib.HashPassword(bodyCreateUser.Password)
+	hashedPassword, err := lib.HashPassword(bodyRegister.Password)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Failed to hash password.",
+			Message: "Failed to hash password",
 			Error:   err.Error(),
 		})
 		return
 	}
-	bodyCreateUser.Password = string(hashedPassword)
+	bodyRegister.Password = string(hashedPassword)
 
 	err = config.DB.QueryRow(
 		context.Background(),
 		`INSERT INTO users (first_name, last_name, email, role, password)
 		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id`,
-		bodyCreateUser.FirstName, bodyCreateUser.LastName, bodyCreateUser.Email, bodyCreateUser.Role, bodyCreateUser.Password,
-	).Scan(&bodyCreateUser.Id)
+		bodyRegister.FirstName, bodyRegister.LastName, bodyRegister.Email, bodyRegister.Role, bodyRegister.Password,
+	).Scan(&bodyRegister.Id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while inserting new user.",
+			Message: "Internal server error while inserting new user",
 			Error:   err.Error(),
 		})
 		return
 	}
 
 	models.ResponseUserData = &models.UserResponse{
-		Id:        bodyCreateUser.Id,
-		FirstName: bodyCreateUser.FirstName,
-		LastName:  bodyCreateUser.LastName,
-		Email:     bodyCreateUser.Email,
-		Role:      bodyCreateUser.Role,
+		Id:        bodyRegister.Id,
+		FirstName: bodyRegister.FirstName,
+		LastName:  bodyRegister.LastName,
+		Email:     bodyRegister.Email,
+		Role:      bodyRegister.Role,
 	}
 
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
-		Message: "User created successfully.",
+		Message: "User created successfully",
 		Data:    models.ResponseUserData,
 	})
 }
@@ -112,19 +116,19 @@ func Register(ctx *gin.Context) {
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Param        email     formData  string  true  "User email"
-// @Param        password  formData  string  true  "User password"
+// @Param        password  formData  string  true  "User password" format(password)
 // @Success      200  {object}  lib.ResponseSuccess{data=object{token=string}}  "Login successful"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body"
 // @Failure      401  {object}  lib.ResponseError  "Invalid email or password"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error"
 // @Router       /auth/login [post]
 func Login(ctx *gin.Context) {
-	var loginData struct {
+	var bodyLogin struct {
 		Email    string `form:"email" binding:"required,email"`
 		Password string `form:"password" binding:"required,min=6"`
 	}
 
-	err := ctx.ShouldBindWith(&loginData, binding.Form)
+	err := ctx.ShouldBindWith(&bodyLogin, binding.Form)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
@@ -134,9 +138,14 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
+	type queryLogin struct {
+		Id       int    `db:"id"`
+		Password string `db:"password"`
+	}
+
 	rows, err := config.DB.Query(context.Background(),
-		"SELECT id, first_name, last_name, email, password, role FROM users WHERE email = $1",
-		loginData.Email,
+		"SELECT id, password FROM users WHERE email = $1",
+		bodyLogin.Email,
 	)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -147,26 +156,26 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
-	user, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.User])
+	user, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[queryLogin])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, lib.ResponseError{
 				Success: false,
-				Message: "User not found.",
+				Message: "User not found",
 			})
 			return
 		}
 
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to process user data.",
+			Message: "Failed to process user data",
 			Error:   err.Error(),
 		})
 		return
 	}
 
 	isPasswordValid, err := argon2.VerifyEncoded(
-		[]byte(loginData.Password),
+		[]byte(bodyLogin.Password),
 		[]byte(user.Password),
 	)
 	if err != nil {
@@ -199,7 +208,6 @@ func Login(ctx *gin.Context) {
 	token, err := jwt.ParseWithClaims(jwtToken, &lib.UserPayload{}, func(token *jwt.Token) (any, error) {
 		return []byte(os.Getenv("APP_SECRET")), nil
 	})
-
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
