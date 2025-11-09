@@ -6,4 +6,5 @@ import (
 
 func SetUpRoutes(r *gin.Engine) {
 	SetupUserRoutes(r)
+	SetupAuthRoutes(r)
 }
