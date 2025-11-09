@@ -26,7 +26,6 @@ func Auth() gin.HandlerFunc {
 		token, err := jwt.ParseWithClaims(tokenString, &lib.UserPayload{}, func(token *jwt.Token) (any, error) {
 			return []byte(os.Getenv("APP_SECRET")), nil
 		})
-
 		if err != nil {
 			ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 				Success: false,
@@ -36,10 +35,8 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
-		if claims, ok := token.Claims.(*lib.UserPayload); ok && token.Valid {
-			ctx.Set("userId", claims.Id)
-			ctx.Next()
-		} else {
+		claims, ok := token.Claims.(*lib.UserPayload)
+		if !ok {
 			ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 				Success: false,
 				Message: "Invalid token claims",
@@ -47,5 +44,10 @@ func Auth() gin.HandlerFunc {
 			ctx.Abort()
 			return
 		}
+
+		ctx.Set("userId", claims.Id)
+		ctx.Set("role", claims.Role)
+
+		ctx.Next()
 	}
 }

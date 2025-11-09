@@ -5,19 +5,19 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/joho/godotenv"
 )
 
 type UserPayload struct {
-	Id int `json:"id"`
+	Id   int    `json:"id"`
+	Role string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(id int) (string, error) {
-	godotenv.Load()
+func GenerateToken(id int, role string) (string, error) {
 	secretKey := []byte(os.Getenv("APP_SECRET"))
 	claims := UserPayload{
 		id,
+		role,
 		jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
