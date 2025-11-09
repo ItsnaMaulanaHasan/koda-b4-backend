@@ -29,7 +29,7 @@ import (
 // @Success      200    {object}  object{success=bool,message=string,data=[]models.UserResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved user list."
 // @Failure      400    {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
 // @Failure      500    {object}  lib.ResponseError  "Internal server error while fetching or processing user data."
-// @Router       /users [get]
+// @Router       /admin/users [get]
 func GetAllUser(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
@@ -128,7 +128,7 @@ func GetAllUser(ctx *gin.Context) {
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure      404  {object}  lib.ResponseError  "User not found"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching users from database."
-// @Router       /users/{id} [get]
+// @Router       /admin/users/{id} [get]
 func GetUserById(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -196,7 +196,7 @@ func GetUserById(ctx *gin.Context) {
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password."
 // @Failure      409  {object}  lib.ResponseError  "Email already registered."
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while creating user."
-// @Router       /users [post]
+// @Router       /admin/users [post]
 func CreateUser(ctx *gin.Context) {
 	var bodyCreateUser models.User
 	err := ctx.ShouldBindWith(&bodyCreateUser, binding.Form)
@@ -374,7 +374,7 @@ func CreateUser(ctx *gin.Context) {
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format or invalid request body."
 // @Failure      404  {object}  lib.ResponseError  "User not found."
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while updating user data."
-// @Router       /users/{id} [patch]
+// @Router       /admin/users/{id} [patch]
 func UpdateUser(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -513,7 +513,7 @@ func UpdateUser(ctx *gin.Context) {
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure      404  {object}  lib.ResponseError  "User not found"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while deleting user data."
-// @Router       /users/{id} [delete]
+// @Router       /admin/users/{id} [delete]
 func DeleteUser(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {

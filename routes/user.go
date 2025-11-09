@@ -2,13 +2,12 @@ package routes
 
 import (
 	"backend-daily-greens/controllers"
-	"backend-daily-greens/middlewares"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupUserRoutes(r *gin.Engine) {
-	users := r.Group("/users", middlewares.Auth())
+func SetupUserRoutes(r *gin.Engine, admin *gin.RouterGroup) {
+	users := admin.Group("/users")
 	{
 		users.GET("", controllers.GetAllUser)
 		users.GET("/:id", controllers.GetUserById)
