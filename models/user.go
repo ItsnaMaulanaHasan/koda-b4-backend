@@ -1,7 +1,7 @@
 package models
 
 type User struct {
-	Id           int    `swaggerignore:"true"`
+	Id           int
 	ProfilePhoto string `form:"profilephoto"`
 	FirstName    string `form:"first_name" example:"John"`
 	LastName     string `form:"last_name" example:"Cena"`
