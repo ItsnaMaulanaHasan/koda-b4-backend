@@ -29,6 +29,41 @@ VALUES (
         '$2a$12$lJ2euHwJ1FgA3QRN59Zfze0RQ6uRRE2fVxq4QQbCkqpVcnwdvw43S'
     );
 
+-- insert profiles
+INSERT INTO
+    profiles (
+        user_id,
+        image,
+        address,
+        phone_number,
+        created_by,
+        updated_by
+    )
+VALUES (
+        1,
+        '/uploads/profiles/image-test.jpg',
+        'Jl. Kebon Raya No. 10, Jakarta',
+        '081234567890',
+        1,
+        1
+    ),
+    (
+        2,
+        '/uploads/profiles/image-test.jpg',
+        'Jl. Melati No. 45, Bandung',
+        '082134567891',
+        1,
+        1
+    ),
+    (
+        3,
+        '/uploads/profiles/image-test.jpg',
+        'Jl. Mawar No. 12, Surabaya',
+        '083134567892',
+        1,
+        1
+    );
+
 -- insert categories
 INSERT INTO
     categories (name, created_by, updated_by)
