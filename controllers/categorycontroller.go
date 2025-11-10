@@ -315,3 +315,105 @@ func CreateCategory(ctx *gin.Context) {
 		},
 	})
 }
+
+// UpdateCategory    godoc
+// @Summary      Update category
+// @Description  Updating category data based on Id
+// @Tags         categories
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id             path      int     true  "Category Id"
+// @Param        name           formData  string  true  "Category name"
+// @Success      200  {object}  lib.ResponseSuccess  "Category updated successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid Id format or invalid request body"
+// @Failure      404  {object}  lib.ResponseError  "Category not found"
+// @Failure      409  {object}  lib.ResponseError  "Category name already exists"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while updating category data"
+// @Router       /admin/categories/{id} [patch]
+func UpdateCategory(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	bodyUpdate := ctx.PostForm("name")
+	if bodyUpdate == "" {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Status is required",
+		})
+		return
+	}
+
+	var exists bool
+	err = config.DB.QueryRow(
+		context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND id != $2)", bodyUpdate, id,
+	).Scan(&exists)
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while checking category name uniqueness",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if exists {
+		ctx.JSON(http.StatusConflict, lib.ResponseError{
+			Success: false,
+			Message: "Category name already exists",
+		})
+		return
+	}
+
+	userIdFromToken, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User Id not found in token",
+		})
+		return
+	}
+
+	commandTag, err := config.DB.Exec(
+		context.Background(),
+		`UPDATE categories 
+		 SET name = COALESCE(NULLIF($1, ''), name),
+		     updated_by = $2,
+		     updated_at = NOW()
+		 WHERE id = $3`,
+		bodyUpdate,
+		userIdFromToken,
+		id,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while updating category",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+			Success: false,
+			Message: "Category not found",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "Category updated successfully",
+	})
+}
