@@ -9,6 +9,7 @@ package main
 
 import (
 	"backend-daily-greens/config"
+	"backend-daily-greens/middlewares"
 	"backend-daily-greens/routes"
 
 	_ "backend-daily-greens/docs"
@@ -28,6 +29,8 @@ func main() {
 	r := gin.Default()
 	r.MaxMultipartMemory = 1 << 20
 
+	r.Use(middlewares.AllowPrefic())
+	r.Use(middlewares.CorsMiddleware())
 	routes.SetUpRoutes(r)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
