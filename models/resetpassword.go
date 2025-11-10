@@ -12,3 +12,8 @@ type PasswordReset struct {
 	CreatedBy  int       `db:"created_by" json:"createdBy"`
 	UpdatedBy  int       `db:"updated_by" json:"updatedBy"`
 }
+
+type VerifyResetTokenRequest struct {
+	Email string `form:"email" json:"email" binding:"required,email"`
+	Token string `form:"token" json:"token" binding:"required,len=6"`
+}
