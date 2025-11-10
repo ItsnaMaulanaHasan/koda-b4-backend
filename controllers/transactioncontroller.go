@@ -295,3 +295,96 @@ func GetTransactionById(ctx *gin.Context) {
 		Data:    transaction,
 	})
 }
+
+// UpdateTransactionStatus godoc
+// @Summary      Update transaction status
+// @Description  Updating transaction status based on Id
+// @Tags         transactions
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id             path      int     true  "Transaction Id"
+// @Param        status         formData  string  true  "Transaction status (On Progress, Sending, Finished, Cancelled)"
+// @Success      200  {object}  lib.ResponseSuccess  "Transaction status updated successfully"
+// @Failure      400  {object}  lib.ResponseError   "Invalid Id format or invalid request body"
+// @Failure      404  {object}  lib.ResponseError   "Transaction not found"
+// @Failure      500  {object}  lib.ResponseError   "Internal server error while updating transaction status"
+// @Router       /admin/transactions/{id} [patch]
+func UpdateTransactionStatus(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	status := ctx.PostForm("status")
+	if status == "" {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Status is required",
+		})
+		return
+	}
+
+	userIdFromToken, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User Id not found in token",
+		})
+		return
+	}
+
+	var isExists bool
+	err = config.DB.QueryRow(
+		context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM transactions WHERE id = $1)", id,
+	).Scan(&isExists)
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while checking transaction existence",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if !exists {
+		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+			Success: false,
+			Message: "Transaction not found",
+		})
+		return
+	}
+
+	_, err = config.DB.Exec(
+		context.Background(),
+		`UPDATE transactions 
+		 SET status     = $1,
+		     updated_by = $2,
+		     updated_at = NOW()
+		 WHERE id = $3`,
+		status,
+		userIdFromToken,
+		id,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while updating transaction status",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "Transaction status updated successfully",
+	})
+}

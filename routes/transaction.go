@@ -11,5 +11,6 @@ func SetupTransactionRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 	{
 		transactions.GET("", controllers.GetAllTransaction)
 		transactions.GET("/:id", controllers.GetTransactionById)
+		transactions.PATCH("/:id", controllers.UpdateTransactionStatus)
 	}
 }
