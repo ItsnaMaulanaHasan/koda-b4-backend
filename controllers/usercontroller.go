@@ -23,16 +23,18 @@ import (
 // @Tags         users
 // @Produce      json
 // @Security     BearerAuth
-// @Param        Authorization    header string true "Bearer token" default(Bearer <token>)
-// @Param        page   query     int    false  "Page number"  default(1)  minimum(1)
-// @Param        limit  query     int    false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
-// @Success      200    {object}  object{success=bool,message=string,data=[]models.UserResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved user list"
-// @Failure      400    {object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
-// @Failure      500    {object}  lib.ResponseError  "Internal server error while fetching or processing user data"
+// @Param        Authorization  header 	  string  true       "Bearer token"              default(Bearer <token>)
+// @Param        page   		query     int     false      "Page number"  			 default(1)   minimum(1)
+// @Param        limit  		query     int     false      "Number of items per page"  default(10)  minimum(1)  maximum(100)
+// @Param        search  		query     string  false      "Search value"
+// @Success      200    		{object}  object{success=bool,message=string,data=[]models.UserResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved user list"
+// @Failure      400    		{object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
+// @Failure      500    		{object}  lib.ResponseError  "Internal server error while fetching or processing user data"
 // @Router       /admin/users [get]
 func GetAllUser(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
+	search := ctx.Query("search")
 
 	if page < 1 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -59,33 +61,76 @@ func GetAllUser(ctx *gin.Context) {
 	}
 
 	var totalData int
-	err := config.DB.QueryRow(context.Background(),
-		"SELECT COUNT(*) FROM users").Scan(&totalData)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to count total users in database",
-			Error:   err.Error(),
-		})
-		return
+	var err error
+	if search != "" {
+		err = config.DB.QueryRow(context.Background(),
+			`SELECT COUNT(*) FROM users 
+			LEFT JOIN profiles ON users.id = profiles.user_id 
+			WHERE users.firs_name ILIKE $1 
+			OR users.last_name ILIKE $1
+			OR profiles.phone_number ILIKE $1
+			OR profiles.address ILIKE $1
+			OR users.email ILIKE $1`, search).Scan(&totalData)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to count total users in database",
+				Error:   err.Error(),
+			})
+			return
+		}
+	} else {
+		err = config.DB.QueryRow(context.Background(), `SELECT COUNT(*) FROM users`).Scan(&totalData)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to count total users in database",
+				Error:   err.Error(),
+			})
+			return
+		}
 	}
 
 	offset := (page - 1) * limit
-	rows, err := config.DB.Query(
-		context.Background(),
-		`SELECT 
-			users.id,
-			COALESCE(profiles.image, '') AS image,
-			COALESCE(users.first_name, '') AS first_name,
-			COALESCE(users.last_name, '') AS last_name,
-			COALESCE(profiles.phone_number, '') AS phone_number,
-			COALESCE(profiles.address, '') AS address,
-			users.email,
-			users.role
-		FROM users
-		LEFT JOIN profiles ON users.id = profiles.user_id
-		ORDER BY users.id ASC
-		LIMIT $1 OFFSET $2`, limit, offset)
+	var rows pgx.Rows
+	if search != "" {
+		rows, err = config.DB.Query(context.Background(),
+			`SELECT 
+				users.id,
+				COALESCE(profiles.image, '') AS image,
+				COALESCE(users.first_name, '') AS first_name,
+				COALESCE(users.last_name, '') AS last_name,
+				COALESCE(profiles.phone_number, '') AS phone_number,
+				COALESCE(profiles.address, '') AS address,
+				users.email,
+				users.role
+			FROM users
+			LEFT JOIN profiles ON users.id = profiles.user_id
+			WHERE users.first_name ILIKE $3
+			   OR users.last_name ILIKE $3
+			   OR profiles.phone_number ILIKE $3
+			   OR profiles.address ILIKE $3
+			   OR users.email ILIKE $3
+			ORDER BY users.id ASC
+			LIMIT $1 OFFSET $2`, limit, offset, search)
+	} else {
+		rows, err = config.DB.Query(
+			context.Background(),
+			`SELECT 
+				users.id,
+				COALESCE(profiles.image, '') AS image,
+				COALESCE(users.first_name, '') AS first_name,
+				COALESCE(users.last_name, '') AS last_name,
+				COALESCE(profiles.phone_number, '') AS phone_number,
+				COALESCE(profiles.address, '') AS address,
+				users.email,
+				users.role
+			FROM users
+			LEFT JOIN profiles ON users.id = profiles.user_id
+			ORDER BY users.id ASC
+			LIMIT $1 OFFSET $2`, limit, offset)
+	}
+
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -115,6 +160,27 @@ func GetAllUser(ctx *gin.Context) {
 		return
 	}
 
+	host := ctx.Request.Host
+	scheme := "http"
+	if ctx.Request.TLS != nil {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s/admin/users", scheme, host)
+
+	var next any
+	var prev any
+	switch page {
+	case 1:
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
+		prev = nil
+	case totalPage:
+		next = nil
+		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	default:
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
+		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Success get all user",
@@ -124,6 +190,8 @@ func GetAllUser(ctx *gin.Context) {
 			"perPage":     limit,
 			"totalData":   totalData,
 			"totalPages":  totalPage,
+			"next":        next,
+			"prev":        prev,
 		},
 	})
 }
