@@ -387,7 +387,7 @@ func CreateUser(ctx *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
-// @Param        id             path      int     true  "User ID"
+// @Param        id             path      int     true  "User Id"
 // @Param        first_name     formData  string  false "User first name"
 // @Param        last_name      formData  string  false "User last name"
 // @Param        email          formData  string  false "User email"
