@@ -4,11 +4,11 @@ CREATE INDEX idx_products_is_flash_sale ON products (is_flash_sale)
 WHERE
     is_flash_sale = true;
 
-CREATE INDEX idx_orders_user_date ON orders (user_id, date_order);
+CREATE INDEX idx_transactions_user_date ON transactions (user_id, date_order);
 
 CREATE INDEX idx_carts_user ON carts (user_id);
 
-CREATE INDEX idx_orders_status ON orders (status);
+CREATE INDEX idx_transactions_status ON transactions (status);
 
 CREATE INDEX idx_products_active ON products (is_active)
 WHERE

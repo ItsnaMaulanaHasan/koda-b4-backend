@@ -1,7 +1,8 @@
-CREATE TABLE "orders" (
+CREATE TABLE "transactions" (
     "id" serial PRIMARY KEY,
     "user_id" int,
-    "date_order" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "no_order" varchar(255) NOT NULL,
+    "date_order" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "full_name" varchar(255) NOT NULL,
     "email" varchar(255) NOT NULL,
     "address" varchar(255) NOT NULL,
@@ -12,8 +13,8 @@ CREATE TABLE "orders" (
     "total_transaction" numeric(10, 2) NOT NULL CHECK ("total_transaction" > 0),
     "delivery_fee" numeric(10, 2) DEFAULT 0,
     "tax" numeric(10, 2) DEFAULT 0,
-    "created_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
-    "updated_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
@@ -28,8 +29,8 @@ CREATE TABLE "ordered_products" (
     "amount" int NOT NULL CHECK ("amount" > 0),
     "subtotal" numeric(10, 2) NOT NULL,
     "size" product_sizes DEFAULT 'L',
-    "created_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
-    "updated_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
@@ -44,8 +45,8 @@ CREATE TABLE "coupons" (
     "bg_color" varchar(20) NOT NULL,
     "valid_until" timestamp,
     "is_active" bool DEFAULT true,
-    "created_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
-    "updated_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
@@ -56,23 +57,23 @@ CREATE TABLE "coupon_usage" (
     "coupon_id" int,
     "order_id" int,
     "discount_amount" numeric(10, 2),
-    "used_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
-    "updated_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "used_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
 
-ALTER TABLE "orders"
-ADD CONSTRAINT "fk_orders_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE RESTRICT;
+ALTER TABLE "transactions"
+ADD CONSTRAINT "fk_transactions_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE RESTRICT;
 
-ALTER TABLE "orders"
-ADD CONSTRAINT "fk_orders_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
+ALTER TABLE "transactions"
+ADD CONSTRAINT "fk_transactions_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
 
-ALTER TABLE "orders"
-ADD CONSTRAINT "fk_orders_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
+ALTER TABLE "transactions"
+ADD CONSTRAINT "fk_transactions_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
 
 ALTER TABLE "ordered_products"
-ADD CONSTRAINT "fk_ordered_products_order_id" FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
+ADD CONSTRAINT "fk_ordered_products_order_id" FOREIGN KEY ("order_id") REFERENCES "transactions" ("id");
 
 ALTER TABLE "ordered_products"
 ADD CONSTRAINT "fk_ordered_products_product_id" FOREIGN KEY ("product_id") REFERENCES "products" ("id");
@@ -96,7 +97,7 @@ ALTER TABLE "coupon_usage"
 ADD CONSTRAINT "fk_coupon_usage_coupon_id" FOREIGN KEY ("coupon_id") REFERENCES "coupons" ("id");
 
 ALTER TABLE "coupon_usage"
-ADD CONSTRAINT "fk_coupon_usage_order_id" FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
+ADD CONSTRAINT "fk_coupon_usage_order_id" FOREIGN KEY ("order_id") REFERENCES "transactions" ("id");
 
 ALTER TABLE "coupon_usage"
 ADD CONSTRAINT "fk_coupon_usage_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");

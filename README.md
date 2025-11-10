@@ -97,7 +97,7 @@ erDiagram
         int updated_by FK
     }
 
-    orders {
+    transactions {
         serial id PK
         int user_id FK
         timestamp date_order
@@ -210,7 +210,7 @@ erDiagram
     users ||--o{ profiles : has
     users ||--o{ carts : creates
     users ||--o{ testimonies : writes
-    users ||--o{ orders : places
+    users ||--o{ transactions : places
     users ||--o{ sessions : has
     users ||--o{ password_resets : requests
     users ||--o{ coupon_usage : uses
@@ -230,8 +230,8 @@ erDiagram
     products ||--o{ ordered_products : ordered_in
     products ||--o{ product_category : belongs_to
 
-    orders ||--o{ ordered_products : contains
-    orders ||--o{ coupon_usage : applied_to
+    transactions ||--o{ ordered_products : contains
+    transactions ||--o{ coupon_usage : applied_to
 
     sizes ||--o{ size_products : used_in
 
