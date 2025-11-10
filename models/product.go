@@ -17,7 +17,7 @@ type Product struct {
 	ProductCategories []string `db:"product_categories"`
 }
 
-type ProductCreateRequest struct {
+type ProductRequest struct {
 	Id                int
 	Image1            *multipart.FileHeader `form:"image1"`
 	Image2            *multipart.FileHeader `form:"image2"`
