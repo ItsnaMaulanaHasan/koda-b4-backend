@@ -25,16 +25,18 @@ import (
 // @Tags         products
 // @Produce      json
 // @Security     BearerAuth
-// @Param        Authorization    header string true "Bearer token" default(Bearer <token>)
-// @Param        page   query     int    false  "Page number"  default(1)  minimum(1)
-// @Param        limit  query     int    false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
-// @Success      200    {object}  object{success=bool,message=string,data=[]models.Product,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved product list"
-// @Failure      400    {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
-// @Failure      500    {object}  lib.ResponseError  "Internal server error while fetching or processing product data."
+// @Param        Authorization  header    string  true   "Bearer token" default(Bearer <token>)
+// @Param        page   		query     int     false  "Page number"  default(1)  minimum(1)
+// @Param        limit          query     int     false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
+// @Param        search         query     string  false  "Search value"
+// @Success      200            {object}  object{success=bool,message=string,data=[]models.Product,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved product list"
+// @Failure      400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
+// @Failure      500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data."
 // @Router       /admin/products [get]
 func GetAllProduct(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
+	search := ctx.Query("search")
 
 	if page < 1 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -61,8 +63,21 @@ func GetAllProduct(ctx *gin.Context) {
 	}
 
 	var totalData int
-	err := config.DB.QueryRow(context.Background(),
-		"SELECT COUNT(*) FROM products").Scan(&totalData)
+	var err error
+	searchParam := "%" + search + "%"
+	if search != "" {
+		err = config.DB.QueryRow(context.Background(),
+			`SELECT COUNT(DISTINCT p.id)
+			 FROM products p
+			 LEFT JOIN product_categories pc ON pc.product_id = p.id
+			 LEFT JOIN categories c ON c.id = pc.category_id
+			 WHERE p.name ILIKE $1
+			 OR p.description ILIKE $1
+			 OR c.name ILIKE $1`, searchParam).Scan(&totalData)
+	} else {
+		err = config.DB.QueryRow(context.Background(), `SELECT COUNT(*) FROM products`).Scan(&totalData)
+	}
+
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -73,31 +88,61 @@ func GetAllProduct(ctx *gin.Context) {
 	}
 
 	offset := (page - 1) * limit
+	var rows pgx.Rows
 
-	query := `SELECT 
-					p.id,
-					p.name,
-					p.description,
-					p.price,
-					COALESCE(p.discount_percent, 0) AS discount_percent,
-					COALESCE(p.rating, 0) AS rating,
-					p.is_flash_sale,
-					COALESCE(p.stock, 0) AS stock,
-					p.is_active,
-					COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
-					COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
-					COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
-				FROM products p
-				LEFT JOIN product_images pi ON pi.product_id = p.id
-				LEFT JOIN size_products sp ON sp.product_id = p.id
-				LEFT JOIN sizes s ON s.id = sp.size_id
-				LEFT JOIN product_categories pc ON pc.product_id = p.id
-				LEFT JOIN categories c ON c.id = pc.category_id
-				GROUP BY p.id
-				ORDER BY p.id ASC
-				LIMIT $1 OFFSET $2;`
+	if search != "" {
+		rows, err = config.DB.Query(context.Background(),
+			`SELECT 
+				p.id,
+				p.name,
+				p.description,
+				p.price,
+				COALESCE(p.discount_percent, 0) AS discount_percent,
+				COALESCE(p.rating, 0) AS rating,
+				p.is_flash_sale,
+				COALESCE(p.stock, 0) AS stock,
+				p.is_active,
+				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+			FROM products p
+			LEFT JOIN product_images pi ON pi.product_id = p.id
+			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN sizes s ON s.id = sp.size_id
+			LEFT JOIN product_categories pc ON pc.product_id = p.id
+			LEFT JOIN categories c ON c.id = pc.category_id
+			WHERE p.name ILIKE $3
+				OR p.description ILIKE $3
+				OR c.name ILIKE $3
+			GROUP BY p.id
+			ORDER BY p.id ASC
+			LIMIT $1 OFFSET $2`, limit, offset, searchParam)
+	} else {
+		rows, err = config.DB.Query(context.Background(),
+			`SELECT 
+				p.id,
+				p.name,
+				p.description,
+				p.price,
+				COALESCE(p.discount_percent, 0) AS discount_percent,
+				COALESCE(p.rating, 0) AS rating,
+				p.is_flash_sale,
+				COALESCE(p.stock, 0) AS stock,
+				p.is_active,
+				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+			FROM products p
+			LEFT JOIN product_images pi ON pi.product_id = p.id
+			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN sizes s ON s.id = sp.size_id
+			LEFT JOIN product_categories pc ON pc.product_id = p.id
+			LEFT JOIN categories c ON c.id = pc.category_id
+			GROUP BY p.id
+			ORDER BY p.id ASC
+			LIMIT $1 OFFSET $2`, limit, offset)
+	}
 
-	rows, err := config.DB.Query(context.Background(), query, limit, offset)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -127,6 +172,33 @@ func GetAllProduct(ctx *gin.Context) {
 		return
 	}
 
+	host := ctx.Request.Host
+	scheme := "http"
+	if ctx.Request.TLS != nil {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s/admin/users", scheme, host)
+
+	var next any
+	var prev any
+	switch page {
+	case 1:
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
+		prev = nil
+	case totalPage:
+		next = nil
+		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	default:
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
+		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	}
+
+	if totalData == 0 {
+		page = 0
+		next = nil
+		prev = nil
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Success get all product",
@@ -136,6 +208,8 @@ func GetAllProduct(ctx *gin.Context) {
 			"perPage":     limit,
 			"totalData":   totalData,
 			"totalPages":  totalPage,
+			"next":        next,
+			"prev":        prev,
 		},
 	})
 }

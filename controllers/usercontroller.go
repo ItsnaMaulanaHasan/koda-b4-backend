@@ -70,25 +70,18 @@ func GetAllUser(ctx *gin.Context) {
 			OR users.last_name ILIKE $1
 			OR profiles.phone_number ILIKE $1
 			OR profiles.address ILIKE $1
-			OR users.email ILIKE $1`, search).Scan(&totalData)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to count total users in database",
-				Error:   err.Error(),
-			})
-			return
-		}
+			OR users.email ILIKE $1`, "%"+search+"%").Scan(&totalData)
 	} else {
 		err = config.DB.QueryRow(context.Background(), `SELECT COUNT(*) FROM users`).Scan(&totalData)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to count total users in database",
-				Error:   err.Error(),
-			})
-			return
-		}
+	}
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to count total users in database",
+			Error:   err.Error(),
+		})
+		return
 	}
 
 	offset := (page - 1) * limit
@@ -112,7 +105,7 @@ func GetAllUser(ctx *gin.Context) {
 			   OR profiles.address ILIKE $3
 			   OR users.email ILIKE $3
 			ORDER BY users.id ASC
-			LIMIT $1 OFFSET $2`, limit, offset, search)
+			LIMIT $1 OFFSET $2`, limit, offset, "%"+search+"%")
 	} else {
 		rows, err = config.DB.Query(
 			context.Background(),
