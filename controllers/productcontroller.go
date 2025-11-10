@@ -6,10 +6,16 @@ import (
 	"backend-daily-greens/models"
 	"context"
 	"errors"
+	"fmt"
+	"mime/multipart"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -78,7 +84,7 @@ func GetAllProduct(ctx *gin.Context) {
 					p.is_flash_sale,
 					COALESCE(p.stock, 0) AS stock,
 					p.is_active,
-					COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS image,
+					COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
 					COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
 					COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
 				FROM products p
@@ -169,7 +175,7 @@ func GetProductById(ctx *gin.Context) {
 				p.is_flash_sale,
 				COALESCE(p.stock, 0) AS stock,
 				p.is_active,
-				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS image,
+				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
 			FROM products p
@@ -214,5 +220,238 @@ func GetProductById(ctx *gin.Context) {
 		Success: true,
 		Message: "Success get product",
 		Data:    product,
+	})
+}
+
+// CreateProduct godoc
+// @Summary      Create new product
+// @Description  Create a new product with images, sizes, and categories
+// @Tags         products
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization       header    string    true   "Bearer token"  default(Bearer <token>)
+// @Param        name                formData  string    true   "Product name"
+// @Param        description         formData  string    true   "Product description"
+// @Param        price               formData  number    true   "Product price"
+// @Param        discount_percent    formData  number    false  "Discount percentage" default(0.00)
+// @Param        rating			     formData  number    false  "Product rating" default(5)
+// @Param        stock               formData  int       true   "Product stock"
+// @Param        is_flash_sale       formData  bool      false  "Is flash sale"  default(false)
+// @Param        is_active           formData  bool      false  "Is active"  default(true)
+// @Param        image1              formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
+// @Param        image2              formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
+// @Param        image3              formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
+// @Param        image4              formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
+// @Param        size_products       formData  string     false  "Size Id (comma-separated, e.g., 1,2,3)"
+// @Param        product_categories  formData  string     false  "Category Id (comma-separated, e.g., 1,2,3)"
+// @Success      201  {object}  lib.ResponseSuccess{data=models.Product}  "Product created successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid request body"
+// @Failure      409  {object}  lib.ResponseError  "Product name already exists"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error"
+// @Router       /admin/products [post]
+func CreateProduct(ctx *gin.Context) {
+	var bodyCreateProduct models.ProductCreateRequest
+	err := ctx.ShouldBindWith(&bodyCreateProduct, binding.FormMultipart)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid form data",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	var exists bool
+	err = config.DB.QueryRow(
+		context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM products WHERE name = $1)", bodyCreateProduct.Name,
+	).Scan(&exists)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while checking product name uniqueness",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if exists {
+		ctx.JSON(http.StatusConflict, lib.ResponseError{
+			Success: false,
+			Message: "Product name already exists",
+		})
+		return
+	}
+
+	userIdFromToken, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User Id not found in token",
+		})
+		return
+	}
+
+	err = config.DB.QueryRow(
+		context.Background(),
+		`INSERT INTO products (name, description, price, discount_percent, rating, is_flash_sale, stock, is_active, created_by, updated_by)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		 RETURNING id`,
+		bodyCreateProduct.Name,
+		bodyCreateProduct.Description,
+		bodyCreateProduct.Price,
+		bodyCreateProduct.DiscountPercent,
+		bodyCreateProduct.Rating,
+		bodyCreateProduct.IsFlashSale,
+		bodyCreateProduct.Stock,
+		bodyCreateProduct.IsActive,
+		userIdFromToken,
+		userIdFromToken,
+	).Scan(&bodyCreateProduct.Id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while inserting new product",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	fileImages := map[string]*multipart.FileHeader{
+		"image1": bodyCreateProduct.Image1,
+		"image2": bodyCreateProduct.Image2,
+		"image3": bodyCreateProduct.Image3,
+		"image4": bodyCreateProduct.Image4,
+	}
+
+	var savedImagePaths []string
+
+	for _, file := range fileImages {
+		if file == nil {
+			continue
+		}
+
+		if file.Size > 1<<20 {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "Each file size must be less than 1MB",
+			})
+			return
+		}
+
+		contentType := file.Header.Get("Content-Type")
+		if contentType != "image/jpeg" && contentType != "image/png" {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "Only JPEG and PNG files are allowed",
+			})
+			return
+		}
+
+		ext := filepath.Ext(file.Filename)
+		fileName := fmt.Sprintf("product_%d_%d%s", bodyCreateProduct.Id, time.Now().UnixNano(), ext)
+		savedFilePath := "uploads/products/" + fileName
+
+		if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to save uploaded file",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		_, err = config.DB.Exec(
+			context.Background(),
+			`INSERT INTO product_images (image, product_id, created_by, updated_by)
+				 VALUES ($1, $2, $3, $4)`,
+			savedFilePath,
+			bodyCreateProduct.Id,
+			userIdFromToken,
+			userIdFromToken,
+		)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Internal server error while inserting product image",
+				Error:   err.Error(),
+			})
+			return
+		}
+		savedImagePaths = append(savedImagePaths, savedFilePath)
+	}
+	bodyCreateProduct.Images = savedImagePaths
+
+	sizeProducts := strings.Split(bodyCreateProduct.SizeProducts, ",")
+	if len(sizeProducts) > 0 {
+		for _, sizeIdStr := range sizeProducts {
+			sizeIdStr = strings.TrimSpace(sizeIdStr)
+			if sizeIdStr == "" {
+				continue
+			}
+
+			sizeId, err := strconv.Atoi(sizeIdStr)
+			if err != nil {
+				continue
+			}
+
+			_, err = config.DB.Exec(
+				context.Background(),
+				`INSERT INTO size_products (product_id, size_id, created_by, updated_by)
+				 VALUES ($1, $2, $3, $4)`,
+				bodyCreateProduct.Id,
+				sizeId,
+				userIdFromToken,
+				userIdFromToken,
+			)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Internal server error while inserting size product",
+					Error:   err.Error(),
+				})
+				return
+			}
+		}
+	}
+
+	productCategories := strings.Split(bodyCreateProduct.ProductCategories, ",")
+	if len(productCategories) > 0 {
+		for _, categoryIdStr := range productCategories {
+			categoryIdStr = strings.TrimSpace(categoryIdStr)
+			if categoryIdStr == "" {
+				continue
+			}
+
+			categoryId, err := strconv.Atoi(categoryIdStr)
+			if err != nil {
+				continue
+			}
+
+			_, err = config.DB.Exec(
+				context.Background(),
+				`INSERT INTO product_categories (product_id, category_id, created_by, updated_by)
+				 VALUES ($1, $2, $3, $4)`,
+				bodyCreateProduct.Id,
+				categoryId,
+				userIdFromToken,
+				userIdFromToken,
+			)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Internal server error while inserting product category",
+					Error:   err.Error(),
+				})
+				return
+			}
+		}
+	}
+
+	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
+		Success: true,
+		Message: "Product created successfully",
+		Data:    bodyCreateProduct,
 	})
 }
