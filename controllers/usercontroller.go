@@ -66,7 +66,7 @@ func GetAllUser(ctx *gin.Context) {
 		err = config.DB.QueryRow(context.Background(),
 			`SELECT COUNT(*) FROM users 
 			LEFT JOIN profiles ON users.id = profiles.user_id 
-			WHERE users.firs_name ILIKE $1 
+			WHERE users.first_name ILIKE $1 
 			OR users.last_name ILIKE $1
 			OR profiles.phone_number ILIKE $1
 			OR profiles.address ILIKE $1
@@ -179,6 +179,12 @@ func GetAllUser(ctx *gin.Context) {
 	default:
 		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
 		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	}
+
+	if totalData == 0 {
+		page = 0
+		next = nil
+		prev = nil
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
