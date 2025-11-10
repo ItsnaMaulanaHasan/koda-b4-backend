@@ -11,5 +11,6 @@ func SetupAuthRoutes(r *gin.Engine) {
 	{
 		auth.POST("/register", controllers.Register)
 		auth.POST("/login", controllers.Login)
+		auth.POST("/forgot-password", controllers.GetTokenReset)
 	}
 }
