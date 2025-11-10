@@ -251,8 +251,8 @@ func GetProductById(ctx *gin.Context) {
 // @Failure      500  {object}  lib.ResponseError  "Internal server error"
 // @Router       /admin/products [post]
 func CreateProduct(ctx *gin.Context) {
-	var bodyCreateProduct models.ProductRequest
-	err := ctx.ShouldBindWith(&bodyCreateProduct, binding.FormMultipart)
+	var bodyCreate models.ProductRequest
+	err := ctx.ShouldBindWith(&bodyCreate, binding.FormMultipart)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
@@ -265,7 +265,7 @@ func CreateProduct(ctx *gin.Context) {
 	var exists bool
 	err = config.DB.QueryRow(
 		context.Background(),
-		"SELECT EXISTS(SELECT 1 FROM products WHERE name = $1)", bodyCreateProduct.Name,
+		"SELECT EXISTS(SELECT 1 FROM products WHERE name = $1)", bodyCreate.Name,
 	).Scan(&exists)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -298,17 +298,17 @@ func CreateProduct(ctx *gin.Context) {
 		`INSERT INTO products (name, description, price, discount_percent, rating, is_flash_sale, stock, is_active, created_by, updated_by)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		 RETURNING id`,
-		bodyCreateProduct.Name,
-		bodyCreateProduct.Description,
-		bodyCreateProduct.Price,
-		bodyCreateProduct.DiscountPercent,
-		bodyCreateProduct.Rating,
-		bodyCreateProduct.IsFlashSale,
-		bodyCreateProduct.Stock,
-		bodyCreateProduct.IsActive,
+		bodyCreate.Name,
+		bodyCreate.Description,
+		bodyCreate.Price,
+		bodyCreate.DiscountPercent,
+		bodyCreate.Rating,
+		bodyCreate.IsFlashSale,
+		bodyCreate.Stock,
+		bodyCreate.IsActive,
 		userIdFromToken,
 		userIdFromToken,
-	).Scan(&bodyCreateProduct.Id)
+	).Scan(&bodyCreate.Id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -319,10 +319,10 @@ func CreateProduct(ctx *gin.Context) {
 	}
 
 	fileImages := map[string]*multipart.FileHeader{
-		"image1": bodyCreateProduct.Image1,
-		"image2": bodyCreateProduct.Image2,
-		"image3": bodyCreateProduct.Image3,
-		"image4": bodyCreateProduct.Image4,
+		"image1": bodyCreate.Image1,
+		"image2": bodyCreate.Image2,
+		"image3": bodyCreate.Image3,
+		"image4": bodyCreate.Image4,
 	}
 
 	var savedImagePaths []string
@@ -350,7 +350,7 @@ func CreateProduct(ctx *gin.Context) {
 		}
 
 		ext := filepath.Ext(file.Filename)
-		fileName := fmt.Sprintf("product_%d_%d%s", bodyCreateProduct.Id, time.Now().UnixNano(), ext)
+		fileName := fmt.Sprintf("product_%d_%d%s", bodyCreate.Id, time.Now().UnixNano(), ext)
 		savedFilePath := "uploads/products/" + fileName
 
 		if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
@@ -367,7 +367,7 @@ func CreateProduct(ctx *gin.Context) {
 			`INSERT INTO product_images (image, product_id, created_by, updated_by)
 				 VALUES ($1, $2, $3, $4)`,
 			savedFilePath,
-			bodyCreateProduct.Id,
+			bodyCreate.Id,
 			userIdFromToken,
 			userIdFromToken,
 		)
@@ -381,10 +381,10 @@ func CreateProduct(ctx *gin.Context) {
 		}
 		savedImagePaths = append(savedImagePaths, savedFilePath)
 	}
-	bodyCreateProduct.Images = savedImagePaths
+	bodyCreate.Images = savedImagePaths
 
-	sizeProducts := strings.Split(bodyCreateProduct.SizeProducts, ",")
-	if len(sizeProducts) > 0 {
+	if strings.TrimSpace(bodyCreate.SizeProducts) != "" {
+		sizeProducts := strings.Split(bodyCreate.SizeProducts, ",")
 		for _, sizeIdStr := range sizeProducts {
 			sizeIdStr = strings.TrimSpace(sizeIdStr)
 			if sizeIdStr == "" {
@@ -400,7 +400,7 @@ func CreateProduct(ctx *gin.Context) {
 				context.Background(),
 				`INSERT INTO size_products (product_id, size_id, created_by, updated_by)
 				 VALUES ($1, $2, $3, $4)`,
-				bodyCreateProduct.Id,
+				bodyCreate.Id,
 				sizeId,
 				userIdFromToken,
 				userIdFromToken,
@@ -416,9 +416,10 @@ func CreateProduct(ctx *gin.Context) {
 		}
 	}
 
-	productCategories := strings.Split(bodyCreateProduct.ProductCategories, ",")
-	if len(productCategories) > 0 {
-		for _, categoryIdStr := range productCategories {
+	if strings.TrimSpace(bodyCreate.ProductCategories) != "" {
+		productCategories := strings.SplitSeq(bodyCreate.ProductCategories, ",")
+
+		for categoryIdStr := range productCategories {
 			categoryIdStr = strings.TrimSpace(categoryIdStr)
 			if categoryIdStr == "" {
 				continue
@@ -433,7 +434,7 @@ func CreateProduct(ctx *gin.Context) {
 				context.Background(),
 				`INSERT INTO product_categories (product_id, category_id, created_by, updated_by)
 				 VALUES ($1, $2, $3, $4)`,
-				bodyCreateProduct.Id,
+				bodyCreate.Id,
 				categoryId,
 				userIdFromToken,
 				userIdFromToken,
@@ -452,7 +453,7 @@ func CreateProduct(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
 		Message: "Product created successfully",
-		Data:    bodyCreateProduct,
+		Data:    bodyCreate,
 	})
 }
 
@@ -464,7 +465,7 @@ func CreateProduct(ctx *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        Authorization       header    string    true   "Bearer token"  default(Bearer <token>)
-// @Param        id                  path      int       true   "Product ID"
+// @Param        id                  path      int       true   "Product Id"
 // @Param        name                formData  string    false  "Product name"
 // @Param        description         formData  string    false  "Product description"
 // @Param        price               formData  number    false  "Product price"
@@ -476,8 +477,8 @@ func CreateProduct(ctx *gin.Context) {
 // @Param        image2              formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
 // @Param        image3              formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
 // @Param        image4              formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
-// @Param        size_products       formData  string    false  "Size IDs (comma-separated, e.g., 1,2,3)"
-// @Param        product_categories  formData  string    false  "Category IDs (comma-separated, e.g., 1,2,3)"
+// @Param        size_products       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
+// @Param        product_categories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
 // @Success      200  {object}  lib.ResponseSuccess  "Product updated successfully"
 // @Failure      400  {object}  lib.ResponseError   "Invalid Id format or invalid request body"
 // @Failure      404  {object}  lib.ResponseError   "Product not found"
@@ -519,9 +520,9 @@ func UpdateProduct(ctx *gin.Context) {
 		`UPDATE products 
 		 SET name             = COALESCE(NULLIF($1, ''), name),
 		     description      = COALESCE(NULLIF($2, ''), description),
-		     price            = CASE WHEN $3 > 0 THEN $3 ELSE price END,
-		     discount_percent = CASE WHEN $4 >= 0 THEN $4 ELSE discount_percent END,
-		     stock            = CASE WHEN $5 >= 0 THEN $5 ELSE stock END,
+		     price            = COALESCE($3, price),
+		     discount_percent = COALESCE($4, discount_percent),
+		     stock            = COALESCE($5, stock),
 		     is_flash_sale    = COALESCE($6, is_flash_sale),
 		     is_active        = COALESCE($7, is_active),
 		     updated_by       = $8,
@@ -552,7 +553,16 @@ func UpdateProduct(ctx *gin.Context) {
 		"image3": bodyUpdate.Image3,
 		"image4": bodyUpdate.Image4,
 	}
-	if len(fileImages) > 0 {
+
+	hasFile := false
+	for _, file := range fileImages {
+		if file != nil {
+			hasFile = true
+			break
+		}
+	}
+
+	if hasFile {
 		_, err = config.DB.Exec(
 			context.Background(),
 			`DELETE FROM product_images WHERE product_id = $1`,
@@ -568,6 +578,10 @@ func UpdateProduct(ctx *gin.Context) {
 		}
 
 		for _, file := range fileImages {
+			if file == nil {
+				continue
+			}
+
 			if file.Size > 1<<20 {
 				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 					Success: false,
@@ -601,7 +615,7 @@ func UpdateProduct(ctx *gin.Context) {
 			_, err = config.DB.Exec(
 				context.Background(),
 				`INSERT INTO product_images (image, product_id, created_by, updated_by)
-					 VALUES ($1, $2, $3, $4)`,
+						 VALUES ($1, $2, $3, $4)`,
 				savedFilePath,
 				id,
 				userIdFromToken,
@@ -618,8 +632,8 @@ func UpdateProduct(ctx *gin.Context) {
 		}
 	}
 
-	sizeProducts := strings.Split(bodyUpdate.SizeProducts, ",")
-	if len(sizeProducts) > 0 {
+	if strings.TrimSpace(bodyUpdate.SizeProducts) != "" {
+		sizeProducts := strings.Split(bodyUpdate.SizeProducts, ",")
 		_, err = config.DB.Exec(
 			context.Background(),
 			`DELETE FROM size_products WHERE product_id = $1`,
@@ -665,8 +679,8 @@ func UpdateProduct(ctx *gin.Context) {
 		}
 	}
 
-	productCategories := strings.Split(bodyUpdate.ProductCategories, ",")
-	if len(productCategories) > 0 {
+	if strings.TrimSpace(bodyUpdate.ProductCategories) != "" {
+		productCategories := strings.Split(bodyUpdate.ProductCategories, ",")
 		_, err = config.DB.Exec(
 			context.Background(),
 			`DELETE FROM product_categories WHERE product_id = $1`,

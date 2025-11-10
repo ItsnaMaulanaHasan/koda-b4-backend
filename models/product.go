@@ -24,14 +24,14 @@ type ProductRequest struct {
 	Image3            *multipart.FileHeader `form:"image3"`
 	Image4            *multipart.FileHeader `form:"image4"`
 	Images            []string
-	Name              string  `form:"name"`
-	Description       string  `form:"description"`
-	Price             float64 `form:"price"`
-	DiscountPercent   float64 `form:"discount_percent"`
-	Rating            float64 `form:"rating"`
-	IsFlashSale       bool    `form:"is_flash_sale"`
-	Stock             int     `form:"stock"`
-	IsActive          bool    `form:"is_active"`
-	SizeProducts      string  `form:"size_products"`
-	ProductCategories string  `form:"product_categories"`
+	Name              string   `form:"name"`
+	Description       string   `form:"description"`
+	Price             *float64 `form:"price"`
+	DiscountPercent   *float64 `form:"discount_percent"`
+	Rating            *float64 `form:"rating"`
+	IsFlashSale       bool     `form:"is_flash_sale"`
+	Stock             *int     `form:"stock"`
+	IsActive          bool     `form:"is_active"`
+	SizeProducts      string   `form:"size_products"`
+	ProductCategories string   `form:"product_categories"`
 }
