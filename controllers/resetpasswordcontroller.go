@@ -178,3 +178,139 @@ func VerifyResetToken(ctx *gin.Context) {
 		},
 	})
 }
+
+// ResetPassword    godoc
+// @Summary      Reset password
+// @Description  Reset user password using valid token
+// @Tags         auth
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Param        email        formData  string  true  "User email"
+// @Param        token        formData  string  true  "6-digit reset token"
+// @Param        new_password formData  string  true  "New password"  format(password)
+// @Success      200  {object}  lib.ResponseSuccess  "Password reset successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password"
+// @Failure      404  {object}  lib.ResponseError  "Invalid or expired token"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error"
+// @Router       /auth/reset-password [patch]
+func ResetPassword(ctx *gin.Context) {
+	var bodyRequest models.ResetPasswordRequest
+	err := ctx.ShouldBindWith(&bodyRequest, binding.Form)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid form data",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	var userId int
+	var expiredAt time.Time
+	err = config.DB.QueryRow(
+		context.Background(),
+		`SELECT pr.user_id, pr.expired_at
+		 FROM password_resets pr
+		 JOIN users u ON pr.user_id = u.id
+		 WHERE u.email = $1 AND pr.token_reset = $2`,
+		bodyRequest.Email,
+		bodyRequest.Token,
+	).Scan(&userId, &expiredAt)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, lib.ResponseError{
+				Success: false,
+				Message: "Invalid token",
+			})
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while verifying token",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if time.Now().After(expiredAt) {
+		config.DB.Exec(
+			context.Background(),
+			"DELETE FROM password_resets WHERE user_id = $1",
+			userId,
+		)
+
+		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+			Success: false,
+			Message: "Token has expired",
+		})
+		return
+	}
+
+	hashedPassword, err := lib.HashPassword(bodyRequest.NewPassword)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Failed to hash password",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	_, err = config.DB.Exec(
+		context.Background(),
+		`UPDATE users 
+		 SET password = $1, 
+		     updated_by = $2,
+		     updated_at = NOW()
+		 WHERE id = $3`,
+		hashedPassword,
+		userId,
+		userId,
+	)
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while updating password",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	_, err = config.DB.Exec(
+		context.Background(),
+		"DELETE FROM password_resets WHERE user_id = $1",
+		userId,
+	)
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while cleaning token",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	_, err = config.DB.Exec(
+		context.Background(),
+		"UPDATE sessions SET is_active = false WHERE user_id = $1",
+		userId,
+	)
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while non-active session user",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "Password has been reset successfully",
+	})
+}
