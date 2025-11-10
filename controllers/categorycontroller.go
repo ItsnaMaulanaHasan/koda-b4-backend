@@ -417,3 +417,52 @@ func UpdateCategory(ctx *gin.Context) {
 		Message: "Category updated successfully",
 	})
 }
+
+// DeleteCategory    godoc
+// @Summary      Delete category
+// @Description  Delete category by Id
+// @Tags         categories
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id             path    int     true  "Category Id"
+// @Success      200  {object}  lib.ResponseSuccess  "Category deleted successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure      404  {object}  lib.ResponseError  "Category not found"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while deleting category data"
+// @Router       /admin/categories/{id} [delete]
+func DeleteCategory(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	commandTag, err := config.DB.Exec(context.Background(), `DELETE FROM categories WHERE id = $1`, id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while deleting category data",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+			Success: false,
+			Message: "Category not found",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "Category deleted successfully",
+	})
+}
