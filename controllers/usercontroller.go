@@ -26,9 +26,9 @@ import (
 // @Param        Authorization    header string true "Bearer token" default(Bearer <token>)
 // @Param        page   query     int    false  "Page number"  default(1)  minimum(1)
 // @Param        limit  query     int    false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
-// @Success      200    {object}  object{success=bool,message=string,data=[]models.UserResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved user list."
-// @Failure      400    {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
-// @Failure      500    {object}  lib.ResponseError  "Internal server error while fetching or processing user data."
+// @Success      200    {object}  object{success=bool,message=string,data=[]models.UserResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved user list"
+// @Failure      400    {object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
+// @Failure      500    {object}  lib.ResponseError  "Internal server error while fetching or processing user data"
 // @Router       /admin/users [get]
 func GetAllUser(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
@@ -137,10 +137,10 @@ func GetAllUser(ctx *gin.Context) {
 // @Security     BearerAuth
 // @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
 // @Param        id   			path    int     true  "User Id"
-// @Success      200  {object}  lib.ResponseSuccess{data=models.UserResponse}  "Successfully retrieved user."
+// @Success      200  {object}  lib.ResponseSuccess{data=models.UserResponse}  "Successfully retrieved user"
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure      404  {object}  lib.ResponseError  "User not found"
-// @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching users from database."
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching users from database"
 // @Router       /admin/users/{id} [get]
 func GetUserById(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
@@ -169,7 +169,7 @@ func GetUserById(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to fetch user from database.",
+			Message: "Failed to fetch user from database",
 			Error:   err.Error(),
 		})
 		return
@@ -181,14 +181,14 @@ func GetUserById(ctx *gin.Context) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, lib.ResponseError{
 				Success: false,
-				Message: "User not found.",
+				Message: "User not found",
 			})
 			return
 		}
 
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to process user data.",
+			Message: "Failed to process user data",
 			Error:   err.Error(),
 		})
 		return
@@ -217,10 +217,10 @@ func GetUserById(ctx *gin.Context) {
 // @Param        address        formData  string  false "User address"
 // @Param        role           formData  string  false "User role"  default(customer)
 // @Param        profilephoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
-// @Success      201  {object}  lib.ResponseSuccess{data=models.UserResponse}  "User created successfully."
-// @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password."
-// @Failure      409  {object}  lib.ResponseError  "Email already registered."
-// @Failure      500  {object}  lib.ResponseError  "Internal server error while creating user."
+// @Success      201  {object}  lib.ResponseSuccess{data=models.UserResponse}  "User created successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password"
+// @Failure      409  {object}  lib.ResponseError  "Email already registered"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while creating user"
 // @Router       /admin/users [post]
 func CreateUser(ctx *gin.Context) {
 	var bodyCreateUser models.User
@@ -247,7 +247,7 @@ func CreateUser(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while checking email uniqueness.",
+			Message: "Internal server error while checking email uniqueness",
 			Error:   err.Error(),
 		})
 		return
@@ -396,9 +396,9 @@ func CreateUser(ctx *gin.Context) {
 // @Param        role           formData  string  false "User role"
 // @Param        profilephoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
 // @Success      200  {object}  lib.ResponseSuccess "User updated successfully"
-// @Failure      400  {object}  lib.ResponseError  "Invalid Id format or invalid request body."
-// @Failure      404  {object}  lib.ResponseError  "User not found."
-// @Failure      500  {object}  lib.ResponseError  "Internal server error while updating user data."
+// @Failure      400  {object}  lib.ResponseError  "Invalid Id format or invalid request body"
+// @Failure      404  {object}  lib.ResponseError  "User not found"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while updating user data"
 // @Router       /admin/users/{id} [patch]
 func UpdateUser(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
@@ -489,7 +489,7 @@ func UpdateUser(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while updating user table.",
+			Message: "Internal server error while updating user table",
 			Error:   err.Error(),
 		})
 		return
@@ -513,7 +513,7 @@ func UpdateUser(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while updating user profile.",
+			Message: "Internal server error while updating user profile",
 			Error:   err.Error(),
 		})
 		return
@@ -554,7 +554,7 @@ func DeleteUser(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while deleting user data.",
+			Message: "Internal server error while deleting user data",
 			Error:   err.Error(),
 		})
 		return
@@ -563,7 +563,7 @@ func DeleteUser(ctx *gin.Context) {
 	if commandTag.RowsAffected() == 0 {
 		ctx.JSON(http.StatusNotFound, lib.ResponseError{
 			Success: false,
-			Message: "User not found.",
+			Message: "User not found",
 		})
 		return
 	}

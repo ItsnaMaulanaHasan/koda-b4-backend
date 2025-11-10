@@ -5,6 +5,7 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -21,9 +22,9 @@ import (
 // @Param        Authorization    header string true "Bearer token" default(Bearer <token>)
 // @Param        page   query     int    false  "Page number"  default(1)  minimum(1)
 // @Param        limit  query     int    false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
-// @Success      200    {object}  object{success=bool,message=string,data=[]models.Product,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved user list."
+// @Success      200    {object}  object{success=bool,message=string,data=[]models.Product,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved product list"
 // @Failure      400    {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
-// @Failure      500    {object}  lib.ResponseError  "Internal server error while fetching or processing user data."
+// @Failure      500    {object}  lib.ResponseError  "Internal server error while fetching or processing product data."
 // @Router       /admin/products [get]
 func GetAllProduct(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
@@ -130,5 +131,88 @@ func GetAllProduct(ctx *gin.Context) {
 			"totalData":   totalData,
 			"totalPages":  totalPage,
 		},
+	})
+}
+
+// GetProductById   godoc
+// @Summary         Get product by Id
+// @Description     Retrieving product data based on Id
+// @Tags         	products
+// @Accept 		 	x-www-form-urlencoded
+// @Produce      	json
+// @Security     	BearerAuth
+// @Param        	Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param        	id   			path    int     true  "product Id"
+// @Success      	200  {object}  lib.ResponseSuccess{data=models.Product}  "Successfully retrieved product"
+// @Failure      	400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure      	404  {object}  lib.ResponseError  "Product not found"
+// @Failure      	500  {object}  lib.ResponseError  "Internal server error while fetching products from database"
+// @Router       	/admin/products/{id} [get]
+func GetProductById(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	query := `SELECT 
+				p.id,
+				p.name,
+				p.description,
+				p.price,
+				COALESCE(p.discount_percent, 0) AS discount_percent,
+				COALESCE(p.rating, 0) AS rating,
+				p.is_flash_sale,
+				COALESCE(p.stock, 0) AS stock,
+				p.is_active,
+				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS image,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+			FROM products p
+			LEFT JOIN product_images pi ON pi.product_id = p.id
+			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN sizes s ON s.id = sp.size_id
+			LEFT JOIN product_categories pc ON pc.product_id = p.id
+			LEFT JOIN categories c ON c.id = pc.category_id 
+			WHERE p.id = $1
+			GROUP BY p.id;`
+
+	rows, err := config.DB.Query(context.Background(), query, id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to fetch product from database",
+			Error:   err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+
+	product, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.Product])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, lib.ResponseError{
+				Success: false,
+				Message: "Product not found",
+			})
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to process product data",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "Success get product",
+		Data:    product,
 	})
 }
