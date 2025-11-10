@@ -5,6 +5,7 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -159,5 +160,69 @@ func GetAllCategory(ctx *gin.Context) {
 			"next":        next,
 			"prev":        prev,
 		},
+	})
+}
+
+// GetCategoryById   godoc
+// @Summary      Get category by Id
+// @Description  Retrieving category data based on Id
+// @Tags         categories
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id             path    int     true  "Category Id"
+// @Success      200  {object}  lib.ResponseSuccess{data=models.CategoryResponse}  "Successfully retrieved category"
+// @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure      404  {object}  lib.ResponseError  "Category not found"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching category from database"
+// @Router       /admin/categories/{id} [get]
+func GetCategoryById(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	rows, err := config.DB.Query(context.Background(),
+		`SELECT id, name, created_at, updated_at
+		FROM categories
+		WHERE id = $1`, id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to fetch category from database",
+			Error:   err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+
+	category, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.CategoryResponse])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, lib.ResponseError{
+				Success: false,
+				Message: "Category not found",
+			})
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to process category data",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "Success get category",
+		Data:    category,
 	})
 }
