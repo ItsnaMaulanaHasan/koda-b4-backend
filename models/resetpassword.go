@@ -17,3 +17,9 @@ type VerifyResetTokenRequest struct {
 	Email string `form:"email" json:"email" binding:"required,email"`
 	Token string `form:"token" json:"token" binding:"required,len=6"`
 }
+
+type ResetPasswordRequest struct {
+	Email       string `form:"email" json:"email" binding:"required,email"`
+	Token       string `form:"token" json:"token" binding:"required,len=6"`
+	NewPassword string `form:"new_password" json:"newPassword" binding:"required,min=6"`
+}
