@@ -12,5 +12,6 @@ func SetupProductRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 		products.GET("", controllers.GetAllProduct)
 		products.GET("/:id", controllers.GetProductById)
 		products.POST("", controllers.CreateProduct)
+		products.PATCH("/:id", controllers.UpdateProduct)
 	}
 }
