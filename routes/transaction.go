@@ -10,5 +10,6 @@ func SetupTransactionRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 	transactions := admin.Group("/transactions")
 	{
 		transactions.GET("", controllers.GetAllTransaction)
+		transactions.GET("/:id", controllers.GetTransactionById)
 	}
 }
