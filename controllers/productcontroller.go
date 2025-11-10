@@ -243,15 +243,15 @@ func GetProductById(ctx *gin.Context) {
 // @Param        image2              formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
 // @Param        image3              formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
 // @Param        image4              formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
-// @Param        size_products       formData  string     false  "Size Id (comma-separated, e.g., 1,2,3)"
-// @Param        product_categories  formData  string     false  "Category Id (comma-separated, e.g., 1,2,3)"
+// @Param        size_products       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
+// @Param        product_categories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.Product}  "Product created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body"
 // @Failure      409  {object}  lib.ResponseError  "Product name already exists"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error"
 // @Router       /admin/products [post]
 func CreateProduct(ctx *gin.Context) {
-	var bodyCreateProduct models.ProductCreateRequest
+	var bodyCreateProduct models.ProductRequest
 	err := ctx.ShouldBindWith(&bodyCreateProduct, binding.FormMultipart)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -453,5 +453,267 @@ func CreateProduct(ctx *gin.Context) {
 		Success: true,
 		Message: "Product created successfully",
 		Data:    bodyCreateProduct,
+	})
+}
+
+// UpdateProduct godoc
+// @Summary      Update product
+// @Description  Updating product data based on Id
+// @Tags         products
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization       header    string    true   "Bearer token"  default(Bearer <token>)
+// @Param        id                  path      int       true   "Product ID"
+// @Param        name                formData  string    false  "Product name"
+// @Param        description         formData  string    false  "Product description"
+// @Param        price               formData  number    false  "Product price"
+// @Param        discount_percent    formData  number    false  "Discount percentage"
+// @Param        stock               formData  int       false  "Product stock"
+// @Param        is_flash_sale       formData  bool      false  "Is flash sale"
+// @Param        is_active           formData  bool      false  "Is active"
+// @Param        image1              formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
+// @Param        image2              formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
+// @Param        image3              formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
+// @Param        image4              formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
+// @Param        size_products       formData  string    false  "Size IDs (comma-separated, e.g., 1,2,3)"
+// @Param        product_categories  formData  string    false  "Category IDs (comma-separated, e.g., 1,2,3)"
+// @Success      200  {object}  lib.ResponseSuccess  "Product updated successfully"
+// @Failure      400  {object}  lib.ResponseError   "Invalid Id format or invalid request body"
+// @Failure      404  {object}  lib.ResponseError   "Product not found"
+// @Failure      500  {object}  lib.ResponseError   "Internal server error"
+// @Router       /admin/products/{id} [patch]
+func UpdateProduct(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	var bodyUpdate models.ProductRequest
+	err = ctx.ShouldBindWith(&bodyUpdate, binding.FormMultipart)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid request body",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userIdFromToken, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User Id not found in token",
+		})
+		return
+	}
+
+	_, err = config.DB.Exec(
+		context.Background(),
+		`UPDATE products 
+		 SET name             = COALESCE(NULLIF($1, ''), name),
+		     description      = COALESCE(NULLIF($2, ''), description),
+		     price            = CASE WHEN $3 > 0 THEN $3 ELSE price END,
+		     discount_percent = CASE WHEN $4 >= 0 THEN $4 ELSE discount_percent END,
+		     stock            = CASE WHEN $5 >= 0 THEN $5 ELSE stock END,
+		     is_flash_sale    = COALESCE($6, is_flash_sale),
+		     is_active        = COALESCE($7, is_active),
+		     updated_by       = $8,
+		     updated_at       = NOW()
+		 WHERE id = $9`,
+		bodyUpdate.Name,
+		bodyUpdate.Description,
+		bodyUpdate.Price,
+		bodyUpdate.DiscountPercent,
+		bodyUpdate.Stock,
+		bodyUpdate.IsFlashSale,
+		bodyUpdate.IsActive,
+		userIdFromToken,
+		id,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while updating product",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	fileImages := map[string]*multipart.FileHeader{
+		"image1": bodyUpdate.Image1,
+		"image2": bodyUpdate.Image2,
+		"image3": bodyUpdate.Image3,
+		"image4": bodyUpdate.Image4,
+	}
+	if len(fileImages) > 0 {
+		_, err = config.DB.Exec(
+			context.Background(),
+			`DELETE FROM product_images WHERE product_id = $1`,
+			id,
+		)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Internal server error while deleting old images",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		for _, file := range fileImages {
+			if file.Size > 1<<20 {
+				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+					Success: false,
+					Message: "Each file size must be less than 1MB",
+				})
+				return
+			}
+
+			contentType := file.Header.Get("Content-Type")
+			if contentType != "image/jpeg" && contentType != "image/png" {
+				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+					Success: false,
+					Message: "Only JPEG and PNG files are allowed",
+				})
+				return
+			}
+
+			ext := filepath.Ext(file.Filename)
+			fileName := fmt.Sprintf("product_%d_%d%s", id, time.Now().UnixNano(), ext)
+			savedFilePath := "uploads/products/" + fileName
+
+			if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Failed to save uploaded file",
+					Error:   err.Error(),
+				})
+				return
+			}
+
+			_, err = config.DB.Exec(
+				context.Background(),
+				`INSERT INTO product_images (image, product_id, created_by, updated_by)
+					 VALUES ($1, $2, $3, $4)`,
+				savedFilePath,
+				id,
+				userIdFromToken,
+				userIdFromToken,
+			)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Internal server error while inserting product image",
+					Error:   err.Error(),
+				})
+				return
+			}
+		}
+	}
+
+	sizeProducts := strings.Split(bodyUpdate.SizeProducts, ",")
+	if len(sizeProducts) > 0 {
+		_, err = config.DB.Exec(
+			context.Background(),
+			`DELETE FROM size_products WHERE product_id = $1`,
+			id,
+		)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Internal server error while deleting old size products",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		for _, sizeIdStr := range sizeProducts {
+			sizeIdStr = strings.TrimSpace(sizeIdStr)
+			if sizeIdStr == "" {
+				continue
+			}
+
+			sizeId, err := strconv.Atoi(sizeIdStr)
+			if err != nil {
+				continue
+			}
+
+			_, err = config.DB.Exec(
+				context.Background(),
+				`INSERT INTO size_products (product_id, size_id, created_by, updated_by)
+				 VALUES ($1, $2, $3, $4)`,
+				id,
+				sizeId,
+				userIdFromToken,
+				userIdFromToken,
+			)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Internal server error while inserting size product",
+					Error:   err.Error(),
+				})
+				return
+			}
+		}
+	}
+
+	productCategories := strings.Split(bodyUpdate.ProductCategories, ",")
+	if len(productCategories) > 0 {
+		_, err = config.DB.Exec(
+			context.Background(),
+			`DELETE FROM product_categories WHERE product_id = $1`,
+			id,
+		)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Internal server error while deleting old product categories",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		for _, categoryIdStr := range productCategories {
+			categoryIdStr = strings.TrimSpace(categoryIdStr)
+			if categoryIdStr == "" {
+				continue
+			}
+
+			categoryId, err := strconv.Atoi(categoryIdStr)
+			if err != nil {
+				continue
+			}
+
+			_, err = config.DB.Exec(
+				context.Background(),
+				`INSERT INTO product_categories (product_id, category_id, created_by, updated_by)
+				 VALUES ($1, $2, $3, $4)`,
+				id,
+				categoryId,
+				userIdFromToken,
+				userIdFromToken,
+			)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Internal server error while inserting product category",
+					Error:   err.Error(),
+				})
+				return
+			}
+		}
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "Product updated successfully",
 	})
 }
