@@ -13,4 +13,5 @@ func SetUpRoutes(r *gin.Engine) {
 	SetupUserRoutes(r, admin)
 	SetupProductRoutes(r, admin)
 	SetupTransactionRoutes(r, admin)
+	SetupCategoryRoutes(r, admin)
 }

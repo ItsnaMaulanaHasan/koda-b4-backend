@@ -10,5 +10,6 @@ func SetupCategoryRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 	categories := admin.Group("/categories")
 	{
 		categories.GET("", controllers.GetAllCategory)
+		categories.GET("/:id", controllers.GetCategoryById)
 	}
 }
