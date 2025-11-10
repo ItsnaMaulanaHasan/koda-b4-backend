@@ -29,7 +29,7 @@ import (
 // @Param        page   		query     int     false  "Page number"  default(1)  minimum(1)
 // @Param        limit          query     int     false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
 // @Param        search         query     string  false  "Search value"
-// @Success      200            {object}  object{success=bool,message=string,data=[]models.Product,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int}}  "Successfully retrieved product list"
+// @Success      200            {object}  object{success=bool,message=string,data=[]models.Product,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved product list"
 // @Failure      400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
 // @Failure      500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data."
 // @Router       /admin/products [get]
