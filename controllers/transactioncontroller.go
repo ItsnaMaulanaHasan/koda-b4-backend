@@ -5,6 +5,7 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -179,5 +180,118 @@ func GetAllTransaction(ctx *gin.Context) {
 			"next":        next,
 			"prev":        prev,
 		},
+	})
+}
+
+// GetTransactionById godoc
+// @Summary      Get transaction by Id
+// @Description  Retrieving transaction detail data based on Id including ordered products
+// @Tags         transactions
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id             path    int     true  "Transaction Id"
+// @Success      200  {object}  lib.ResponseSuccess{data=models.TransactionDetail}  "Successfully retrieved transaction detail"
+// @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure      404  {object}  lib.ResponseError  "Transaction not found"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching transaction from database"
+// @Router       /admin/transactions/{id} [get]
+func GetTransactionById(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	rows, err := config.DB.Query(context.Background(),
+		`SELECT 
+			t.id,
+			t.user_id,
+			t.no_order,
+			t.date_order,
+			t.full_name,
+			t.email,
+			t.address,
+			t.phone,
+			COALESCE(t.payment_method, '') AS payment_method,
+			t.shipping,
+			t.status,
+			t.total_transaction,
+			COALESCE(t.delivery_fee, 0) AS delivery_fee,
+			COALESCE(t.tax, 0) AS tax
+		FROM transactions t
+		WHERE t.id = $1`, id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to fetch transaction from database",
+			Error:   err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+
+	transaction, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.TransactionDetail])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, lib.ResponseError{
+				Success: false,
+				Message: "Transaction not found",
+			})
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to process transaction data",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	productRows, err := config.DB.Query(context.Background(),
+		`SELECT 
+			id,
+			product_id,
+			product_name,
+			product_price,
+			COALESCE(discount_percent, 0) AS discount_percent,
+			amount,
+			subtotal,
+			size
+		FROM ordered_products
+		WHERE order_id = $1
+		ORDER BY id ASC`, id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to fetch ordered products from database",
+			Error:   err.Error(),
+		})
+		return
+	}
+	defer productRows.Close()
+
+	orderedProducts, err := pgx.CollectRows(productRows, pgx.RowToStructByName[models.OrderedProduct])
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to process ordered products data",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	transaction.OrderedProducts = orderedProducts
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "Success get transaction detail",
+		Data:    transaction,
 	})
 }
