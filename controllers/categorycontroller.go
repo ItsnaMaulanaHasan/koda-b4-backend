@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -24,7 +25,7 @@ import (
 // @Param        	 page           query     int     false  "Page number"               default(1)   minimum(1)
 // @Param        	 limit          query     int     false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
 // @Param        	 search         query     string  false  "Search value"
-// @Success      	 200  {object}  object{success=bool,message=string,data=[]models.CategoryResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved category list"
+// @Success      	 200  {object}  object{success=bool,message=string,data=[]models.Category,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved category list"
 // @Failure      	 400  {object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
 // @Failure      	 500  {object}  lib.ResponseError  "Internal server error while fetching or processing category data"
 // @Router       	 /admin/categories [get]
@@ -102,7 +103,7 @@ func GetAllCategory(ctx *gin.Context) {
 	}
 	defer rows.Close()
 
-	categories, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.CategoryResponse])
+	categories, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.Category])
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -130,14 +131,16 @@ func GetAllCategory(ctx *gin.Context) {
 
 	var next any
 	var prev any
-	switch page {
-	case 1:
+	if page == 1 && totalPage > 1 {
 		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
 		prev = nil
-	case totalPage:
+	} else if page == totalPage && totalPage > 1 {
 		next = nil
 		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	default:
+	} else if page == totalPage && totalPage == 1 {
+		next = nil
+		prev = nil
+	} else {
 		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
 		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
 	}
@@ -172,7 +175,7 @@ func GetAllCategory(ctx *gin.Context) {
 // @Security     BearerAuth
 // @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
 // @Param        id             path    int     true  "Category Id"
-// @Success      200  {object}  lib.ResponseSuccess{data=models.CategoryResponse}  "Successfully retrieved category"
+// @Success      200  {object}  lib.ResponseSuccess{data=models.Category}  "Successfully retrieved category"
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure      404  {object}  lib.ResponseError  "Category not found"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching category from database"
@@ -202,7 +205,7 @@ func GetCategoryById(ctx *gin.Context) {
 	}
 	defer rows.Close()
 
-	category, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.CategoryResponse])
+	category, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.Category])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, lib.ResponseError{
@@ -224,5 +227,91 @@ func GetCategoryById(ctx *gin.Context) {
 		Success: true,
 		Message: "Success get category",
 		Data:    category,
+	})
+}
+
+// CreateCategory    godoc
+// @Summary      Create new category
+// @Description  Create a new category with a unique name
+// @Tags         categories
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
+// @Param        name           formData  string  true  "Category name"
+// @Success      201  {object}  lib.ResponseSuccess{data=models.Category}  "Category created successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid request body"
+// @Failure      409  {object}  lib.ResponseError  "Category name already exists"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while creating category"
+// @Router       /admin/categories [post]
+func CreateCategory(ctx *gin.Context) {
+	var bodyCreateCategory models.Category
+	err := ctx.ShouldBindWith(&bodyCreateCategory, binding.Form)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid form data",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	var exists bool
+	err = config.DB.QueryRow(
+		context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1)", bodyCreateCategory.Name,
+	).Scan(&exists)
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while checking category name uniqueness",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if exists {
+		ctx.JSON(http.StatusConflict, lib.ResponseError{
+			Success: false,
+			Message: "Category name already exists",
+		})
+		return
+	}
+
+	userIdFromToken, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User Id not found in token",
+		})
+		return
+	}
+
+	err = config.DB.QueryRow(
+		context.Background(),
+		`INSERT INTO categories (name, created_by, updated_by)
+		 VALUES ($1, $2, $3)
+		 RETURNING id`,
+		bodyCreateCategory.Name,
+		userIdFromToken,
+		userIdFromToken,
+	).Scan(&bodyCreateCategory.Id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Internal server error while inserting new category",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
+		Success: true,
+		Message: "Category created successfully",
+		Data: models.Category{
+			Id:   bodyCreateCategory.Id,
+			Name: bodyCreateCategory.Name,
+		},
 	})
 }

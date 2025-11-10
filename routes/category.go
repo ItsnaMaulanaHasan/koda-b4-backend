@@ -11,5 +11,6 @@ func SetupCategoryRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 	{
 		categories.GET("", controllers.GetAllCategory)
 		categories.GET("/:id", controllers.GetCategoryById)
+		categories.POST("", controllers.CreateCategory)
 	}
 }
