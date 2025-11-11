@@ -300,6 +300,7 @@ func DetailProduct(ctx *gin.Context) {
 // @Param        image4             formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
 // @Param        sizeProducts       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
 // @Param        productCategories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
+// @Param        productVariants  	formData  string    false  "Variant Id (comma-separated, e.g., 1,2,3)"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.AdminProductResponse}  "Product created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body"
 // @Failure      409  {object}  lib.ResponseError  "Product name already exists"
@@ -443,7 +444,7 @@ func CreateProduct(ctx *gin.Context) {
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
-					Message: "Internal server error while inserting size product",
+					Message: "Internal server error while inserting sizes product",
 					Error:   err.Error(),
 				})
 				return
@@ -477,7 +478,41 @@ func CreateProduct(ctx *gin.Context) {
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
-					Message: "Internal server error while inserting product category",
+					Message: "Internal server error while inserting product categories",
+					Error:   err.Error(),
+				})
+				return
+			}
+		}
+	}
+
+	if strings.TrimSpace(bodyCreate.ProductVariants) != "" {
+		productVariants := strings.SplitSeq(bodyCreate.ProductVariants, ",")
+
+		for variantIdStr := range productVariants {
+			variantIdStr = strings.TrimSpace(variantIdStr)
+			if variantIdStr == "" {
+				continue
+			}
+
+			variantId, err := strconv.Atoi(variantIdStr)
+			if err != nil {
+				continue
+			}
+
+			_, err = config.DB.Exec(
+				context.Background(),
+				`INSERT INTO product_variants (product_id, variant_id, created_by, updated_by)
+				 VALUES ($1, $2, $3, $4)`,
+				bodyCreate.Id,
+				variantId,
+				userIdFromToken,
+				userIdFromToken,
+			)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Internal server error while inserting product variants",
 					Error:   err.Error(),
 				})
 				return
@@ -508,13 +543,14 @@ func CreateProduct(ctx *gin.Context) {
 // @Param        stock              formData  int       false  "Product stock"
 // @Param        isFlashSale        formData  bool      false  "Is flash sale"
 // @Param        isActive           formData  bool      false  "Is active"
-// @Param        isFavourite         formData  bool      false  "Is favourite"
+// @Param        isFavourite        formData  bool      false  "Is favourite"
 // @Param        image1             formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
 // @Param        image2             formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
 // @Param        image3             formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
 // @Param        image4             formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
 // @Param        sizeProducts       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
 // @Param        productCategories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
+// @Param        productVariants    formData  string    false  "Variant Id (comma-separated, e.g., 1,2,3)"
 // @Success      200  {object}  lib.ResponseSuccess  "Product updated successfully"
 // @Failure      400  {object}  lib.ResponseError   "Invalid Id format or invalid request body"
 // @Failure      404  {object}  lib.ResponseError   "Product not found"
@@ -748,6 +784,53 @@ func UpdateProduct(ctx *gin.Context) {
 				 VALUES ($1, $2, $3, $4)`,
 				id,
 				categoryId,
+				userIdFromToken,
+				userIdFromToken,
+			)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Internal server error while inserting product category",
+					Error:   err.Error(),
+				})
+				return
+			}
+		}
+	}
+
+	if strings.TrimSpace(bodyUpdate.ProductVariants) != "" {
+		productVariants := strings.Split(bodyUpdate.ProductVariants, ",")
+		_, err = config.DB.Exec(
+			context.Background(),
+			`DELETE FROM product_variants WHERE product_id = $1`,
+			id,
+		)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Internal server error while deleting old product variants",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		for _, variantsIdStr := range productVariants {
+			variantsIdStr = strings.TrimSpace(variantsIdStr)
+			if variantsIdStr == "" {
+				continue
+			}
+
+			variantId, err := strconv.Atoi(variantsIdStr)
+			if err != nil {
+				continue
+			}
+
+			_, err = config.DB.Exec(
+				context.Background(),
+				`INSERT INTO product_variants (product_id, variant_id, created_by, updated_by)
+				 VALUES ($1, $2, $3, $4)`,
+				id,
+				variantId,
 				userIdFromToken,
 				userIdFromToken,
 			)
