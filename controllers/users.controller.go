@@ -20,7 +20,7 @@ import (
 // GetAllUser    godoc
 // @Summary      Get all users
 // @Description  Retrieving all user data with pagination support
-// @Tags         users
+// @Tags         admin/users
 // @Produce      json
 // @Security     BearerAuth
 // @Param        Authorization  header 	  string  true       "Bearer token"              default(Bearer <token>)
@@ -198,7 +198,7 @@ func GetAllUser(ctx *gin.Context) {
 // GetUserById   godoc
 // @Summary      Get user by Id
 // @Description  Retrieving user data based on Id
-// @Tags         users
+// @Tags         admin/users
 // @Accept 		 x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
@@ -271,7 +271,7 @@ func GetUserById(ctx *gin.Context) {
 // CreateUser    godoc
 // @Summary      Create new user
 // @Description  Create a new user with a unique email
-// @Tags         users
+// @Tags         admin/users
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
@@ -447,7 +447,7 @@ func CreateUser(ctx *gin.Context) {
 // UpdateUser    godoc
 // @Summary      Update user
 // @Description  Updating user data based on Id
-// @Tags         users
+// @Tags         admin/users
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
@@ -593,7 +593,7 @@ func UpdateUser(ctx *gin.Context) {
 // DeleteUser    godoc
 // @Summary      Delete user
 // @Description  Delete user by Id
-// @Tags         users
+// @Tags         admin/users
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth

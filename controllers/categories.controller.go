@@ -18,7 +18,7 @@ import (
 // GetAllCategory    godoc
 // @Summary      	 Get all categories
 // @Description  	 Retrieving all category data with pagination support
-// @Tags         	 categories
+// @Tags         	 admin/categories
 // @Produce      	 json
 // @Security     	 BearerAuth
 // @Param        	 Authorization  header    string  true   "Bearer token"              default(Bearer <token>)
@@ -169,7 +169,7 @@ func GetAllCategory(ctx *gin.Context) {
 // GetCategoryById   godoc
 // @Summary      Get category by Id
 // @Description  Retrieving category data based on Id
-// @Tags         categories
+// @Tags         admin/categories
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
@@ -233,7 +233,7 @@ func GetCategoryById(ctx *gin.Context) {
 // CreateCategory    godoc
 // @Summary      Create new category
 // @Description  Create a new category with a unique name
-// @Tags         categories
+// @Tags         admin/categories
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
@@ -319,7 +319,7 @@ func CreateCategory(ctx *gin.Context) {
 // UpdateCategory    godoc
 // @Summary      Update category
 // @Description  Updating category data based on Id
-// @Tags         categories
+// @Tags         admin/categories
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
@@ -421,7 +421,7 @@ func UpdateCategory(ctx *gin.Context) {
 // DeleteCategory    godoc
 // @Summary      Delete category
 // @Description  Delete category by Id
-// @Tags         categories
+// @Tags         admin/categories
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth

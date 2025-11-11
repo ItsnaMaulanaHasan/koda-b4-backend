@@ -17,7 +17,7 @@ import (
 // GetAllTransaction godoc
 // @Summary          Get all transaction
 // @Description  	 Retrieving all transaction data with pagination support
-// @Tags         	 transactions
+// @Tags         	 admin/transactions
 // @Produce      	 json
 // @Security     	 BearerAuth
 // @Param        	 Authorization  header    string  true   "Bearer token" default(Bearer <token>)
@@ -186,7 +186,7 @@ func GetAllTransaction(ctx *gin.Context) {
 // GetTransactionById godoc
 // @Summary      Get transaction by Id
 // @Description  Retrieving transaction detail data based on Id including ordered products
-// @Tags         transactions
+// @Tags         admin/transactions
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
@@ -299,7 +299,7 @@ func GetTransactionById(ctx *gin.Context) {
 // UpdateTransactionStatus godoc
 // @Summary      Update transaction status
 // @Description  Updating transaction status based on Id
-// @Tags         transactions
+// @Tags         admin/transactions
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
