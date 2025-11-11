@@ -293,6 +293,7 @@ func DetailProduct(ctx *gin.Context) {
 // @Param        stock              formData  int       true   "Product stock"
 // @Param        isFlashSale        formData  bool      false  "Is flash sale"  default(false)
 // @Param        isActive           formData  bool      false  "Is active"  default(true)
+// @Param        isFavourite        formData  bool      false  "Is active"  default(false)
 // @Param        image1             formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
 // @Param        image2             formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
 // @Param        image3             formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
@@ -507,6 +508,7 @@ func CreateProduct(ctx *gin.Context) {
 // @Param        stock              formData  int       false  "Product stock"
 // @Param        isFlashSale        formData  bool      false  "Is flash sale"
 // @Param        isActive           formData  bool      false  "Is active"
+// @Param        isFavourie           formData  bool      false  "Is favourite"
 // @Param        image1             formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
 // @Param        image2             formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
 // @Param        image3             formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
@@ -812,5 +814,87 @@ func DeleteProduct(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
 		Message: "Product deleted successfully",
+	})
+}
+
+// ListFavouriteProduct godoc
+// @Summary            Get all favourite products
+// @Description        Retrieving all favourite products data with pagination support
+// @Tags               features
+// @Produce            json
+// @Param              limit          query     int     false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
+// @Success            200            {object}  object{success=bool,message=string,data=[]models.Product,limit=int}  "Successfully retrieved product list"
+// @Failure            400            {object}  lib.ResponseError  "Invalid limit"
+// @Failure            500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data"
+// @Router             /favourite-products [get]
+func ListFavouriteProducts(ctx *gin.Context) {
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "4"))
+
+	if limit < 1 {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Limit must be greater than 0",
+		})
+		return
+	}
+
+	if limit > 20 {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Limit cannot exceed 20",
+		})
+		return
+	}
+
+	var err error
+	var products []models.Product
+	cacheListFavouriteProducts, _ := lib.Redis().Get(context.Background(), ctx.Request.RequestURI).Result()
+	if cacheListFavouriteProducts == "" {
+		products, err = models.GetListFavouriteProducts(limit)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to fetch products from database",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		productsStr, err := json.Marshal(products)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to serialization list all products",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, productsStr, 15*time.Minute).Err()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to set list all products to cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	} else {
+		err = json.Unmarshal([]byte(cacheListFavouriteProducts), &products)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to unmarshal list all products from cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Success get all product",
+		"data":    products,
+		"limit":   limit,
 	})
 }
