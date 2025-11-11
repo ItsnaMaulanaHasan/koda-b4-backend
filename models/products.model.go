@@ -42,7 +42,7 @@ type ProductRequest struct {
 	ProductCategories string   `form:"product_categories"`
 }
 
-func TotalDataProduct(search string) (int, error) {
+func TotalDataProducts(search string) (int, error) {
 	var totalData int
 	var err error
 	searchParam := "%" + search + "%"
@@ -62,7 +62,7 @@ func TotalDataProduct(search string) (int, error) {
 	return totalData, err
 }
 
-func GetListAllProduct(search string, page int, limit int) (pgx.Rows, error) {
+func GetListAllProducts(search string, page int, limit int) (pgx.Rows, error) {
 	offset := (page - 1) * limit
 	var rows pgx.Rows
 	var err error
