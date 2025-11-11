@@ -4,6 +4,7 @@ import (
 	"backend-daily-greens/config"
 	"context"
 	"errors"
+	"fmt"
 	"mime/multipart"
 
 	"github.com/jackc/pgx/v5"
@@ -53,7 +54,6 @@ type PublicProductResponse struct {
 	Price             float64  `db:"price" json:"price"`
 	DiscountPercent   float64  `db:"discount_percent" json:"discountPercent"`
 	IsFlashSale       bool     `db:"is_flash_sale" json:"isFlashSale"`
-	IsActive          bool     `db:"is_active" json:"isActive"`
 	IsFavourite       bool     `db:"is_favourite" json:"isFavourite"`
 	ProductCategories []string `db:"product_categories" json:"productCategories"`
 }
@@ -242,7 +242,6 @@ func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 			p.price,
 			COALESCE(p.discount_percent, 0) AS discount_percent,
 			p.is_flash_sale,
-			p.is_active,
 			p.is_favourite,
 			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
 			COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
@@ -255,6 +254,98 @@ func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 		ORDER BY p.id ASC
 		LIMIT $1`, limit)
 
+	if err != nil {
+		return products, err
+	}
+	defer rows.Close()
+
+	products, err = pgx.CollectRows(rows, pgx.RowToStructByName[PublicProductResponse])
+	if err != nil {
+		return products, err
+	}
+
+	return products, nil
+}
+
+func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64, minPrice float64, limit int, page int) ([]PublicProductResponse, error) {
+	products := []PublicProductResponse{}
+	offset := (page - 1) * limit
+
+	query := `
+		SELECT 
+			p.id,
+			p.name,
+			p.description,
+			p.price,
+			COALESCE(p.discount_percent, 0) AS discount_percent,
+			p.is_flash_sale,
+			p.is_favourite,
+			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+			COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+		FROM products p
+		LEFT JOIN product_images pi ON pi.product_id = p.id
+		LEFT JOIN size_products sp ON sp.product_id = p.id
+		LEFT JOIN sizes s ON s.id = sp.size_id
+		LEFT JOIN product_categories pc ON pc.product_id = p.id
+		LEFT JOIN categories c ON c.id = pc.category_id
+		WHERE 1=1`
+
+	// Dynamic parameters
+	args := []any{}
+	paramCount := 1
+
+	// Search filter
+	if q != "" {
+		query += fmt.Sprintf(` AND p.name ILIKE $%d`, paramCount)
+		args = append(args, "%"+q+"%")
+		paramCount++
+	}
+
+	// Category filter
+	if len(cat) > 0 {
+		query += fmt.Sprintf(` AND c.name = ANY($%d)`, paramCount)
+		args = append(args, cat)
+		paramCount++
+	}
+
+	// Price range filter
+	if minPrice > 0 {
+		query += fmt.Sprintf(` AND p.price >= $%d`, paramCount)
+		args = append(args, minPrice)
+		paramCount++
+	}
+
+	if maxPrice > 0 {
+		query += fmt.Sprintf(` AND p.price <= $%d`, paramCount)
+		args = append(args, maxPrice)
+		paramCount++
+	}
+
+	// Group by
+	query += ` GROUP BY p.id`
+
+	// Sorting
+	orderBy := "p.id ASC" // default
+	if sort != "" {
+		switch sort {
+		case "name_asc":
+			orderBy = "p.name ASC"
+		case "name_desc":
+			orderBy = "p.name DESC"
+		case "price_asc":
+			orderBy = "p.price ASC"
+		case "price_desc":
+			orderBy = "p.price DESC"
+		}
+	}
+	query += fmt.Sprintf(` ORDER BY %s`, orderBy)
+
+	// Pagination
+	query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, paramCount, paramCount+1)
+	args = append(args, limit, offset)
+
+	// Execute query
+	rows, err := config.DB.Query(context.Background(), query, args...)
 	if err != nil {
 		return products, err
 	}

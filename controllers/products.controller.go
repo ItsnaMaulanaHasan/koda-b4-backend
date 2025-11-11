@@ -898,3 +898,203 @@ func ListFavouriteProducts(ctx *gin.Context) {
 		"limit":   limit,
 	})
 }
+
+// ListProducts  godoc
+// @Summary      Get list products
+// @Description  Retrieving list products with filter
+// @Tags         products
+// @Produce      json
+// @Param        q   		    query     string   false  "Search name product"
+// @Param        cat   		    query     []string false  "Category of product"
+// @Param        sort[name]     query     string   false  "Sort by name" Enums(asc, desc)
+// @Param        sort[price]    query     string   false  "Sort by price" Enums(asc, desc)
+// @Param        maxPrice   	query     number   false  "Maximum price product"
+// @Param        minPrice   	query     number   false  "Minimum price product"
+// @Param        page   		query     int      false  "Page number"  default(1)  minimum(1)
+// @Param        limit          query     int      false  "Number of items per page"  default(10)  minimum(1)  maximum(50)
+// @Success      200            {object}  object{success=bool,message=string,data=[]models.PublicProductResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved product list"
+// @Failure      400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
+// @Failure      500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data."
+// @Router       /products [get]
+func ListProductsPublic(ctx *gin.Context) {
+	search := ctx.Query("q")
+	cat := ctx.QueryArray("cat")
+
+	sortField := ""
+	sortName := ctx.Query("sort[name]")
+	sortPrice := ctx.Query("sort[price]")
+
+	if sortName != "" {
+		switch sortName {
+		case "asc":
+			sortField = "name_asc"
+		case "desc":
+			sortField = "name_desc"
+		}
+	} else if sortPrice != "" {
+		switch sortPrice {
+		case "asc":
+			sortField = "price_asc"
+		case "desc":
+			sortField = "price_desc"
+		}
+	}
+
+	maxPrice, _ := strconv.ParseFloat(ctx.Query("maxPrice"), 64)
+	minPrice, _ := strconv.ParseFloat(ctx.Query("minPrice"), 64)
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid pagination parameter: 'page' must be greater than 0",
+		})
+		return
+	}
+
+	if limit < 1 {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid pagination parameter: 'limit' must be greater than 0",
+		})
+		return
+	}
+
+	if limit > 100 {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid pagination parameter: 'limit' cannot exceed 100",
+		})
+		return
+	}
+
+	var totalData int
+	var err error
+
+	cacheTotalDataProducts, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
+	if cacheTotalDataProducts == "" {
+		totalData, err = models.TotalDataProducts(search)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to count total products in database",
+				Error:   err.Error(),
+			})
+			return
+		}
+		err = lib.Redis().Set(context.Background(), "totalDataProducts", totalData, 15*time.Minute).Err()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to set total products to cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	} else {
+		err = json.Unmarshal([]byte(cacheTotalDataProducts), &totalData)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to unmarshal total products from cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	}
+
+	var products []models.PublicProductResponse
+	cacheListAllProducts, _ := lib.Redis().Get(context.Background(), ctx.Request.RequestURI).Result()
+	if cacheListAllProducts == "" {
+		products, err = models.GetListProductsPublic(search, cat, sortField, maxPrice, minPrice, limit, page)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to fetch products from database",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		productsStr, err := json.Marshal(products)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to serialization list all products",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, productsStr, 15*time.Minute).Err()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to set list all products to cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	} else {
+		err = json.Unmarshal([]byte(cacheListAllProducts), &products)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to unmarshal list all products from cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	}
+
+	totalPage := (totalData + limit - 1) / limit
+	if page > totalPage && totalData > 0 {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Page is out of range",
+		})
+		return
+	}
+
+	host := ctx.Request.Host
+	scheme := "http"
+	if ctx.Request.TLS != nil {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s/admin/users", scheme, host)
+
+	var next any
+	var prev any
+	switch page {
+	case 1:
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
+		prev = nil
+	case totalPage:
+		next = nil
+		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	default:
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
+		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	}
+
+	if totalData == 0 {
+		page = 0
+		next = nil
+		prev = nil
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Success get all product",
+		"data":    products,
+		"meta": gin.H{
+			"currentPage": page,
+			"perPage":     limit,
+			"totalData":   totalData,
+			"totalPages":  totalPage,
+			"next":        next,
+			"prev":        prev,
+		},
+	})
+}
