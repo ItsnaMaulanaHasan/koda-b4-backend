@@ -10,12 +10,13 @@ func SetupProductRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 	products := admin.Group("/products")
 	{
 		products.GET("", controllers.ListProductsAdmin)
-		products.GET("/:id", controllers.DetailProduct)
+		products.GET("/:id", controllers.DetailProductAdmin)
 		products.POST("", controllers.CreateProduct)
 		products.PATCH("/:id", controllers.UpdateProduct)
 		products.DELETE("/:id", controllers.DeleteProduct)
 	}
 
 	r.GET("/products", controllers.ListProductsPublic)
+	r.GET("/products/:id", controllers.DetailProductPublic)
 	r.GET("/favourite-products", controllers.ListFavouriteProducts)
 }
