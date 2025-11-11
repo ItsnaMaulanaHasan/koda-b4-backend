@@ -98,25 +98,14 @@ func GetAllProduct(ctx *gin.Context) {
 		}
 	}
 
-	var rows pgx.Rows
 	var products []models.Product
 	cacheListAllProducts, _ := lib.Redis().Get(context.Background(), ctx.Request.RequestURI).Result()
 	if cacheListAllProducts == "" {
-		rows, err = models.GetListAllProducts(search, page, limit)
+		products, err = models.GetListAllProducts(search, page, limit)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
 				Message: "Failed to fetch products from database",
-				Error:   err.Error(),
-			})
-			return
-		}
-
-		products, err = pgx.CollectRows(rows, pgx.RowToStructByName[models.Product])
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to process product data from database",
 				Error:   err.Error(),
 			})
 			return

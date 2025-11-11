@@ -62,10 +62,11 @@ func TotalDataProducts(search string) (int, error) {
 	return totalData, err
 }
 
-func GetListAllProducts(search string, page int, limit int) (pgx.Rows, error) {
-	offset := (page - 1) * limit
+func GetListAllProducts(search string, page int, limit int) ([]Product, error) {
 	var rows pgx.Rows
 	var err error
+	products := []Product{}
+	offset := (page - 1) * limit
 	if search != "" {
 		rows, err = config.DB.Query(context.Background(),
 			`SELECT 
@@ -118,7 +119,15 @@ func GetListAllProducts(search string, page int, limit int) (pgx.Rows, error) {
 			ORDER BY p.id ASC
 			LIMIT $1 OFFSET $2`, limit, offset)
 	}
+	if err != nil {
+		return products, err
+	}
 	defer rows.Close()
 
-	return rows, err
+	products, err = pgx.CollectRows(rows, pgx.RowToStructByName[Product])
+	if err != nil {
+		return products, err
+	}
+
+	return products, err
 }
