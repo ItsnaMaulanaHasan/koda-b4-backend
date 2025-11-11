@@ -239,3 +239,9 @@ erDiagram
 
     coupons ||--o{ coupon_usage : applied_in
 ```
+
+# Tabel Perbandingan Penggunaan Cache
+
+| Waktu Request Sebelum Cache (ms) | ![Waktu request sebelum cache](/assets/img/before_cache.png) |
+| -------------------------------- | ------------------------------------------------------------ |
+| Waktu Request Setelah Cache (ms) | ![Waktu request sebelum cache](/assets/img/after_cache.png)  |
