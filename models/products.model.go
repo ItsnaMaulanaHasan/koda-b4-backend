@@ -60,6 +60,21 @@ type PublicProductResponse struct {
 	ProductCategories []string `db:"product_categories" json:"productCategories"`
 }
 
+type PublicProductDetailResponse struct {
+	Id                int      `db:"id" json:"id"`
+	Images            []string `db:"images" json:"images"`
+	Name              string   `db:"name" json:"name"`
+	Description       string   `db:"description" json:"description"`
+	Price             float64  `db:"price" json:"price"`
+	DiscountPercent   float64  `db:"discount_percent" json:"discountPercent"`
+	Rating            float64  `db:"rating" json:"rating"`
+	IsFlashSale       bool     `db:"is_flash_sale" json:"isFlashSale"`
+	Stock             int      `db:"stock" json:"stock"`
+	SizeProducts      []string `db:"size_products" json:"sizeProducts"`
+	ProductCategories []string `db:"product_categories" json:"productCategories"`
+	ProductVariants   []string `db:"product_variants" json:"productVariants"`
+}
+
 func TotalDataProducts(search string) (int, error) {
 	var totalData int
 	var err error
@@ -108,7 +123,7 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 			LEFT JOIN sizes s ON s.id = sp.size_id
 			LEFT JOIN product_categories pc ON pc.product_id = p.id
 			LEFT JOIN categories c ON c.id = pc.category_id
-			LEFT JOIN product_varianst pv ON pv.product_id = p.id
+			LEFT JOIN product_variants pv ON pv.product_id = p.id
 			LEFT JOIN variants v ON v.id = pv.variant_id
 			WHERE p.name ILIKE $3
 				OR p.description ILIKE $3
@@ -139,7 +154,7 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 			LEFT JOIN sizes s ON s.id = sp.size_id
 			LEFT JOIN product_categories pc ON pc.product_id = p.id
 			LEFT JOIN categories c ON c.id = pc.category_id
-			LEFT JOIN product_varianst pv ON pv.product_id = p.id
+			LEFT JOIN product_variants pv ON pv.product_id = p.id
 			LEFT JOIN variants v ON v.id = pv.variant_id
 			GROUP BY p.id
 			ORDER BY p.id ASC
@@ -158,7 +173,7 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 	return products, nil
 }
 
-func GetProductById(id int) (AdminProductResponse, error) {
+func GetProductByIdAdmin(id int) (AdminProductResponse, error) {
 	product := AdminProductResponse{}
 	query := `SELECT 
 				p.id,
@@ -181,7 +196,7 @@ func GetProductById(id int) (AdminProductResponse, error) {
 			LEFT JOIN sizes s ON s.id = sp.size_id
 			LEFT JOIN product_categories pc ON pc.product_id = p.id
 			LEFT JOIN categories c ON c.id = pc.category_id
-			LEFT JOIN product_varianst pv ON pv.product_id = p.id
+			LEFT JOIN product_variants pv ON pv.product_id = p.id
 			LEFT JOIN variants v ON v.id = pv.variant_id
 			WHERE p.id = $1
 			GROUP BY p.id;`
@@ -363,4 +378,47 @@ func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64
 	}
 
 	return products, nil
+}
+
+func GetProductByIdPublic(id int) (PublicProductDetailResponse, error) {
+	product := PublicProductDetailResponse{}
+	query := `SELECT 
+				p.id,
+				p.name,
+				p.description,
+				p.price,
+				COALESCE(p.discount_percent, 0) AS discount_percent,
+				COALESCE(p.rating, 0) AS rating,
+				p.is_flash_sale,
+				COALESCE(p.stock, 0) AS stock,
+				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
+				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
+			FROM products p
+			LEFT JOIN product_images pi ON pi.product_id = p.id
+			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN sizes s ON s.id = sp.size_id
+			LEFT JOIN product_categories pc ON pc.product_id = p.id
+			LEFT JOIN categories c ON c.id = pc.category_id
+			LEFT JOIN product_variants pv ON pv.product_id = p.id
+			LEFT JOIN variants v ON v.id = pv.variant_id
+			WHERE p.id = $1
+			GROUP BY p.id;`
+
+	rows, err := config.DB.Query(context.Background(), query, id)
+	if err != nil {
+		return product, err
+	}
+	defer rows.Close()
+
+	product, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[PublicProductDetailResponse])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return product, err
+		}
+		return product, err
+	}
+
+	return product, nil
 }
