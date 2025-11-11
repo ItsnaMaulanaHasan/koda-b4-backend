@@ -11,7 +11,7 @@ CREATE TABLE "products" (
     "is_flash_sale" bool DEFAULT false,
     "stock" int CHECK ("stock" >= 0),
     "is_active" bool DEFAULT true,
-    "is_favorite" bool DEFAULT false,
+    "is_favourite" bool DEFAULT false,
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,

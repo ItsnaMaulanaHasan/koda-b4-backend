@@ -91,7 +91,7 @@ INSERT INTO
         is_flash_sale,
         stock,
         is_active,
-        is_favorite,
+        is_favourite,
         created_by,
         updated_by
     )
