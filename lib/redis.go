@@ -9,7 +9,7 @@ import (
 func Redis() *redis.Client {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_URL"),
-		Password: "",
+		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 		Protocol: 2,
 	})
