@@ -316,11 +316,7 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
-	var exists bool
-	err = config.DB.QueryRow(
-		context.Background(),
-		"SELECT EXISTS(SELECT 1 FROM products WHERE name = $1)", bodyCreate.Name,
-	).Scan(&exists)
+	exists, err := models.CheckProductName(bodyCreate.Name)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,

@@ -173,3 +173,16 @@ func GetProductById(id int) (Product, error) {
 
 	return product, err
 }
+
+func CheckProductName(name string) (bool, error) {
+	exists := false
+	err := config.DB.QueryRow(
+		context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM products WHERE name = $1)", name,
+	).Scan(&exists)
+	if err != nil {
+		return exists, err
+	}
+
+	return exists, err
+}
