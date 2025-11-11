@@ -77,7 +77,7 @@ func ListAllProducts(ctx *gin.Context) {
 			})
 			return
 		}
-		err = lib.Redis().Set(context.Background(), "totalDataProducts", totalData, 0).Err()
+		err = lib.Redis().Set(context.Background(), "totalDataProducts", totalData, 15*time.Minute).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -121,7 +121,7 @@ func ListAllProducts(ctx *gin.Context) {
 			return
 		}
 
-		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, productsStr, 60*time.Second).Err()
+		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, productsStr, 15*time.Minute).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
