@@ -3,6 +3,7 @@ package models
 import (
 	"backend-daily-greens/config"
 	"context"
+	"errors"
 	"mime/multipart"
 
 	"github.com/jackc/pgx/v5"
@@ -130,4 +131,45 @@ func GetListAllProducts(search string, page int, limit int) ([]Product, error) {
 	}
 
 	return products, err
+}
+
+func GetProductById(id int) (Product, error) {
+	product := Product{}
+	query := `SELECT 
+				p.id,
+				p.name,
+				p.description,
+				p.price,
+				COALESCE(p.discount_percent, 0) AS discount_percent,
+				COALESCE(p.rating, 0) AS rating,
+				p.is_flash_sale,
+				COALESCE(p.stock, 0) AS stock,
+				p.is_active,
+				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+			FROM products p
+			LEFT JOIN product_images pi ON pi.product_id = p.id
+			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN sizes s ON s.id = sp.size_id
+			LEFT JOIN product_categories pc ON pc.product_id = p.id
+			LEFT JOIN categories c ON c.id = pc.category_id 
+			WHERE p.id = $1
+			GROUP BY p.id;`
+
+	rows, err := config.DB.Query(context.Background(), query, id)
+	if err != nil {
+		return product, err
+	}
+	defer rows.Close()
+
+	product, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[Product])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return product, err
+		}
+		return product, err
+	}
+
+	return product, err
 }
