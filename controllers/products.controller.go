@@ -111,7 +111,17 @@ func GetAllProduct(ctx *gin.Context) {
 			return
 		}
 
-		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, products, 0).Err()
+		productsStr, err := json.Marshal(products)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to serialization list all products",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, productsStr, 60*time.Second).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
