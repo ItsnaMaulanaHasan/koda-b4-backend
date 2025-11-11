@@ -118,6 +118,7 @@ func GetListAllProduct(search string, page int, limit int) (pgx.Rows, error) {
 			ORDER BY p.id ASC
 			LIMIT $1 OFFSET $2`, limit, offset)
 	}
+	defer rows.Close()
 
 	return rows, err
 }
