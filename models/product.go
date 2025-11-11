@@ -1,6 +1,12 @@
 package models
 
-import "mime/multipart"
+import (
+	"backend-daily-greens/config"
+	"context"
+	"mime/multipart"
+
+	"github.com/jackc/pgx/v5"
+)
 
 type Product struct {
 	Id                int      `db:"id"`
@@ -34,4 +40,84 @@ type ProductRequest struct {
 	IsActive          bool     `form:"is_active"`
 	SizeProducts      string   `form:"size_products"`
 	ProductCategories string   `form:"product_categories"`
+}
+
+func TotalDataProduct(search string) (int, error) {
+	var totalData int
+	var err error
+	searchParam := "%" + search + "%"
+	if search != "" {
+		err = config.DB.QueryRow(context.Background(),
+			`SELECT COUNT(DISTINCT p.id)
+			 FROM products p
+			 LEFT JOIN product_categories pc ON pc.product_id = p.id
+			 LEFT JOIN categories c ON c.id = pc.category_id
+			 WHERE p.name ILIKE $1
+			 OR p.description ILIKE $1
+			 OR c.name ILIKE $1`, searchParam).Scan(&totalData)
+	} else {
+		err = config.DB.QueryRow(context.Background(), `SELECT COUNT(*) FROM products`).Scan(&totalData)
+	}
+
+	return totalData, err
+}
+
+func GetListAllProduct(search string, page int, limit int) (pgx.Rows, error) {
+	offset := (page - 1) * limit
+	var rows pgx.Rows
+	var err error
+	if search != "" {
+		rows, err = config.DB.Query(context.Background(),
+			`SELECT 
+				p.id,
+				p.name,
+				p.description,
+				p.price,
+				COALESCE(p.discount_percent, 0) AS discount_percent,
+				COALESCE(p.rating, 0) AS rating,
+				p.is_flash_sale,
+				COALESCE(p.stock, 0) AS stock,
+				p.is_active,
+				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+			FROM products p
+			LEFT JOIN product_images pi ON pi.product_id = p.id
+			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN sizes s ON s.id = sp.size_id
+			LEFT JOIN product_categories pc ON pc.product_id = p.id
+			LEFT JOIN categories c ON c.id = pc.category_id
+			WHERE p.name ILIKE $3
+				OR p.description ILIKE $3
+				OR c.name ILIKE $3
+			GROUP BY p.id
+			ORDER BY p.id ASC
+			LIMIT $1 OFFSET $2`, limit, offset, "%"+search+"%")
+	} else {
+		rows, err = config.DB.Query(context.Background(),
+			`SELECT 
+				p.id,
+				p.name,
+				p.description,
+				p.price,
+				COALESCE(p.discount_percent, 0) AS discount_percent,
+				COALESCE(p.rating, 0) AS rating,
+				p.is_flash_sale,
+				COALESCE(p.stock, 0) AS stock,
+				p.is_active,
+				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+			FROM products p
+			LEFT JOIN product_images pi ON pi.product_id = p.id
+			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN sizes s ON s.id = sp.size_id
+			LEFT JOIN product_categories pc ON pc.product_id = p.id
+			LEFT JOIN categories c ON c.id = pc.category_id
+			GROUP BY p.id
+			ORDER BY p.id ASC
+			LIMIT $1 OFFSET $2`, limit, offset)
+	}
+
+	return rows, err
 }

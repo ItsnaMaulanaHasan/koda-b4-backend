@@ -62,22 +62,7 @@ func GetAllProduct(ctx *gin.Context) {
 		return
 	}
 
-	var totalData int
-	var err error
-	searchParam := "%" + search + "%"
-	if search != "" {
-		err = config.DB.QueryRow(context.Background(),
-			`SELECT COUNT(DISTINCT p.id)
-			 FROM products p
-			 LEFT JOIN product_categories pc ON pc.product_id = p.id
-			 LEFT JOIN categories c ON c.id = pc.category_id
-			 WHERE p.name ILIKE $1
-			 OR p.description ILIKE $1
-			 OR c.name ILIKE $1`, searchParam).Scan(&totalData)
-	} else {
-		err = config.DB.QueryRow(context.Background(), `SELECT COUNT(*) FROM products`).Scan(&totalData)
-	}
-
+	totalData, err := models.TotalDataProduct(search)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -87,62 +72,7 @@ func GetAllProduct(ctx *gin.Context) {
 		return
 	}
 
-	offset := (page - 1) * limit
-	var rows pgx.Rows
-
-	if search != "" {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT 
-				p.id,
-				p.name,
-				p.description,
-				p.price,
-				COALESCE(p.discount_percent, 0) AS discount_percent,
-				COALESCE(p.rating, 0) AS rating,
-				p.is_flash_sale,
-				COALESCE(p.stock, 0) AS stock,
-				p.is_active,
-				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
-				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
-				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
-			FROM products p
-			LEFT JOIN product_images pi ON pi.product_id = p.id
-			LEFT JOIN size_products sp ON sp.product_id = p.id
-			LEFT JOIN sizes s ON s.id = sp.size_id
-			LEFT JOIN product_categories pc ON pc.product_id = p.id
-			LEFT JOIN categories c ON c.id = pc.category_id
-			WHERE p.name ILIKE $3
-				OR p.description ILIKE $3
-				OR c.name ILIKE $3
-			GROUP BY p.id
-			ORDER BY p.id ASC
-			LIMIT $1 OFFSET $2`, limit, offset, searchParam)
-	} else {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT 
-				p.id,
-				p.name,
-				p.description,
-				p.price,
-				COALESCE(p.discount_percent, 0) AS discount_percent,
-				COALESCE(p.rating, 0) AS rating,
-				p.is_flash_sale,
-				COALESCE(p.stock, 0) AS stock,
-				p.is_active,
-				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
-				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
-				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
-			FROM products p
-			LEFT JOIN product_images pi ON pi.product_id = p.id
-			LEFT JOIN size_products sp ON sp.product_id = p.id
-			LEFT JOIN sizes s ON s.id = sp.size_id
-			LEFT JOIN product_categories pc ON pc.product_id = p.id
-			LEFT JOIN categories c ON c.id = pc.category_id
-			GROUP BY p.id
-			ORDER BY p.id ASC
-			LIMIT $1 OFFSET $2`, limit, offset)
-	}
-
+	rows, err := models.GetListAllProduct(search, page, limit)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
