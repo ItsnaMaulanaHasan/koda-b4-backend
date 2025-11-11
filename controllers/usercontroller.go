@@ -428,21 +428,19 @@ func CreateUser(ctx *gin.Context) {
 	phone := bodyCreateUser.Phone
 	address := bodyCreateUser.Address
 
-	models.ResponseUserData = &models.UserResponse{
-		Id:           bodyCreateUser.Id,
-		ProfilePhoto: profilePhoto,
-		FirstName:    bodyCreateUser.FirstName,
-		LastName:     bodyCreateUser.LastName,
-		Phone:        phone,
-		Address:      address,
-		Email:        bodyCreateUser.Email,
-		Role:         bodyCreateUser.Role,
-	}
-
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
 		Message: "User created successfully",
-		Data:    models.ResponseUserData,
+		Data: models.UserResponse{
+			Id:           bodyCreateUser.Id,
+			ProfilePhoto: profilePhoto,
+			FirstName:    bodyCreateUser.FirstName,
+			LastName:     bodyCreateUser.LastName,
+			Phone:        phone,
+			Address:      address,
+			Email:        bodyCreateUser.Email,
+			Role:         bodyCreateUser.Role,
+		},
 	})
 }
 
@@ -478,7 +476,7 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	var bodyUpdate models.UpdateUserRequest
+	var bodyUpdate models.UserUpdateRequest
 	err = ctx.ShouldBindWith(&bodyUpdate, binding.FormMultipart)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{

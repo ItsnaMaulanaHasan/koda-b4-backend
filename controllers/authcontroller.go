@@ -29,7 +29,7 @@ import (
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while creating user."
 // @Router       /auth/register [post]
 func Register(ctx *gin.Context) {
-	var bodyRegister models.RegisterUserRequest
+	var bodyRegister models.UserRegisterRequest
 	err := ctx.ShouldBindWith(&bodyRegister, binding.Form)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -94,18 +94,16 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
-	models.ResponseUserData = &models.UserResponse{
-		Id:        bodyRegister.Id,
-		FirstName: bodyRegister.FirstName,
-		LastName:  bodyRegister.LastName,
-		Email:     bodyRegister.Email,
-		Role:      bodyRegister.Role,
-	}
-
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
 		Message: "User created successfully",
-		Data:    models.ResponseUserData,
+		Data: models.UserResponse{
+			Id:        bodyRegister.Id,
+			FirstName: bodyRegister.FirstName,
+			LastName:  bodyRegister.LastName,
+			Email:     bodyRegister.Email,
+			Role:      bodyRegister.Role,
+		},
 	})
 }
 
