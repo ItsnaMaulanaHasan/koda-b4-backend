@@ -325,7 +325,6 @@ func CreateProduct(ctx *gin.Context) {
 		})
 		return
 	}
-
 	if exists {
 		ctx.JSON(http.StatusConflict, lib.ResponseError{
 			Success: false,
@@ -343,22 +342,7 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
-	err = config.DB.QueryRow(
-		context.Background(),
-		`INSERT INTO products (name, description, price, discount_percent, rating, is_flash_sale, stock, is_active, created_by, updated_by)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		 RETURNING id`,
-		bodyCreate.Name,
-		bodyCreate.Description,
-		bodyCreate.Price,
-		bodyCreate.DiscountPercent,
-		bodyCreate.Rating,
-		bodyCreate.IsFlashSale,
-		bodyCreate.Stock,
-		bodyCreate.IsActive,
-		userIdFromToken,
-		userIdFromToken,
-	).Scan(&bodyCreate.Id)
+	err = models.InsertDataProduct(&bodyCreate, userIdFromToken)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,

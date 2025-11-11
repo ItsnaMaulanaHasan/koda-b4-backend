@@ -130,7 +130,7 @@ func GetListAllProducts(search string, page int, limit int) ([]Product, error) {
 		return products, err
 	}
 
-	return products, err
+	return products, nil
 }
 
 func GetProductById(id int) (Product, error) {
@@ -171,7 +171,7 @@ func GetProductById(id int) (Product, error) {
 		return product, err
 	}
 
-	return product, err
+	return product, nil
 }
 
 func CheckProductName(name string) (bool, error) {
@@ -184,5 +184,29 @@ func CheckProductName(name string) (bool, error) {
 		return exists, err
 	}
 
-	return exists, err
+	return exists, nil
+}
+
+func InsertDataProduct(bodyCreate *ProductRequest, userIdFromToken any) error {
+	err := config.DB.QueryRow(
+		context.Background(),
+		`INSERT INTO products (name, description, price, discount_percent, rating, is_flash_sale, stock, is_active, created_by, updated_by)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		 RETURNING id`,
+		bodyCreate.Name,
+		bodyCreate.Description,
+		bodyCreate.Price,
+		bodyCreate.DiscountPercent,
+		bodyCreate.Rating,
+		bodyCreate.IsFlashSale,
+		bodyCreate.Stock,
+		bodyCreate.IsActive,
+		userIdFromToken,
+		userIdFromToken,
+	).Scan(&bodyCreate.Id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
