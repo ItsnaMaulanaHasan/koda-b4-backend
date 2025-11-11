@@ -20,21 +20,21 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// ListAllProducts godoc
-// @Summary        Get all product
-// @Description    Retrieving all product data with pagination support
-// @Tags           products
-// @Produce        json
-// @Security       BearerAuth
-// @Param          Authorization  header    string  true   "Bearer token" default(Bearer <token>)
-// @Param          page   		  query     int     false  "Page number"  default(1)  minimum(1)
-// @Param          limit          query     int     false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
-// @Param          search         query     string  false  "Search value"
-// @Success        200            {object}  object{success=bool,message=string,data=[]models.Product,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved product list"
-// @Failure        400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
-// @Failure        500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data."
-// @Router         /admin/products [get]
-func ListAllProducts(ctx *gin.Context) {
+// ListProductsAdmin  godoc
+// @Summary           Get list products for admin
+// @Description       Retrieving list products with pagination support and search
+// @Tags              admin/products
+// @Produce           json
+// @Security          BearerAuth
+// @Param             Authorization  header    string  true   "Bearer token" default(Bearer <token>)
+// @Param             page   		 query     int     false  "Page number"  default(1)  minimum(1)
+// @Param             limit          query     int     false  "Number of items per page"  default(10)  minimum(1)  maximum(50)
+// @Param             search         query     string  false  "Search value"
+// @Success           200            {object}  object{success=bool,message=string,data=[]models.AdminProductResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved product list"
+// @Failure           400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
+// @Failure           500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data."
+// @Router            /admin/products [get]
+func ListProductsAdmin(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 	search := ctx.Query("search")
@@ -98,10 +98,10 @@ func ListAllProducts(ctx *gin.Context) {
 		}
 	}
 
-	var products []models.Product
+	var products []models.AdminProductResponse
 	cacheListAllProducts, _ := lib.Redis().Get(context.Background(), ctx.Request.RequestURI).Result()
 	if cacheListAllProducts == "" {
-		products, err = models.GetListAllProducts(search, page, limit)
+		products, err = models.GetListProductsAdmin(search, page, limit)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -196,13 +196,13 @@ func ListAllProducts(ctx *gin.Context) {
 // DetailProduct   godoc
 // @Summary        Get product by Id
 // @Description    Retrieving product data based on Id
-// @Tags           products
+// @Tags           admin/products
 // @Accept 		   x-www-form-urlencoded
 // @Produce        json
 // @Security       BearerAuth
 // @Param          Authorization    header  string  true  "Bearer token"  default(Bearer <token>)
 // @Param          id   			path    int     true  "product Id"
-// @Success        200  {object}  lib.ResponseSuccess{data=models.Product}  "Successfully retrieved product"
+// @Success        200  {object}  lib.ResponseSuccess{data=models.AdminProductResponse}  "Successfully retrieved product"
 // @Failure        400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure        404  {object}  lib.ResponseError  "Product not found"
 // @Failure        500  {object}  lib.ResponseError  "Internal server error while fetching products from database"
@@ -218,7 +218,7 @@ func DetailProduct(ctx *gin.Context) {
 		return
 	}
 
-	var product models.Product
+	var product models.AdminProductResponse
 	cache, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
 	if cache == "" {
 		product, err = models.GetProductById(id)
@@ -280,7 +280,7 @@ func DetailProduct(ctx *gin.Context) {
 // CreateProduct godoc
 // @Summary      Create new product
 // @Description  Create a new product with images, sizes, and categories
-// @Tags         products
+// @Tags         admin/products
 // @Accept       multipart/form-data
 // @Produce      json
 // @Security     BearerAuth
@@ -300,7 +300,7 @@ func DetailProduct(ctx *gin.Context) {
 // @Param        image4             formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
 // @Param        sizeProducts       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
 // @Param        productCategories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
-// @Success      201  {object}  lib.ResponseSuccess{data=models.Product}  "Product created successfully"
+// @Success      201  {object}  lib.ResponseSuccess{data=models.AdminProductResponse}  "Product created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body"
 // @Failure      409  {object}  lib.ResponseError  "Product name already exists"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error"
@@ -495,7 +495,7 @@ func CreateProduct(ctx *gin.Context) {
 // UpdateProduct godoc
 // @Summary      Update product
 // @Description  Updating product data based on Id
-// @Tags         products
+// @Tags         admin/products
 // @Accept       multipart/form-data
 // @Produce      json
 // @Security     BearerAuth
@@ -508,7 +508,7 @@ func CreateProduct(ctx *gin.Context) {
 // @Param        stock              formData  int       false  "Product stock"
 // @Param        isFlashSale        formData  bool      false  "Is flash sale"
 // @Param        isActive           formData  bool      false  "Is active"
-// @Param        isFavourie           formData  bool      false  "Is favourite"
+// @Param        isFavourite         formData  bool      false  "Is favourite"
 // @Param        image1             formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
 // @Param        image2             formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
 // @Param        image3             formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
@@ -771,7 +771,7 @@ func UpdateProduct(ctx *gin.Context) {
 // DeleteUser    godoc
 // @Summary      Delete product
 // @Description  Delete product by Id
-// @Tags         products
+// @Tags         admin/products
 // @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
@@ -818,15 +818,15 @@ func DeleteProduct(ctx *gin.Context) {
 }
 
 // ListFavouriteProduct godoc
-// @Summary            Get all favourite products
-// @Description        Retrieving all favourite products
-// @Tags               features
-// @Produce            json
-// @Param              limit          query     int     false  "Limit of list favourite products"  default(4)  minimum(1)  maximum(20)
-// @Success            200            {object}  object{success=bool,message=string,data=[]models.Product,limit=int}  "Successfully retrieved product list"
-// @Failure            400            {object}  lib.ResponseError  "Invalid limit"
-// @Failure            500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data"
-// @Router             /favourite-products [get]
+// @Summary             Get all favourite products
+// @Description         Retrieving all favourite products
+// @Tags                products
+// @Produce             json
+// @Param               limit          query     int     false  "Limit of list favourite products"  default(4)  minimum(1)  maximum(20)
+// @Success             200            {object}  object{success=bool,message=string,data=[]models.PublicProductResponse,limit=int}  "Successfully retrieved product list"
+// @Failure             400            {object}  lib.ResponseError  "Invalid limit"
+// @Failure             500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data"
+// @Router              /favourite-products [get]
 func ListFavouriteProducts(ctx *gin.Context) {
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "4"))
 
@@ -847,7 +847,7 @@ func ListFavouriteProducts(ctx *gin.Context) {
 	}
 
 	var err error
-	var products []models.Product
+	var products []models.PublicProductResponse
 	cacheListFavouriteProducts, _ := lib.Redis().Get(context.Background(), ctx.Request.RequestURI).Result()
 	if cacheListFavouriteProducts == "" {
 		products, err = models.GetListFavouriteProducts(limit)
