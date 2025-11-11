@@ -91,6 +91,7 @@ INSERT INTO
         is_flash_sale,
         stock,
         is_active,
+        is_favorite,
         created_by,
         updated_by
     )
@@ -103,6 +104,7 @@ VALUES (
         false,
         2,
         true,
+        false,
         1,
         1
     ),
@@ -114,6 +116,7 @@ VALUES (
         3.0,
         false,
         2,
+        true,
         true,
         1,
         1
@@ -127,6 +130,7 @@ VALUES (
         true,
         2,
         true,
+        false,
         1,
         1
     ),
@@ -138,6 +142,7 @@ VALUES (
         5.0,
         true,
         2,
+        true,
         true,
         1,
         1
@@ -151,6 +156,7 @@ VALUES (
         false,
         2,
         true,
+        false,
         1,
         1
     ),
@@ -162,6 +168,7 @@ VALUES (
         5.0,
         true,
         2,
+        true,
         true,
         1,
         1
@@ -175,6 +182,7 @@ VALUES (
         true,
         2,
         true,
+        false,
         1,
         1
     ),
@@ -186,6 +194,7 @@ VALUES (
         5.0,
         true,
         2,
+        true,
         true,
         1,
         1
@@ -199,6 +208,7 @@ VALUES (
         true,
         2,
         true,
+        false,
         1,
         1
     ),
@@ -210,6 +220,7 @@ VALUES (
         5.0,
         true,
         2,
+        true,
         true,
         1,
         1
@@ -223,6 +234,7 @@ VALUES (
         false,
         15,
         true,
+        false,
         1,
         1
     ),
@@ -234,6 +246,7 @@ VALUES (
         4.8,
         false,
         12,
+        true,
         true,
         1,
         1
@@ -247,6 +260,7 @@ VALUES (
         true,
         10,
         true,
+        false,
         1,
         1
     ),
@@ -258,6 +272,7 @@ VALUES (
         4.6,
         false,
         14,
+        true,
         true,
         1,
         1
@@ -271,6 +286,7 @@ VALUES (
         false,
         18,
         true,
+        false,
         1,
         1
     ),
@@ -282,6 +298,7 @@ VALUES (
         4.8,
         true,
         11,
+        true,
         true,
         1,
         1
@@ -295,6 +312,7 @@ VALUES (
         false,
         16,
         true,
+        false,
         1,
         1
     ),
@@ -306,6 +324,7 @@ VALUES (
         4.4,
         false,
         20,
+        true,
         true,
         1,
         1
@@ -319,6 +338,7 @@ VALUES (
         false,
         13,
         true,
+        false,
         1,
         1
     ),
@@ -330,6 +350,7 @@ VALUES (
         4.6,
         false,
         17,
+        true,
         true,
         1,
         1
@@ -343,6 +364,7 @@ VALUES (
         false,
         15,
         true,
+        false,
         1,
         1
     ),
@@ -354,6 +376,7 @@ VALUES (
         4.7,
         false,
         14,
+        true,
         true,
         1,
         1
@@ -367,6 +390,7 @@ VALUES (
         false,
         16,
         true,
+        false,
         1,
         1
     ),
@@ -378,6 +402,7 @@ VALUES (
         4.6,
         true,
         13,
+        true,
         true,
         1,
         1
@@ -391,6 +416,7 @@ VALUES (
         false,
         19,
         true,
+        false,
         1,
         1
     ),
@@ -402,6 +428,7 @@ VALUES (
         4.8,
         false,
         12,
+        true,
         true,
         1,
         1
@@ -415,6 +442,7 @@ VALUES (
         false,
         18,
         true,
+        false,
         1,
         1
     ),
@@ -426,6 +454,7 @@ VALUES (
         4.7,
         false,
         17,
+        true,
         true,
         1,
         1
@@ -439,6 +468,7 @@ VALUES (
         false,
         16,
         true,
+        false,
         1,
         1
     ),
@@ -450,6 +480,7 @@ VALUES (
         4.5,
         false,
         14,
+        true,
         true,
         1,
         1
@@ -463,6 +494,7 @@ VALUES (
         false,
         11,
         true,
+        false,
         1,
         1
     ),
@@ -474,6 +506,7 @@ VALUES (
         4.7,
         false,
         15,
+        true,
         true,
         1,
         1
@@ -487,6 +520,7 @@ VALUES (
         false,
         16,
         true,
+        false,
         1,
         1
     ),
@@ -498,6 +532,7 @@ VALUES (
         4.5,
         false,
         20,
+        true,
         true,
         1,
         1
@@ -511,6 +546,7 @@ VALUES (
         false,
         18,
         true,
+        false,
         1,
         1
     ),
@@ -522,6 +558,7 @@ VALUES (
         4.7,
         false,
         25,
+        true,
         true,
         1,
         1
@@ -535,6 +572,7 @@ VALUES (
         false,
         22,
         true,
+        false,
         1,
         1
     ),
@@ -546,6 +584,7 @@ VALUES (
         4.9,
         false,
         20,
+        true,
         true,
         1,
         1
@@ -559,6 +598,7 @@ VALUES (
         false,
         18,
         true,
+        false,
         1,
         1
     ),
@@ -570,6 +610,7 @@ VALUES (
         4.5,
         false,
         24,
+        true,
         true,
         1,
         1
@@ -583,6 +624,7 @@ VALUES (
         true,
         16,
         true,
+        false,
         1,
         1
     ),
@@ -594,6 +636,7 @@ VALUES (
         4.9,
         false,
         15,
+        true,
         true,
         1,
         1
@@ -607,6 +650,7 @@ VALUES (
         false,
         28,
         true,
+        false,
         1,
         1
     ),
@@ -618,6 +662,7 @@ VALUES (
         5.0,
         false,
         12,
+        true,
         true,
         1,
         1
@@ -631,6 +676,7 @@ VALUES (
         false,
         20,
         true,
+        false,
         1,
         1
     ),
@@ -642,6 +688,7 @@ VALUES (
         4.6,
         false,
         18,
+        true,
         true,
         1,
         1
@@ -655,6 +702,7 @@ VALUES (
         false,
         16,
         true,
+        false,
         1,
         1
     ),
@@ -666,6 +714,7 @@ VALUES (
         4.7,
         false,
         19,
+        true,
         true,
         1,
         1
@@ -679,6 +728,7 @@ VALUES (
         false,
         22,
         true,
+        false,
         1,
         1
     ),
@@ -690,6 +740,7 @@ VALUES (
         4.9,
         false,
         14,
+        true,
         true,
         1,
         1
