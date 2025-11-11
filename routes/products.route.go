@@ -9,8 +9,8 @@ import (
 func SetupProductRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 	products := admin.Group("/products")
 	{
-		products.GET("", controllers.GetAllProduct)
-		products.GET("/:id", controllers.GetProductById)
+		products.GET("", controllers.ListAllProducts)
+		products.GET("/:id", controllers.DetailProduct)
 		products.POST("", controllers.CreateProduct)
 		products.PATCH("/:id", controllers.UpdateProduct)
 		products.DELETE("/:id", controllers.DeleteProduct)

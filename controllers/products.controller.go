@@ -34,7 +34,7 @@ import (
 // @Failure      400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
 // @Failure      500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data."
 // @Router       /admin/products [get]
-func GetAllProduct(ctx *gin.Context) {
+func ListAllProducts(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 	search := ctx.Query("search")
@@ -207,7 +207,7 @@ func GetAllProduct(ctx *gin.Context) {
 // @Failure      	404  {object}  lib.ResponseError  "Product not found"
 // @Failure      	500  {object}  lib.ResponseError  "Internal server error while fetching products from database"
 // @Router       	/admin/products/{id} [get]
-func GetProductById(ctx *gin.Context) {
+func DetailProduct(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
