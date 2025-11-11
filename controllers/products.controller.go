@@ -5,6 +5,7 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mime/multipart"
@@ -62,35 +63,84 @@ func GetAllProduct(ctx *gin.Context) {
 		return
 	}
 
-	totalData, err := models.TotalDataProduct(search)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to count total products in database",
-			Error:   err.Error(),
-		})
-		return
+	var totalData int
+	var err error
+
+	cacheTotalDataProducts, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
+	if cacheTotalDataProducts == "" {
+		totalData, err = models.TotalDataProducts(search)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to count total products in database",
+				Error:   err.Error(),
+			})
+			return
+		}
+		err = lib.Redis().Set(context.Background(), "totalDataProducts", totalData, 0).Err()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to set total products to cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	} else {
+		err = json.Unmarshal([]byte(cacheTotalDataProducts), &totalData)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to unmarshal total products from cache",
+				Error:   err.Error(),
+			})
+			return
+		}
 	}
 
-	rows, err := models.GetListAllProduct(search, page, limit)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to fetch products from database",
-			Error:   err.Error(),
-		})
-		return
-	}
-	defer rows.Close()
+	var rows pgx.Rows
+	var products []models.Product
+	cacheListAllProducts, _ := lib.Redis().Get(context.Background(), ctx.Request.RequestURI).Result()
+	if cacheListAllProducts == "" {
+		rows, err = models.GetListAllProducts(search, page, limit)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to fetch products from database",
+				Error:   err.Error(),
+			})
+			return
+		}
 
-	products, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.Product])
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to process product data from database",
-			Error:   err.Error(),
-		})
-		return
+		products, err = pgx.CollectRows(rows, pgx.RowToStructByName[models.Product])
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to process product data from database",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, products, 0).Err()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to set list all products to cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	} else {
+		err = json.Unmarshal([]byte(cacheListAllProducts), &products)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to unmarshal list all products from cache",
+				Error:   err.Error(),
+			})
+			return
+		}
 	}
 
 	totalPage := (totalData + limit - 1) / limit
