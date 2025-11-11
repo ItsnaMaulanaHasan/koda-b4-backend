@@ -284,21 +284,21 @@ func DetailProduct(ctx *gin.Context) {
 // @Accept       multipart/form-data
 // @Produce      json
 // @Security     BearerAuth
-// @Param        Authorization       header    string    true   "Bearer token"  default(Bearer <token>)
-// @Param        name                formData  string    true   "Product name"
-// @Param        description         formData  string    true   "Product description"
-// @Param        price               formData  number    true   "Product price"
-// @Param        discount_percent    formData  number    false  "Discount percentage" default(0.00)
-// @Param        rating			     formData  number    false  "Product rating" default(5)
-// @Param        stock               formData  int       true   "Product stock"
-// @Param        is_flash_sale       formData  bool      false  "Is flash sale"  default(false)
-// @Param        is_active           formData  bool      false  "Is active"  default(true)
-// @Param        image1              formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
-// @Param        image2              formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
-// @Param        image3              formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
-// @Param        image4              formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
-// @Param        size_products       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
-// @Param        product_categories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
+// @Param        Authorization      header    string    true   "Bearer token"  default(Bearer <token>)
+// @Param        name               formData  string    true   "Product name"
+// @Param        description        formData  string    true   "Product description"
+// @Param        price              formData  number    true   "Product price"
+// @Param        discountPercent    formData  number    false  "Discount percentage" default(0.00)
+// @Param        rating			    formData  number    false  "Product rating" default(5)
+// @Param        stock              formData  int       true   "Product stock"
+// @Param        isFlashSale        formData  bool      false  "Is flash sale"  default(false)
+// @Param        isActive           formData  bool      false  "Is active"  default(true)
+// @Param        image1             formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
+// @Param        image2             formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
+// @Param        image3             formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
+// @Param        image4             formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
+// @Param        sizeProducts       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
+// @Param        productCategories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.Product}  "Product created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body"
 // @Failure      409  {object}  lib.ResponseError  "Product name already exists"
@@ -518,21 +518,21 @@ func CreateProduct(ctx *gin.Context) {
 // @Accept       multipart/form-data
 // @Produce      json
 // @Security     BearerAuth
-// @Param        Authorization       header    string    true   "Bearer token"  default(Bearer <token>)
-// @Param        id                  path      int       true   "Product Id"
-// @Param        name                formData  string    false  "Product name"
-// @Param        description         formData  string    false  "Product description"
-// @Param        price               formData  number    false  "Product price"
-// @Param        discount_percent    formData  number    false  "Discount percentage"
-// @Param        stock               formData  int       false  "Product stock"
-// @Param        is_flash_sale       formData  bool      false  "Is flash sale"
-// @Param        is_active           formData  bool      false  "Is active"
-// @Param        image1              formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
-// @Param        image2              formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
-// @Param        image3              formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
-// @Param        image4              formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
-// @Param        size_products       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
-// @Param        product_categories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
+// @Param        Authorization      header    string    true   "Bearer token"  default(Bearer <token>)
+// @Param        id                 path      int       true   "Product Id"
+// @Param        name               formData  string    false  "Product name"
+// @Param        description        formData  string    false  "Product description"
+// @Param        price              formData  number    false  "Product price"
+// @Param        discountPercent    formData  number    false  "Discount percentage"
+// @Param        stock              formData  int       false  "Product stock"
+// @Param        isFlashSale        formData  bool      false  "Is flash sale"
+// @Param        isActive           formData  bool      false  "Is active"
+// @Param        image1             formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
+// @Param        image2             formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
+// @Param        image3             formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
+// @Param        image4             formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
+// @Param        sizeProducts       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
+// @Param        productCategories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
 // @Success      200  {object}  lib.ResponseSuccess  "Product updated successfully"
 // @Failure      400  {object}  lib.ResponseError   "Invalid Id format or invalid request body"
 // @Failure      404  {object}  lib.ResponseError   "Product not found"

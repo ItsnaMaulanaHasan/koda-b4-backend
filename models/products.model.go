@@ -10,18 +10,18 @@ import (
 )
 
 type Product struct {
-	Id                int      `db:"id"`
-	Images            []string `db:"images"`
-	Name              string   `db:"name"`
-	Description       string   `db:"description"`
-	Price             float64  `db:"price"`
-	DiscountPercent   float64  `db:"discount_percent"`
-	Rating            float64  `db:"rating"`
-	IsFlashSale       bool     `db:"is_flash_sale"`
-	Stock             int      `db:"stock"`
-	IsActive          bool     `db:"is_active"`
-	SizeProducts      []string `db:"size_products"`
-	ProductCategories []string `db:"product_categories"`
+	Id                int      `db:"id" json:"id"`
+	Images            []string `db:"images" json:"images"`
+	Name              string   `db:"name" json:"name"`
+	Description       string   `db:"description" json:"description"`
+	Price             float64  `db:"price" json:"price"`
+	DiscountPercent   float64  `db:"discount_percent" json:"discountPercent"`
+	Rating            float64  `db:"rating" json:"rating"`
+	IsFlashSale       bool     `db:"is_flash_sale" json:"isFlashSale"`
+	Stock             int      `db:"stock" json:"stock"`
+	IsActive          bool     `db:"is_active" json:"isActive"`
+	SizeProducts      []string `db:"size_products" json:"sizeProducts"`
+	ProductCategories []string `db:"product_categories" json:"productCategories"`
 }
 
 type ProductRequest struct {
@@ -34,13 +34,13 @@ type ProductRequest struct {
 	Name              string   `form:"name"`
 	Description       string   `form:"description"`
 	Price             *float64 `form:"price"`
-	DiscountPercent   *float64 `form:"discount_percent"`
+	DiscountPercent   *float64 `form:"discountPercent"`
 	Rating            *float64 `form:"rating"`
-	IsFlashSale       bool     `form:"is_flash_sale"`
+	IsFlashSale       bool     `form:"isFlashSale"`
 	Stock             *int     `form:"stock"`
-	IsActive          bool     `form:"is_active"`
-	SizeProducts      string   `form:"size_products"`
-	ProductCategories string   `form:"product_categories"`
+	IsActive          bool     `form:"isActive"`
+	SizeProducts      string   `form:"sizeProducts"`
+	ProductCategories string   `form:"productCategories"`
 }
 
 func TotalDataProducts(search string) (int, error) {
