@@ -819,10 +819,10 @@ func DeleteProduct(ctx *gin.Context) {
 
 // ListFavouriteProduct godoc
 // @Summary            Get all favourite products
-// @Description        Retrieving all favourite products data with pagination support
+// @Description        Retrieving all favourite products
 // @Tags               features
 // @Produce            json
-// @Param              limit          query     int     false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
+// @Param              limit          query     int     false  "Limit of list favourite products"  default(4)  minimum(1)  maximum(20)
 // @Success            200            {object}  object{success=bool,message=string,data=[]models.Product,limit=int}  "Successfully retrieved product list"
 // @Failure            400            {object}  lib.ResponseError  "Invalid limit"
 // @Failure            500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data"
@@ -854,7 +854,7 @@ func ListFavouriteProducts(ctx *gin.Context) {
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
-				Message: "Failed to fetch products from database",
+				Message: "Failed to fetch favourite products from database",
 				Error:   err.Error(),
 			})
 			return

@@ -230,8 +230,9 @@ func GetListFavouriteProducts(limit int) ([]Product, error) {
 			COALESCE(p.discount_percent, 0) AS discount_percent,
 			COALESCE(p.rating, 0) AS rating,
 			p.is_flash_sale,
+			COALESCE(p.stock, 0) AS stock,
 			p.is_active,
-			p.is_favourite
+			p.is_favourite,
 			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
 			COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
 			COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
@@ -244,7 +245,7 @@ func GetListFavouriteProducts(limit int) ([]Product, error) {
 		WHERE p.is_favourite = true AND p.is_active = true
 		GROUP BY p.id
 		ORDER BY p.id ASC
-		LIMIT $1 OFFSET`, limit)
+		LIMIT $1`, limit)
 
 	if err != nil {
 		return products, err
