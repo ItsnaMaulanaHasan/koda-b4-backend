@@ -22,7 +22,7 @@ import (
 // @Tags         auth
 // @Accept       x-www-form-urlencoded
 // @Produce      json
-// @Param        user formData  models.RegisterUserRequest true "User registration data"
+// @Param        user formData  models.UserRegisterRequest true "User registration data"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.UserResponse}  "User created successfully."
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password."
 // @Failure      409  {object}  lib.ResponseError  "Email already registered."
