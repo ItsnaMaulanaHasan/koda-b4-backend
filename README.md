@@ -242,6 +242,7 @@ erDiagram
 
 # Tabel Perbandingan Penggunaan Cache
 
-| Waktu Request Sebelum Cache (ms) | ![Waktu request sebelum cache](/assets/img/before_cache.png) |
+| Kondisi                          | Foto                                                         |
 | -------------------------------- | ------------------------------------------------------------ |
+| Waktu Request Sebelum Cache (ms) | ![Waktu request sebelum cache](/assets/img/before_cache.png) |
 | Waktu Request Setelah Cache (ms) | ![Waktu request sebelum cache](/assets/img/after_cache.png)  |
