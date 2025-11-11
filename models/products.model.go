@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type Product struct {
+type AdminProductResponse struct {
 	Id                int      `db:"id" json:"id"`
 	Images            []string `db:"images" json:"images"`
 	Name              string   `db:"name" json:"name"`
@@ -45,6 +45,19 @@ type ProductRequest struct {
 	ProductCategories string   `form:"productCategories"`
 }
 
+type PublicProductResponse struct {
+	Id                int      `db:"id" json:"id"`
+	Images            []string `db:"images" json:"images"`
+	Name              string   `db:"name" json:"name"`
+	Description       string   `db:"description" json:"description"`
+	Price             float64  `db:"price" json:"price"`
+	DiscountPercent   float64  `db:"discount_percent" json:"discountPercent"`
+	IsFlashSale       bool     `db:"is_flash_sale" json:"isFlashSale"`
+	IsActive          bool     `db:"is_active" json:"isActive"`
+	IsFavourite       bool     `db:"is_favourite" json:"isFavourite"`
+	ProductCategories []string `db:"product_categories" json:"productCategories"`
+}
+
 func TotalDataProducts(search string) (int, error) {
 	var totalData int
 	var err error
@@ -65,10 +78,10 @@ func TotalDataProducts(search string) (int, error) {
 	return totalData, err
 }
 
-func GetListAllProducts(search string, page int, limit int) ([]Product, error) {
+func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductResponse, error) {
 	var rows pgx.Rows
 	var err error
-	products := []Product{}
+	products := []AdminProductResponse{}
 	offset := (page - 1) * limit
 	if search != "" {
 		rows, err = config.DB.Query(context.Background(),
@@ -129,7 +142,7 @@ func GetListAllProducts(search string, page int, limit int) ([]Product, error) {
 	}
 	defer rows.Close()
 
-	products, err = pgx.CollectRows(rows, pgx.RowToStructByName[Product])
+	products, err = pgx.CollectRows(rows, pgx.RowToStructByName[AdminProductResponse])
 	if err != nil {
 		return products, err
 	}
@@ -137,8 +150,8 @@ func GetListAllProducts(search string, page int, limit int) ([]Product, error) {
 	return products, nil
 }
 
-func GetProductById(id int) (Product, error) {
-	product := Product{}
+func GetProductById(id int) (AdminProductResponse, error) {
+	product := AdminProductResponse{}
 	query := `SELECT 
 				p.id,
 				p.name,
@@ -168,7 +181,7 @@ func GetProductById(id int) (Product, error) {
 	}
 	defer rows.Close()
 
-	product, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[Product])
+	product, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[AdminProductResponse])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return product, err
@@ -217,10 +230,10 @@ func InsertDataProduct(bodyCreate *ProductRequest, userIdFromToken any) error {
 	return nil
 }
 
-func GetListFavouriteProducts(limit int) ([]Product, error) {
+func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 	var rows pgx.Rows
 	var err error
-	products := []Product{}
+	products := []PublicProductResponse{}
 	rows, err = config.DB.Query(context.Background(),
 		`SELECT 
 			p.id,
@@ -228,18 +241,13 @@ func GetListFavouriteProducts(limit int) ([]Product, error) {
 			p.description,
 			p.price,
 			COALESCE(p.discount_percent, 0) AS discount_percent,
-			COALESCE(p.rating, 0) AS rating,
 			p.is_flash_sale,
-			COALESCE(p.stock, 0) AS stock,
 			p.is_active,
 			p.is_favourite,
 			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
-			COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
 			COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
 		FROM products p
 		LEFT JOIN product_images pi ON pi.product_id = p.id
-		LEFT JOIN size_products sp ON sp.product_id = p.id
-		LEFT JOIN sizes s ON s.id = sp.size_id
 		LEFT JOIN product_categories pc ON pc.product_id = p.id
 		LEFT JOIN categories c ON c.id = pc.category_id
 		WHERE p.is_favourite = true AND p.is_active = true
@@ -252,7 +260,7 @@ func GetListFavouriteProducts(limit int) ([]Product, error) {
 	}
 	defer rows.Close()
 
-	products, err = pgx.CollectRows(rows, pgx.RowToStructByName[Product])
+	products, err = pgx.CollectRows(rows, pgx.RowToStructByName[PublicProductResponse])
 	if err != nil {
 		return products, err
 	}
