@@ -7,7 +7,8 @@ import (
 )
 
 func SetUpRoutes(r *gin.Engine) {
-	SetupAuthRoutes(r)
+	authRouter(r.Group("/auth"))
+	featuresRouter(r)
 
 	admin := r.Group("/admin", middlewares.Auth(), middlewares.AdminOnly())
 	SetupUserRoutes(r, admin)
