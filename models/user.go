@@ -12,7 +12,7 @@ type User struct {
 	Role         string `form:"role" example:"customer/admin"`
 }
 
-type RegisterUserRequest struct {
+type UserRegisterRequest struct {
 	Id        int    `swaggerignore:"true"`
 	FirstName string `form:"first_name" example:"John"`
 	LastName  string `form:"last_name" example:"Cena"`
@@ -21,7 +21,7 @@ type RegisterUserRequest struct {
 	Role      string `form:"role" example:"customer/admin"`
 }
 
-type UpdateUserRequest struct {
+type UserUpdateRequest struct {
 	ProfilePhoto string `form:"profilephoto"`
 	FirstName    string `form:"first_name" example:"John"`
 	LastName     string `form:"last_name" example:"Cena"`
@@ -41,5 +41,3 @@ type UserResponse struct {
 	Email        string `json:"email" db:"email"`
 	Role         string `json:"role" db:"role"`
 }
-
-var ResponseUserData *UserResponse
