@@ -20,6 +20,7 @@ type Product struct {
 	IsFlashSale       bool     `db:"is_flash_sale" json:"isFlashSale"`
 	Stock             int      `db:"stock" json:"stock"`
 	IsActive          bool     `db:"is_active" json:"isActive"`
+	IsFavourite       bool     `db:"is_favourite" json:"isFavourite"`
 	SizeProducts      []string `db:"size_products" json:"sizeProducts"`
 	ProductCategories []string `db:"product_categories" json:"productCategories"`
 }
@@ -39,6 +40,7 @@ type ProductRequest struct {
 	IsFlashSale       bool     `form:"isFlashSale"`
 	Stock             *int     `form:"stock"`
 	IsActive          bool     `form:"isActive"`
+	IsFavourite       bool     `form:"isFavourite"`
 	SizeProducts      string   `form:"sizeProducts"`
 	ProductCategories string   `form:"productCategories"`
 }
@@ -80,6 +82,7 @@ func GetListAllProducts(search string, page int, limit int) ([]Product, error) {
 				p.is_flash_sale,
 				COALESCE(p.stock, 0) AS stock,
 				p.is_active,
+				p.is_favourite,
 				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
@@ -107,6 +110,7 @@ func GetListAllProducts(search string, page int, limit int) ([]Product, error) {
 				p.is_flash_sale,
 				COALESCE(p.stock, 0) AS stock,
 				p.is_active,
+				p.is_favourite,
 				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
@@ -145,6 +149,7 @@ func GetProductById(id int) (Product, error) {
 				p.is_flash_sale,
 				COALESCE(p.stock, 0) AS stock,
 				p.is_active,
+				p.is_favourite,
 				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
@@ -190,7 +195,7 @@ func CheckProductName(name string) (bool, error) {
 func InsertDataProduct(bodyCreate *ProductRequest, userIdFromToken any) error {
 	err := config.DB.QueryRow(
 		context.Background(),
-		`INSERT INTO products (name, description, price, discount_percent, rating, is_flash_sale, stock, is_active, created_by, updated_by)
+		`INSERT INTO products (name, description, price, discount_percent, rating, is_flash_sale, stock, is_active, is_favourite, created_by, updated_by)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		 RETURNING id`,
 		bodyCreate.Name,
@@ -201,6 +206,7 @@ func InsertDataProduct(bodyCreate *ProductRequest, userIdFromToken any) error {
 		bodyCreate.IsFlashSale,
 		bodyCreate.Stock,
 		bodyCreate.IsActive,
+		bodyCreate.IsFavourite,
 		userIdFromToken,
 		userIdFromToken,
 	).Scan(&bodyCreate.Id)
@@ -209,4 +215,46 @@ func InsertDataProduct(bodyCreate *ProductRequest, userIdFromToken any) error {
 	}
 
 	return nil
+}
+
+func GetListFavouriteProducts(limit int) ([]Product, error) {
+	var rows pgx.Rows
+	var err error
+	products := []Product{}
+	rows, err = config.DB.Query(context.Background(),
+		`SELECT 
+			p.id,
+			p.name,
+			p.description,
+			p.price,
+			COALESCE(p.discount_percent, 0) AS discount_percent,
+			COALESCE(p.rating, 0) AS rating,
+			p.is_flash_sale,
+			p.is_active,
+			p.is_favourite
+			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+			COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+			COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+		FROM products p
+		LEFT JOIN product_images pi ON pi.product_id = p.id
+		LEFT JOIN size_products sp ON sp.product_id = p.id
+		LEFT JOIN sizes s ON s.id = sp.size_id
+		LEFT JOIN product_categories pc ON pc.product_id = p.id
+		LEFT JOIN categories c ON c.id = pc.category_id
+		WHERE p.is_favourite = true AND p.is_active = true
+		GROUP BY p.id
+		ORDER BY p.id ASC
+		LIMIT $1 OFFSET`, limit)
+
+	if err != nil {
+		return products, err
+	}
+	defer rows.Close()
+
+	products, err = pgx.CollectRows(rows, pgx.RowToStructByName[Product])
+	if err != nil {
+		return products, err
+	}
+
+	return products, nil
 }
