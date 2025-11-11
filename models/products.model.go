@@ -24,6 +24,7 @@ type AdminProductResponse struct {
 	IsFavourite       bool     `db:"is_favourite" json:"isFavourite"`
 	SizeProducts      []string `db:"size_products" json:"sizeProducts"`
 	ProductCategories []string `db:"product_categories" json:"productCategories"`
+	ProductVariants   []string `db:"product_variants" json:"productVariants"`
 }
 
 type ProductRequest struct {
@@ -44,6 +45,7 @@ type ProductRequest struct {
 	IsFavourite       bool     `form:"isFavourite"`
 	SizeProducts      string   `form:"sizeProducts"`
 	ProductCategories string   `form:"productCategories"`
+	ProductVariants   string   `form:"productVariants"`
 }
 
 type PublicProductResponse struct {
@@ -98,13 +100,16 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 				p.is_favourite,
 				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
-				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
+				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
 			FROM products p
 			LEFT JOIN product_images pi ON pi.product_id = p.id
 			LEFT JOIN size_products sp ON sp.product_id = p.id
 			LEFT JOIN sizes s ON s.id = sp.size_id
 			LEFT JOIN product_categories pc ON pc.product_id = p.id
 			LEFT JOIN categories c ON c.id = pc.category_id
+			LEFT JOIN product_varianst pv ON pv.product_id = p.id
+			LEFT JOIN variants v ON v.id = pv.variant_id
 			WHERE p.name ILIKE $3
 				OR p.description ILIKE $3
 				OR c.name ILIKE $3
@@ -126,13 +131,16 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 				p.is_favourite,
 				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
-				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
+				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
 			FROM products p
 			LEFT JOIN product_images pi ON pi.product_id = p.id
 			LEFT JOIN size_products sp ON sp.product_id = p.id
 			LEFT JOIN sizes s ON s.id = sp.size_id
 			LEFT JOIN product_categories pc ON pc.product_id = p.id
 			LEFT JOIN categories c ON c.id = pc.category_id
+			LEFT JOIN product_varianst pv ON pv.product_id = p.id
+			LEFT JOIN variants v ON v.id = pv.variant_id
 			GROUP BY p.id
 			ORDER BY p.id ASC
 			LIMIT $1 OFFSET $2`, limit, offset)
@@ -165,13 +173,16 @@ func GetProductById(id int) (AdminProductResponse, error) {
 				p.is_favourite,
 				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
-				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
+				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
+				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
 			FROM products p
 			LEFT JOIN product_images pi ON pi.product_id = p.id
 			LEFT JOIN size_products sp ON sp.product_id = p.id
 			LEFT JOIN sizes s ON s.id = sp.size_id
 			LEFT JOIN product_categories pc ON pc.product_id = p.id
-			LEFT JOIN categories c ON c.id = pc.category_id 
+			LEFT JOIN categories c ON c.id = pc.category_id
+			LEFT JOIN product_varianst pv ON pv.product_id = p.id
+			LEFT JOIN variants v ON v.id = pv.variant_id
 			WHERE p.id = $1
 			GROUP BY p.id;`
 
@@ -244,11 +255,8 @@ func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 			p.is_flash_sale,
 			p.is_favourite,
 			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
-			COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
 		FROM products p
 		LEFT JOIN product_images pi ON pi.product_id = p.id
-		LEFT JOIN product_categories pc ON pc.product_id = p.id
-		LEFT JOIN categories c ON c.id = pc.category_id
 		WHERE p.is_favourite = true AND p.is_active = true
 		GROUP BY p.id
 		ORDER BY p.id ASC
@@ -281,13 +289,11 @@ func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64
 			p.is_flash_sale,
 			p.is_favourite,
 			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
-			COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories
 		FROM products p
 		LEFT JOIN product_images pi ON pi.product_id = p.id
-		LEFT JOIN size_products sp ON sp.product_id = p.id
-		LEFT JOIN sizes s ON s.id = sp.size_id
-		LEFT JOIN product_categories pc ON pc.product_id = p.id
-		LEFT JOIN categories c ON c.id = pc.category_id
+		WHERE p.is_active = true
+		GROUP BY p.id
+		ORDER BY p.id ASC
 		WHERE 1=1`
 
 	// Dynamic parameters
