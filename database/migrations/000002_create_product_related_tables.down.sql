@@ -1,3 +1,15 @@
+ALTER TABLE "product_variants"
+DROP CONSTRAINT "fk_product_variants_updated_by";
+
+ALTER TABLE "product_variants"
+DROP CONSTRAINT "fk_product_variants_created_by";
+
+ALTER TABLE "product_variants"
+DROP CONSTRAINT "fk_product_variant_variant_id";
+
+ALTER TABLE "product_variants"
+DROP CONSTRAINT "fk_product_variants_product_id";
+
 ALTER TABLE "product_categories"
 DROP CONSTRAINT "fk_product_categories_updated_by";
 

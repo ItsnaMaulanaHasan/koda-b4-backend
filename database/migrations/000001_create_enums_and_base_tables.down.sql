@@ -1,3 +1,7 @@
+ALTER TABLE "variants" DROP CONSTRAINT "fk_variants_updated_by";
+
+ALTER TABLE "variants" DROP CONSTRAINT "fk_variants_created_by";
+
 ALTER TABLE "sizes" DROP CONSTRAINT "fk_sizes_updated_by";
 
 ALTER TABLE "sizes" DROP CONSTRAINT "fk_sizes_created_by";
@@ -9,6 +13,8 @@ ALTER TABLE "categories" DROP CONSTRAINT "fk_categories_created_by";
 ALTER TABLE "users" DROP CONSTRAINT "fk_users_updated_by";
 
 ALTER TABLE "users" DROP CONSTRAINT "fk_users_created_by";
+
+DROP TABLE "variants";
 
 DROP TABLE "sizes";
 

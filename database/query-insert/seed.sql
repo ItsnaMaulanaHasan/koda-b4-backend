@@ -80,6 +80,12 @@ VALUES ('R', 1, 1),
     ('XL', 1, 1),
     ('250gr', 1, 1);
 
+-- insert variants
+INSERT INTO
+    variants (name, created_by, updated_by)
+VALUES ('HOT', 1, 1),
+    ('ICE', 1, 1);
+
 -- insert products
 INSERT INTO
     products (

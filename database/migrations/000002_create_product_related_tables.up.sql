@@ -48,6 +48,16 @@ CREATE TABLE "product_categories" (
     "updated_by" int
 );
 
+CREATE TABLE "product_variants" (
+    "id" serial PRIMARY KEY,
+    "product_id" int,
+    "variant_id" int,
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "created_by" int,
+    "updated_by" int
+);
+
 ALTER TABLE "products"
 ADD CONSTRAINT "fk_producst_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
 
@@ -86,3 +96,15 @@ ADD CONSTRAINT "fk_product_categories_created_by" FOREIGN KEY ("created_by") REF
 
 ALTER TABLE "product_categories"
 ADD CONSTRAINT "fk_product_categories_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
+
+ALTER TABLE "product_variants"
+ADD CONSTRAINT "fk_product_variants_product_id" FOREIGN KEY ("product_id") REFERENCES "products" ("id") ON DELETE CASCADE;
+
+ALTER TABLE "product_variants"
+ADD CONSTRAINT "fk_product_variant_variant_id" FOREIGN KEY ("variant_id") REFERENCES "variants" ("id");
+
+ALTER TABLE "product_variants"
+ADD CONSTRAINT "fk_product_variants_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
+
+ALTER TABLE "product_variants"
+ADD CONSTRAINT "fk_product_variants_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
