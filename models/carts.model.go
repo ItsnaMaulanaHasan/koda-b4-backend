@@ -8,17 +8,20 @@ import (
 )
 
 type Cart struct {
-	Id            int      `db:"id" json:"id"`
-	UserId        int      `db:"user_id" json:"userId"`
-	ProductImages []string `db:"product_images" json:"productImages"`
-	ProductName   string   `db:"product_name" json:"productName"`
-	SizeName      string   `db:"size_name" json:"sizeName"`
-	VariantName   string   `db:"variant_name" json:"variantName"`
-	ProductPrice  string   `db:"product_price" json:"productPrice"`
-	SizeCost      string   `db:"size_cost" json:"sizeCost"`
-	VariantCost   string   `db:"variant_cost" json:"variantCost"`
-	Amount        int      `db:"amount" json:"amount"`
-	Subtotal      float64  `db:"subtotal" json:"subtotal"`
+	Id              int      `db:"id" json:"id"`
+	UserId          int      `db:"user_id" json:"userId"`
+	ProductImages   []string `db:"product_images" json:"productImages"`
+	ProductName     string   `db:"product_name" json:"productName"`
+	ProductPrice    float64  `db:"product_price" json:"productPrice"`
+	IsFlashSale     bool     `db:"is_flash_sale" json:"isFlashSale"`
+	DiscountPercent bool     `db:"discount_percent" json:"discountPercent"`
+	DiscountPrice   float64  `db:"discount_price" json:"discountPrice"`
+	SizeName        string   `db:"size_name" json:"sizeName"`
+	SizeCost        float64  `db:"size_cost" json:"sizeCost"`
+	VariantName     string   `db:"variant_name" json:"variantName"`
+	VariantCost     float64  `db:"variant_cost" json:"variantCost"`
+	Amount          int      `db:"amount" json:"amount"`
+	Subtotal        float64  `db:"subtotal" json:"subtotal"`
 }
 
 type CartRequest struct {
@@ -43,11 +46,14 @@ func GetListCart(userId int) ([]Cart, string, error) {
 			c.user_id, 
 			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS product_images, 
 			p.name AS product_name,
-			s.name AS size_name,
-			v.name AS variant_name, 
 			p.price AS product_price,
-			v.variant_cost AS variant_cost,
+			p.is_flash_sale,
+			p.discount_percent,
+			(p.price * (1-p.discount_percent)) AS discount_price,
+			s.name AS size_name,
 			s.size_cost AS size_cost,
+			v.name AS variant_name,
+			v.variant_cost AS variant_cost,
 			c.amount, 
 			c.subtotal
 			FROM carts c
@@ -102,7 +108,7 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 		//get the new subtotal
 		err := config.DB.QueryRow(context.Background(),
 			`SELECT 
-				(p.price + s.size_cost + v.variant_cost) * $4 AS subtotal
+				((p.price * (1-p.discount_percent)) + s.size_cost + v.variant_cost) * $4 AS subtotal
 			FROM products p
 			JOIN sizes s ON s.id = $2
 			JOIN variants v ON v.id = $3
@@ -131,7 +137,7 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 		// get the subtotal
 		err := config.DB.QueryRow(context.Background(),
 			`SELECT 
-				(p.price + s.size_cost + v.variant_cost) * $4 AS subtotal
+				((p.price * (1-p.discount_percent)) + s.size_cost + v.variant_cost) * $4 AS subtotal
 			FROM products p
 			JOIN sizes s ON s.id = $2
 			JOIN variants v ON v.id = $3
