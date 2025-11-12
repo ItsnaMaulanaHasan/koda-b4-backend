@@ -10,9 +10,10 @@ CREATE TABLE "transactions" (
     "payment_method" varchar(50),
     "shipping" shipping DEFAULT 'Dine In',
     "status" status DEFAULT 'On Progress',
-    "total_transaction" numeric(10, 2) NOT NULL CHECK ("total_transaction" > 0),
     "delivery_fee" numeric(10, 2) DEFAULT 0,
     "tax" numeric(10, 2) DEFAULT 0,
+    "additional_cost" numeric(10, 2) DEFAULT 0,
+    "total_transaction" numeric(10, 2) NOT NULL,
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
@@ -22,13 +23,16 @@ CREATE TABLE "transactions" (
 CREATE TABLE "ordered_products" (
     "id" serial PRIMARY KEY,
     "order_id" int,
-    "product_id" int,
     "product_name" varchar(255) NOT NULL,
     "product_price" numeric(10, 2) NOT NULL CHECK ("product_price" > 0),
-    "discount_percent" numeric(5, 2),
+    "discount_percent" numeric(5, 2) DEFAULT 0,
+    "discount_price" numeric(10, 2) DEFAULT 0,
     "amount" int NOT NULL CHECK ("amount" > 0),
+    "size" varchar(10),
+    "size_cost" numeric(10, 2) DEFAULT 0,
+    "variant" varchar(50),
+    "variant_cost" numeric(10, 2) DEFAULT 0,
     "subtotal" numeric(10, 2) NOT NULL,
-    "size" product_sizes DEFAULT 'L',
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
@@ -74,9 +78,6 @@ ADD CONSTRAINT "fk_transactions_updated_by" FOREIGN KEY ("updated_by") REFERENCE
 
 ALTER TABLE "ordered_products"
 ADD CONSTRAINT "fk_ordered_products_order_id" FOREIGN KEY ("order_id") REFERENCES "transactions" ("id");
-
-ALTER TABLE "ordered_products"
-ADD CONSTRAINT "fk_ordered_products_product_id" FOREIGN KEY ("product_id") REFERENCES "products" ("id");
 
 ALTER TABLE "ordered_products"
 ADD CONSTRAINT "fk_ordered_products_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");

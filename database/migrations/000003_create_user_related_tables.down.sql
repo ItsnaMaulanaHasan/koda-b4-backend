@@ -2,6 +2,10 @@ ALTER TABLE "carts" DROP CONSTRAINT "fk_carts_updated_by";
 
 ALTER TABLE "carts" DROP CONSTRAINT "fk_carts_created_by";
 
+ALTER TABLE "carts" DROP CONSTRAINT "fk_carts_variant_id";
+
+ALTER TABLE "carts" DROP CONSTRAINT "fk_carts_size_id";
+
 ALTER TABLE "carts" DROP CONSTRAINT "fk_carts_product_id";
 
 ALTER TABLE "carts" DROP CONSTRAINT "fk_carts_user_id";

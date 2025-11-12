@@ -1,10 +1,3 @@
-CREATE TYPE "product_sizes" AS ENUM (
-  'R',
-  'L',
-  'XL',
-  '250gr'
-);
-
 CREATE TYPE "status" AS ENUM (
   'On Progress',
   'Shipping',
@@ -42,6 +35,7 @@ CREATE TABLE "categories" (
 CREATE TABLE "sizes" (
     "id" serial PRIMARY KEY,
     "name" varchar(10) UNIQUE NOT NULL,
+    "size_cost" numeric(10, 2) DEFAULT 0,
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
@@ -50,7 +44,8 @@ CREATE TABLE "sizes" (
 
 CREATE TABLE "variants" (
     "id" serial PRIMARY KEY,
-    "name" varchar(50) NOT NULL,
+    "name" varchar(50) UNIQUE NOT NULL,
+    "variant_cost" numeric(10, 2) DEFAULT 0,
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,

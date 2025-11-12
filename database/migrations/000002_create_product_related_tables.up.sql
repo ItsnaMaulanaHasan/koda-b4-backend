@@ -3,7 +3,7 @@ CREATE TABLE "products" (
     "name" varchar(255) UNIQUE NOT NULL,
     "description" text NOT NULL,
     "price" numeric(10, 2) NOT NULL CHECK ("price" > 0),
-    "discount_percent" numeric(5, 2),
+    "discount_percent" numeric(5, 2) DEFAULT 0,
     "rating" numeric(2, 1) DEFAULT 5 CHECK (
         "rating" >= 0
         AND "rating" <= 5
@@ -20,15 +20,15 @@ CREATE TABLE "products" (
 
 CREATE TABLE "product_images" (
     "id" serial PRIMARY KEY,
-    "image" text NOT NULL,
     "product_id" int,
+    "image" text NOT NULL,
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
 
-CREATE TABLE "size_products" (
+CREATE TABLE "product_sizes" (
     "id" serial PRIMARY KEY,
     "product_id" int,
     "size_id" int,
@@ -73,17 +73,17 @@ ADD CONSTRAINT "fk_product_images_created_by" FOREIGN KEY ("created_by") REFEREN
 ALTER TABLE "product_images"
 ADD CONSTRAINT "fk_product_images_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
 
-ALTER TABLE "size_products"
-ADD CONSTRAINT "fk_size_products_product_id" FOREIGN KEY ("product_id") REFERENCES "products" ("id") ON DELETE CASCADE;
+ALTER TABLE "product_sizes"
+ADD CONSTRAINT "fk_product_sizes_product_id" FOREIGN KEY ("product_id") REFERENCES "products" ("id") ON DELETE CASCADE;
 
-ALTER TABLE "size_products"
-ADD CONSTRAINT "fk_size_products_size_id" FOREIGN KEY ("size_id") REFERENCES "sizes" ("id");
+ALTER TABLE "product_sizes"
+ADD CONSTRAINT "fk_product_sizes_size_id" FOREIGN KEY ("size_id") REFERENCES "sizes" ("id");
 
-ALTER TABLE "size_products"
-ADD CONSTRAINT "fk_size_products_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
+ALTER TABLE "product_sizes"
+ADD CONSTRAINT "fk_product_sizes_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
 
-ALTER TABLE "size_products"
-ADD CONSTRAINT "fk_size_products_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
+ALTER TABLE "product_sizes"
+ADD CONSTRAINT "fk_product_sizes_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
 
 ALTER TABLE "product_categories"
 ADD CONSTRAINT "fk_product_categories_product_id" FOREIGN KEY ("product_id") REFERENCES "products" ("id") ON DELETE CASCADE;

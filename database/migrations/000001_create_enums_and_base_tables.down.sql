@@ -25,5 +25,3 @@ DROP TABLE "users";
 DROP TYPE "shipping";
 
 DROP TYPE "status";
-
-DROP TYPE "product_sizes";

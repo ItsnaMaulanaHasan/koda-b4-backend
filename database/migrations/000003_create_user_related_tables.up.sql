@@ -4,8 +4,8 @@ CREATE TABLE "profiles" (
     "image" text,
     "address" varchar(255),
     "phone_number" varchar(20),
-    "created_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
-    "updated_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
@@ -14,13 +14,13 @@ CREATE TABLE "sessions" (
     "id" serial PRIMARY KEY,
     "user_id" int,
     "session_token" text UNIQUE NOT NULL,
-    "login_time" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "login_time" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "expired_at" timestamp,
     "ip_address" varchar(30),
     "device" varchar(255),
     "is_active" bool DEFAULT true,
-    "created_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
-    "updated_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
@@ -29,11 +29,11 @@ CREATE TABLE "password_resets" (
     "id" serial PRIMARY KEY,
     "user_id" int,
     "token_reset" char(6) UNIQUE NOT NULL,
-    "expired_at" timestamp NOT NULL DEFAULT(
+    "expired_at" timestamp NOT NULL DEFAULT (
         CURRENT_TIMESTAMP + INTERVAL '1 hour'
     ),
-    "created_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
-    "updated_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
@@ -47,8 +47,8 @@ CREATE TABLE "testimonies" (
         AND "rating" <= 5
     ),
     "testimonial" text,
-    "created_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
-    "updated_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
@@ -57,11 +57,12 @@ CREATE TABLE "carts" (
     "id" serial PRIMARY KEY,
     "user_id" int,
     "product_id" int,
+    "size_id" int,
+    "variant_id" int,
     "amount" int CHECK ("amount" > 0),
-    "subtotal" numeric(10, 2),
-    "size" product_sizes DEFAULT 'R',
-    "created_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
-    "updated_at" timestamp DEFAULT(CURRENT_TIMESTAMP),
+    "subtotal" numeric(10, 2) NOT NULL,
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
@@ -107,6 +108,12 @@ ADD CONSTRAINT "fk_carts_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("i
 
 ALTER TABLE "carts"
 ADD CONSTRAINT "fk_carts_product_id" FOREIGN KEY ("product_id") REFERENCES "products" ("id");
+
+ALTER TABLE "carts"
+ADD CONSTRAINT "fk_carts_size_id" FOREIGN KEY ("size_id") REFERENCES "sizes" ("id");
+
+ALTER TABLE "carts"
+ADD CONSTRAINT "fk_carts_variant_id" FOREIGN KEY ("variant_id") REFERENCES "variants" ("id");
 
 ALTER TABLE "carts"
 ADD CONSTRAINT "fk_carts_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");

@@ -23,9 +23,6 @@ ALTER TABLE "ordered_products"
 DROP CONSTRAINT "fk_ordered_products_created_by";
 
 ALTER TABLE "ordered_products"
-DROP CONSTRAINT "fk_ordered_products_product_id";
-
-ALTER TABLE "ordered_products"
 DROP CONSTRAINT "fk_ordered_products_order_id";
 
 ALTER TABLE "transactions"
