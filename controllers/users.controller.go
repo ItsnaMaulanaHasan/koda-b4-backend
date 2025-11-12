@@ -572,7 +572,7 @@ func UpdateUser(ctx *gin.Context) {
 // @Success      200  {object}  lib.ResponseSuccess  "User deleted successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure      404  {object}  lib.ResponseError  "User not found"
-// @Failure      500  {object}  lib.ResponseError  "Internal server error while deleting user data."
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while deleting user data"
 // @Router       /admin/users/{id} [delete]
 func DeleteUser(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
