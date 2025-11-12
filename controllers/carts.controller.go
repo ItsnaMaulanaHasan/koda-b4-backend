@@ -73,9 +73,22 @@ func AddCart(ctx *gin.Context) {
 		})
 		return
 	}
-	bodyAdd.Subtotal = bodyAdd.Amount * productPrice
 
 	if cartIsExist {
+		var oldAmount float64
+		err = config.DB.QueryRow(context.Background(), `SELECT amount FROM carts WHERE user_id = $1`, bodyAdd.UserId).Scan(&oldAmount)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Internal server error while get price of the product",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		bodyAdd.Amount += oldAmount
+		bodyAdd.Subtotal = bodyAdd.Amount * productPrice
+
 		_, err = config.DB.Exec(
 			context.Background(),
 			`UPDATE carts SET amount = $1, subtotal = $2, updated_at = NOW(), updated_by = $3 WHERE user_id = $4`,
@@ -93,6 +106,7 @@ func AddCart(ctx *gin.Context) {
 			return
 		}
 	} else {
+		bodyAdd.Subtotal = bodyAdd.Amount * productPrice
 		err = config.DB.QueryRow(
 			context.Background(),
 			`INSERT INTO carts (user_id, product_id, size_id, variant_id, amount, subtotal, created_by, updated_by)
