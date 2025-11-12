@@ -437,7 +437,7 @@ func CreateProduct(ctx *gin.Context) {
 
 			_, err = config.DB.Exec(
 				context.Background(),
-				`INSERT INTO size_products (product_id, size_id, created_by, updated_by)
+				`INSERT INTO product_sizes (product_id, size_id, created_by, updated_by)
 				 VALUES ($1, $2, $3, $4)`,
 				bodyCreate.Id,
 				sizeId,
@@ -711,7 +711,7 @@ func UpdateProduct(ctx *gin.Context) {
 		sizeProducts := strings.Split(bodyUpdate.SizeProducts, ",")
 		_, err = config.DB.Exec(
 			context.Background(),
-			`DELETE FROM size_products WHERE product_id = $1`,
+			`DELETE FROM product_sizes WHERE product_id = $1`,
 			id,
 		)
 		if err != nil {
@@ -736,7 +736,7 @@ func UpdateProduct(ctx *gin.Context) {
 
 			_, err = config.DB.Exec(
 				context.Background(),
-				`INSERT INTO size_products (product_id, size_id, created_by, updated_by)
+				`INSERT INTO product_sizes (product_id, size_id, created_by, updated_by)
 				 VALUES ($1, $2, $3, $4)`,
 				id,
 				sizeId,
