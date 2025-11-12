@@ -71,10 +71,10 @@ ALTER TABLE "transactions"
 ADD CONSTRAINT "fk_transactions_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE RESTRICT;
 
 ALTER TABLE "transactions"
-ADD CONSTRAINT "fk_payment_method_id_user_id" FOREIGN KEY ("payment_method_id") REFERENCES "payment_methods" ("id");
+ADD CONSTRAINT "fk_transactions_payment_method_id" FOREIGN KEY ("payment_method_id") REFERENCES "payment_methods" ("id");
 
 ALTER TABLE "transactions"
-ADD CONSTRAINT "fk_order_method_id_user_id" FOREIGN KEY ("order_method_id") REFERENCES "order_methods" ("id");
+ADD CONSTRAINT "fk_transactions_order_method_id" FOREIGN KEY ("order_method_id") REFERENCES "order_methods" ("id");
 
 ALTER TABLE "transactions"
 ADD CONSTRAINT "fk_transactions_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
@@ -84,6 +84,9 @@ ADD CONSTRAINT "fk_transactions_updated_by" FOREIGN KEY ("updated_by") REFERENCE
 
 ALTER TABLE "ordered_products"
 ADD CONSTRAINT "fk_ordered_products_order_id" FOREIGN KEY ("order_id") REFERENCES "transactions" ("id");
+
+ALTER TABLE "ordered_products"
+ADD CONSTRAINT "fk_ordered_products_product_id" FOREIGN KEY ("product_id") REFERENCES "products" ("id");
 
 ALTER TABLE "ordered_products"
 ADD CONSTRAINT "fk_ordered_products_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");

@@ -23,6 +23,9 @@ ALTER TABLE "ordered_products"
 DROP CONSTRAINT "fk_ordered_products_created_by";
 
 ALTER TABLE "ordered_products"
+DROP CONSTRAINT "fk_ordered_products_product_id";
+
+ALTER TABLE "ordered_products"
 DROP CONSTRAINT "fk_ordered_products_order_id";
 
 ALTER TABLE "transactions"
@@ -32,10 +35,10 @@ ALTER TABLE "transactions"
 DROP CONSTRAINT "fk_transactions_created_by";
 
 ALTER TABLE "transactions"
-DROP CONSTRAINT "fk_order_method_id_user_id";
+DROP CONSTRAINT "fk_transactions_order_method_id";
 
 ALTER TABLE "transactions"
-DROP CONSTRAINT "fk_payment_method_id_user_id";
+DROP CONSTRAINT "fk_transactions_payment_method_id";
 
 ALTER TABLE "transactions" DROP CONSTRAINT "fk_transactions_user_id";
 
