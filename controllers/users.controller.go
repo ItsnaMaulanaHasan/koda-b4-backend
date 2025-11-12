@@ -26,7 +26,7 @@ import (
 // @Param        page   		query     int     false      "Page number"  			 default(1)   minimum(1)
 // @Param        limit  		query     int     false      "Number of items per page"  default(10)  minimum(1)  maximum(100)
 // @Param        search  		query     string  false      "Search value"
-// @Success      200    		{object}  object{success=bool,message=string,data=[]models.UserResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved user list"
+// @Success      200    		{object}  object{success=bool,message=string,data=[]models.User,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved user list"
 // @Failure      400    		{object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
 // @Failure      500    		{object}  lib.ResponseError  "Internal server error while fetching or processing user data"
 // @Router       /admin/users [get]
@@ -133,7 +133,7 @@ func ListUsers(ctx *gin.Context) {
 	}
 	defer rows.Close()
 
-	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.UserResponse])
+	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.User])
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -206,7 +206,7 @@ func ListUsers(ctx *gin.Context) {
 // @Security     BearerAuth
 // @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
 // @Param        id   			path    int     true  "User Id"
-// @Success      200  {object}  lib.ResponseSuccess{data=models.UserResponse}  "Successfully retrieved user"
+// @Success      200  {object}  lib.ResponseSuccess{data=models.User}  "Successfully retrieved user"
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure      404  {object}  lib.ResponseError  "User not found"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching users from database"
@@ -246,22 +246,22 @@ func DetailUser(ctx *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
-// @Param        first_name     formData  string  true  "User first name"
-// @Param        last_name      formData  string  true  "User last name"
+// @Param        firstName     formData  string  true  "User first name"
+// @Param        lastName      formData  string  true  "User last name"
 // @Param        email          formData  string  true  "User email"
 // @Param        password       formData  string  true  "User password"  format(password)
 // @Param        phone          formData  string  false "User phone"
 // @Param        address        formData  string  false "User address"
 // @Param        role           formData  string  false "User role"  default(customer)
-// @Param        profilephoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
-// @Success      201  {object}  lib.ResponseSuccess{data=models.UserResponse}  "User created successfully"
+// @Param        profilePhoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
+// @Success      201  {object}  lib.ResponseSuccess{data=models.User}  "User created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password"
 // @Failure      409  {object}  lib.ResponseError  "Email already registered"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while creating user"
 // @Router       /admin/users [post]
 func CreateUser(ctx *gin.Context) {
-	var bodyCreateUser models.User
-	err := ctx.ShouldBindWith(&bodyCreateUser, binding.Form)
+	var bodyCreate models.User
+	err := ctx.ShouldBindWith(&bodyCreate, binding.Form)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
@@ -271,14 +271,14 @@ func CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	if bodyCreateUser.Role == "" {
-		bodyCreateUser.Role = "customer"
+	if bodyCreate.Role == "" {
+		bodyCreate.Role = "customer"
 	}
 
 	var exists bool
 	err = config.DB.QueryRow(
 		context.Background(),
-		"SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", bodyCreateUser.Email,
+		"SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", bodyCreate.Email,
 	).Scan(&exists)
 
 	if err != nil {
@@ -298,7 +298,7 @@ func CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	hashedPassword, err := lib.HashPassword(bodyCreateUser.Password)
+	hashedPassword, err := lib.HashPassword(bodyCreate.Password)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
@@ -307,7 +307,7 @@ func CreateUser(ctx *gin.Context) {
 		})
 		return
 	}
-	bodyCreateUser.Password = string(hashedPassword)
+	bodyCreate.Password = string(hashedPassword)
 
 	userIdFromToken, exists := ctx.Get("userId")
 	if !exists {
@@ -323,14 +323,14 @@ func CreateUser(ctx *gin.Context) {
 		`INSERT INTO users (first_name, last_name, email, role, password, created_by, updated_by)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)
 		 RETURNING id`,
-		bodyCreateUser.FirstName,
-		bodyCreateUser.LastName,
-		bodyCreateUser.Email,
-		bodyCreateUser.Role,
-		bodyCreateUser.Password,
+		bodyCreate.FirstName,
+		bodyCreate.LastName,
+		bodyCreate.Email,
+		bodyCreate.Role,
+		bodyCreate.Password,
 		userIdFromToken,
 		userIdFromToken,
-	).Scan(&bodyCreateUser.Id)
+	).Scan(&bodyCreate.Id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -361,7 +361,7 @@ func CreateUser(ctx *gin.Context) {
 		}
 
 		ext := filepath.Ext(file.Filename)
-		fileName := fmt.Sprintf("user_%d_%d%s", bodyCreateUser.Id, time.Now().Unix(), ext)
+		fileName := fmt.Sprintf("user_%d_%d%s", bodyCreate.Id, time.Now().Unix(), ext)
 		savedFilePath = "uploads/profiles/" + fileName
 
 		if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
@@ -378,10 +378,10 @@ func CreateUser(ctx *gin.Context) {
 		context.Background(),
 		`INSERT INTO profiles (user_id, image, address, phone_number, created_by, updated_by)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		bodyCreateUser.Id,
+		bodyCreate.Id,
 		savedFilePath,
-		bodyCreateUser.Address,
-		bodyCreateUser.Phone,
+		bodyCreate.Address,
+		bodyCreate.Phone,
 		userIdFromToken,
 		userIdFromToken,
 	)
@@ -395,21 +395,21 @@ func CreateUser(ctx *gin.Context) {
 	}
 
 	profilePhoto := savedFilePath
-	phone := bodyCreateUser.Phone
-	address := bodyCreateUser.Address
+	phone := bodyCreate.Phone
+	address := bodyCreate.Address
 
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
 		Message: "User created successfully",
-		Data: models.UserResponse{
-			Id:           bodyCreateUser.Id,
+		Data: models.User{
+			Id:           bodyCreate.Id,
 			ProfilePhoto: profilePhoto,
-			FirstName:    bodyCreateUser.FirstName,
-			LastName:     bodyCreateUser.LastName,
+			FirstName:    bodyCreate.FirstName,
+			LastName:     bodyCreate.LastName,
 			Phone:        phone,
 			Address:      address,
-			Email:        bodyCreateUser.Email,
-			Role:         bodyCreateUser.Role,
+			Email:        bodyCreate.Email,
+			Role:         bodyCreate.Role,
 		},
 	})
 }
@@ -446,7 +446,7 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	var bodyUpdate models.UserUpdateRequest
+	var bodyUpdate models.User
 	err = ctx.ShouldBindWith(&bodyUpdate, binding.FormMultipart)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{

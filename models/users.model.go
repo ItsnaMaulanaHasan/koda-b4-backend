@@ -9,49 +9,29 @@ import (
 )
 
 type User struct {
-	Id           int
-	ProfilePhoto string `form:"profilephoto"`
-	FirstName    string `form:"first_name" example:"John"`
-	LastName     string `form:"last_name" example:"Cena"`
-	Phone        string `form:"phone" example:"0895367608879"`
-	Address      string `form:"address" example:"jl. sadewa 1"`
-	Email        string `form:"email" example:"johncena@mail.com"`
-	Password     string `form:"password" example:"koda123" format:"password"`
-	Role         string `form:"role" example:"customer/admin"`
-}
-
-type UserRegisterRequest struct {
-	Id        int    `swaggerignore:"true"`
-	FirstName string `form:"first_name" example:"John"`
-	LastName  string `form:"last_name" example:"Cena"`
-	Email     string `form:"email" example:"johncena@mail.com"`
-	Password  string `form:"password" example:"koda123" format:"password"`
-	Role      string `form:"role" example:"customer/admin"`
-}
-
-type UserUpdateRequest struct {
-	ProfilePhoto string `form:"profilephoto"`
-	FirstName    string `form:"first_name" example:"John"`
-	LastName     string `form:"last_name" example:"Cena"`
-	Phone        string `form:"phone" example:"0895367608879"`
-	Address      string `form:"address" example:"jl. sadewa 1"`
-	Email        string `form:"email" example:"johncena@mail.com"`
-	Role         string `form:"role" example:"customer/admin"`
-}
-
-type UserResponse struct {
 	Id           int    `json:"id" db:"id"`
-	ProfilePhoto string `json:"profilephoto" db:"image"`
-	FirstName    string `json:"first_name" db:"first_name"`
-	LastName     string `json:"last_name" db:"last_name"`
-	Phone        string `json:"phone" db:"phone_number"`
-	Address      string `json:"address" db:"address"`
-	Email        string `json:"email" db:"email"`
-	Role         string `json:"role" db:"role"`
+	ProfilePhoto string `form:"profilePhoto" db:"image"`
+	FirstName    string `form:"firstName" db:"first_name"`
+	LastName     string `form:"lastName" db:"last_name"`
+	Phone        string `form:"phone" db:"phone"`
+	Address      string `form:"address" db:"address"`
+	Email        string `form:"email" db:"email"`
+	Password     string `form:"-" db:"-" json:"-"`
+	Role         string `form:"role" db:"role"`
 }
 
-func GetUserById(id int) (UserResponse, string, error) {
-	user := UserResponse{}
+type UserProfile struct {
+	Id           int `db:""`
+	ProfilePhoto string
+	FullName     string
+	Email        string
+	Phone        string
+	Address      string
+	Password     string
+}
+
+func GetUserById(id int) (User, string, error) {
+	user := User{}
 	message := ""
 	rows, err := config.DB.Query(context.Background(),
 		`SELECT 
@@ -72,7 +52,7 @@ func GetUserById(id int) (UserResponse, string, error) {
 	}
 	defer rows.Close()
 
-	user, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[UserResponse])
+	user, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[User])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			message = "User not found"
