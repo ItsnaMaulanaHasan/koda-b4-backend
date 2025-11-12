@@ -14,7 +14,7 @@ type Cart struct {
 	ProductName     string   `db:"product_name" json:"productName"`
 	ProductPrice    float64  `db:"product_price" json:"productPrice"`
 	IsFlashSale     bool     `db:"is_flash_sale" json:"isFlashSale"`
-	DiscountPercent bool     `db:"discount_percent" json:"discountPercent"`
+	DiscountPercent float64  `db:"discount_percent" json:"discountPercent"`
 	DiscountPrice   float64  `db:"discount_price" json:"discountPrice"`
 	SizeName        string   `db:"size_name" json:"sizeName"`
 	SizeCost        float64  `db:"size_cost" json:"sizeCost"`
@@ -49,7 +49,7 @@ func GetListCart(userId int) ([]Cart, string, error) {
 			p.price AS product_price,
 			p.is_flash_sale,
 			p.discount_percent,
-			(p.price * (1-p.discount_percent)) AS discount_price,
+			(p.price * (1-(p.discount_percent/100))) AS discount_price,
 			s.name AS size_name,
 			s.size_cost AS size_cost,
 			v.name AS variant_name,
@@ -62,7 +62,7 @@ func GetListCart(userId int) ([]Cart, string, error) {
 		LEFT JOIN sizes s  ON s.id = c.size_id
 		LEFT JOIN variants v ON v.id = c.variant_id
 		WHERE c.user_id = $1
-		GROUP BY c.id, p.name, s.name, v.name, p.price, s.size_cost, v.variant_cost
+		GROUP BY c.id, p.name, p.price, p.is_flash_sale, p.discount_percent, s.name, s.size_cost, v.name, v.variant_cost
 		ORDER BY c.updated_at DESC`, userId)
 	if err != nil {
 		message = "Failed to fetch list carts from database"
@@ -108,7 +108,7 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 		//get the new subtotal
 		err := config.DB.QueryRow(context.Background(),
 			`SELECT 
-				((p.price * (1-p.discount_percent)) + s.size_cost + v.variant_cost) * $4 AS subtotal
+				((p.price * (1-(p.discount_percent/100))) + s.size_cost + v.variant_cost) * $4 AS subtotal
 			FROM products p
 			JOIN sizes s ON s.id = $2
 			JOIN variants v ON v.id = $3
@@ -137,7 +137,7 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 		// get the subtotal
 		err := config.DB.QueryRow(context.Background(),
 			`SELECT 
-				((p.price * (1-p.discount_percent)) + s.size_cost + v.variant_cost) * $4 AS subtotal
+				((p.price * (1-(p.discount_percent/100))) + s.size_cost + v.variant_cost) * $4 AS subtotal
 			FROM products p
 			JOIN sizes s ON s.id = $2
 			JOIN variants v ON v.id = $3
