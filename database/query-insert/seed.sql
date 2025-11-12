@@ -74,17 +74,27 @@ VALUES ('smoothies', 1, 1),
 
 -- insert sizes
 INSERT INTO
-    sizes (name, created_by, updated_by)
+    sizes (
+        name,
+        size_cost,
+        created_by,
+        updated_by
+    )
 VALUES ('R', 1, 1),
-    ('L', 1, 1),
-    ('XL', 1, 1),
-    ('250gr', 1, 1);
+    ('L', 2000, 1, 1),
+    ('XL', 7000, 1, 1),
+    ('250gr', 10000, 1, 1);
 
 -- insert variants
 INSERT INTO
-    variants (name, created_by, updated_by)
-VALUES ('HOT', 1, 1),
-    ('ICE', 1, 1);
+    variants (
+        name,
+        variant_cost,
+        created_by,
+        updated_by
+    )
+VALUES ('HOT', 0, 1, 1),
+    ('ICE', 3000, 1, 1);
 
 -- insert products
 INSERT INTO
