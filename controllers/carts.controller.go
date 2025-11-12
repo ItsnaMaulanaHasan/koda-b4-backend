@@ -112,120 +112,20 @@ func AddCart(ctx *gin.Context) {
 	}
 	bodyAdd.UserId = userIdFromToken.(int)
 
-	var cartIsExist bool
-	err = config.DB.QueryRow(
-		context.Background(),
-		"SELECT EXISTS(SELECT 1 FROM carts WHERE user_id = $1 AND product_id = $2 AND size_id = $3 AND variant_id = $4)", bodyAdd.UserId, bodyAdd.ProductId, bodyAdd.SizeId, bodyAdd.VariantId).Scan(&cartIsExist)
+	responseCart, message, err := models.AddToCart(bodyAdd)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while checking cart",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	if cartIsExist {
-		var oldAmount float64
-		err = config.DB.QueryRow(context.Background(), `SELECT amount FROM carts WHERE user_id = $1`, bodyAdd.UserId).Scan(&oldAmount)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Internal server error while get amount of the product",
-				Error:   err.Error(),
-			})
-			return
-		}
-		bodyAdd.Amount += oldAmount
-		err := config.DB.QueryRow(context.Background(),
-			`SELECT 
-				(p.price + s.size_cost + v.variant_cost) * $4 AS subtotal
-			FROM products p
-			JOIN sizes s ON s.id = $2
-			JOIN variants v ON v.id = $3
-			WHERE p.id = $1`,
-			bodyAdd.ProductId, bodyAdd.SizeId, bodyAdd.VariantId, bodyAdd.Amount,
-		).Scan(&bodyAdd.Subtotal)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Internal server error while calculate subtotal",
-				Error:   err.Error(),
-			})
-			return
-		}
-
-		_, err = config.DB.Exec(
-			context.Background(),
-			`UPDATE carts SET amount = $1, subtotal = $2, updated_at = NOW(), updated_by = $3 WHERE user_id = $4`,
-			bodyAdd.Amount,
-			bodyAdd.Subtotal,
-			bodyAdd.UserId,
-			bodyAdd.UserId,
-		)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Internal server error while updating cart",
-				Error:   err.Error(),
-			})
-			return
-		}
-	} else {
-		err := config.DB.QueryRow(context.Background(),
-			`SELECT 
-				(p.price + s.size_cost + v.variant_cost) * $4 AS subtotal
-			FROM products p
-			JOIN sizes s ON s.id = $2
-			JOIN variants v ON v.id = $3
-			WHERE p.id = $1`,
-			bodyAdd.ProductId, bodyAdd.SizeId, bodyAdd.VariantId, bodyAdd.Amount,
-		).Scan(&bodyAdd.Subtotal)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Internal server error while calculate subtotal",
-				Error:   err.Error(),
-			})
-			return
-		}
-
-		err = config.DB.QueryRow(
-			context.Background(),
-			`INSERT INTO carts (user_id, product_id, size_id, variant_id, amount, subtotal, created_by, updated_by)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			 RETURNING id`,
-			bodyAdd.UserId,
-			bodyAdd.ProductId,
-			bodyAdd.SizeId,
-			bodyAdd.VariantId,
-			bodyAdd.Amount,
-			bodyAdd.Subtotal,
-			bodyAdd.UserId,
-			bodyAdd.UserId,
-		).Scan(&bodyAdd.Id)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Internal server error while adding cart",
-				Error:   err.Error(),
-			})
-			return
-		}
-	}
-
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
 		Message: "Cart added successfully",
-		Data: models.CartRequest{
-			Id:        bodyAdd.Id,
-			UserId:    bodyAdd.UserId,
-			ProductId: bodyAdd.ProductId,
-			SizeId:    bodyAdd.SizeId,
-			VariantId: bodyAdd.VariantId,
-			Amount:    bodyAdd.Amount,
-			Subtotal:  bodyAdd.Subtotal,
-		},
+		Data:    responseCart,
 	})
 }
 

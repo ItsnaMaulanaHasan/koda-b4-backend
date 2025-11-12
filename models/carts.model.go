@@ -1,5 +1,10 @@
 package models
 
+import (
+	"backend-daily-greens/config"
+	"context"
+)
+
 type Cart struct {
 	Id            int      `db:"id"`
 	UserId        int      `db:"user_id"`
@@ -19,4 +24,97 @@ type CartRequest struct {
 	VariantId int     `json:"variantId"`
 	Amount    float64 `json:"amount"`
 	Subtotal  float64 `json:"-"`
+}
+
+func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
+	var cartIsExist bool
+	responseCart := CartRequest{}
+	message := ""
+	err := config.DB.QueryRow(
+		context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM carts WHERE user_id = $1 AND product_id = $2 AND size_id = $3 AND variant_id = $4)", bodyAdd.UserId, bodyAdd.ProductId, bodyAdd.SizeId, bodyAdd.VariantId).Scan(&cartIsExist)
+	if err != nil {
+		message = "Internal server error while checking cart"
+		return responseCart, message, err
+	}
+
+	if cartIsExist {
+		var oldAmount float64
+		err = config.DB.QueryRow(context.Background(), `SELECT amount FROM carts WHERE user_id = $1`, bodyAdd.UserId).Scan(&oldAmount)
+		if err != nil {
+			message = "Internal server error while get amount of the product"
+			return responseCart, message, err
+		}
+		bodyAdd.Amount += oldAmount
+		err := config.DB.QueryRow(context.Background(),
+			`SELECT 
+				(p.price + s.size_cost + v.variant_cost) * $4 AS subtotal
+			FROM products p
+			JOIN sizes s ON s.id = $2
+			JOIN variants v ON v.id = $3
+			WHERE p.id = $1`,
+			bodyAdd.ProductId, bodyAdd.SizeId, bodyAdd.VariantId, bodyAdd.Amount,
+		).Scan(&bodyAdd.Subtotal)
+		if err != nil {
+			message = "Internal server error while calculate subtotal"
+			return responseCart, message, err
+		}
+
+		_, err = config.DB.Exec(
+			context.Background(),
+			`UPDATE carts SET amount = $1, subtotal = $2, updated_at = NOW(), updated_by = $3 WHERE user_id = $4`,
+			bodyAdd.Amount,
+			bodyAdd.Subtotal,
+			bodyAdd.UserId,
+			bodyAdd.UserId,
+		)
+		if err != nil {
+			message = "Internal server error while updating cart"
+			return responseCart, message, err
+		}
+	} else {
+		err := config.DB.QueryRow(context.Background(),
+			`SELECT 
+				(p.price + s.size_cost + v.variant_cost) * $4 AS subtotal
+			FROM products p
+			JOIN sizes s ON s.id = $2
+			JOIN variants v ON v.id = $3
+			WHERE p.id = $1`,
+			bodyAdd.ProductId, bodyAdd.SizeId, bodyAdd.VariantId, bodyAdd.Amount,
+		).Scan(&bodyAdd.Subtotal)
+		if err != nil {
+			message = "Internal server error while calculate subtotal"
+			return responseCart, message, err
+		}
+
+		err = config.DB.QueryRow(
+			context.Background(),
+			`INSERT INTO carts (user_id, product_id, size_id, variant_id, amount, subtotal, created_by, updated_by)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			 RETURNING id`,
+			bodyAdd.UserId,
+			bodyAdd.ProductId,
+			bodyAdd.SizeId,
+			bodyAdd.VariantId,
+			bodyAdd.Amount,
+			bodyAdd.Subtotal,
+			bodyAdd.UserId,
+			bodyAdd.UserId,
+		).Scan(&bodyAdd.Id)
+		if err != nil {
+			message = "Internal server error while adding cart"
+			return responseCart, message, err
+		}
+	}
+	responseCart = CartRequest{
+		Id:        bodyAdd.Id,
+		UserId:    bodyAdd.UserId,
+		ProductId: bodyAdd.ProductId,
+		SizeId:    bodyAdd.SizeId,
+		VariantId: bodyAdd.VariantId,
+		Amount:    bodyAdd.Amount,
+		Subtotal:  bodyAdd.Subtotal,
+	}
+
+	return responseCart, message, nil
 }
