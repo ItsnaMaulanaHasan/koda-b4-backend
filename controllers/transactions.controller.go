@@ -7,8 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -65,7 +68,7 @@ func GetAllTransaction(ctx *gin.Context) {
 		err = config.DB.QueryRow(context.Background(),
 			`SELECT COUNT(*) 
 			 FROM transactions
-			 WHERE no_order ILIKE $1`, searchParam).Scan(&totalData)
+			 WHERE no_invoice ILIKE $1`, searchParam).Scan(&totalData)
 	} else {
 		err = config.DB.QueryRow(context.Background(),
 			`SELECT COUNT(*) FROM transactions`).Scan(&totalData)
@@ -87,24 +90,24 @@ func GetAllTransaction(ctx *gin.Context) {
 		rows, err = config.DB.Query(context.Background(),
 			`SELECT 
 				id,
-				no_order,
-				date_order,
+				no_invoice,
+				date_transaction,
 				status,
 				total_transaction
 			FROM transactions
-			WHERE no_order ILIKE $3
-			ORDER BY date_order DESC, id DESC
+			WHERE no_invoice ILIKE $3
+			ORDER BY date_transaction DESC, id DESC
 			LIMIT $1 OFFSET $2`, limit, offset, searchParam)
 	} else {
 		rows, err = config.DB.Query(context.Background(),
 			`SELECT 
 				id,
-				no_order,
-				date_order,
+				no_invoice,
+				date_transaction,
 				status,
 				total_transaction
 			FROM transactions
-			ORDER BY date_order DESC, id DESC
+			ORDER BY date_transaction DESC, id DESC
 			LIMIT $1 OFFSET $2`, limit, offset)
 	}
 
@@ -211,8 +214,8 @@ func GetTransactionById(ctx *gin.Context) {
 		`SELECT 
 			t.id,
 			t.user_id,
-			t.no_order,
-			t.date_order,
+			t.no_invoice,
+			t.date_transaction,
 			t.full_name,
 			t.email,
 			t.address,
@@ -263,8 +266,8 @@ func GetTransactionById(ctx *gin.Context) {
 			amount,
 			subtotal,
 			size
-		FROM ordered_products
-		WHERE order_id = $1
+		FROM transaction_items
+		WHERE transaction_id = $1
 		ORDER BY id ASC`, id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -385,5 +388,147 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
 		Message: "Transaction status updated successfully",
+	})
+}
+
+// Checkout      godoc
+// @Summary      Checkout carts
+// @Description  Checkout products on the cart
+// @Tags         transactions
+// @Accept       application/json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
+// @Param        DataCheckout   body      models.TransactionRequest  true  "Data Checkout"
+// @Success      201  {object}  lib.ResponseSuccess{data=models.TransactionDetail}  "Transaction created successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid request body"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while acces database"
+// @Router       /transactions [post]
+func Checkout(ctx *gin.Context) {
+	var bodyCheckout models.TransactionRequest
+	err := ctx.ShouldBindBodyWithJSON(&bodyCheckout)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid JSON body",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// get user id from token
+	userId, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User Id not found in token",
+		})
+		return
+	}
+
+	// get user profile data based on user Id from token
+	user, message, err := models.GetUserById(userId.(int))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: message,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// cek payment info
+	if bodyCheckout.FullName == "" {
+		bodyCheckout.FullName = strings.TrimSpace(user.FirstName + " " + user.LastName)
+	}
+	if bodyCheckout.Email == "" {
+		bodyCheckout.Email = user.Email
+	}
+	if bodyCheckout.Address == "" {
+		bodyCheckout.Address = user.Address
+	}
+	if bodyCheckout.Phone == "" {
+		bodyCheckout.Phone = user.Phone
+	}
+
+	if strings.TrimSpace(bodyCheckout.FullName) == "" ||
+		strings.TrimSpace(bodyCheckout.Email) == "" ||
+		strings.TrimSpace(bodyCheckout.Address) == "" ||
+		strings.TrimSpace(bodyCheckout.Phone) == "" {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Payment info is incomplete. Please update your profile or provide data in the request body",
+		})
+		return
+	}
+
+	bodyCheckout.DeliveryFee, bodyCheckout.AdminFee, message, err = models.GetDeliveryFeeAndAdminFee(bodyCheckout.OrderMethodId, bodyCheckout.PaymentMethodId)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: message,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// get list cart by user id from token
+	carts, message, err := models.GetListCart(userId.(int))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: message,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if len(carts) == 0 {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Cart is empty, cannot checkout",
+		})
+		return
+	}
+
+	// calculate total transaction
+	var total float64
+	for _, c := range carts {
+		total += c.Subtotal
+	}
+	bodyCheckout.Tax = total * 0.10
+	bodyCheckout.TotalTransaction = total + bodyCheckout.Tax + bodyCheckout.DeliveryFee + bodyCheckout.AdminFee
+
+	// get date transaction
+	bodyCheckout.DateTransaction = time.Now()
+
+	// generate invoice
+	dateStr := time.Now().Format("20060102")
+	randomNum := rand.Intn(99999)
+	bodyCheckout.NoInvoice = fmt.Sprintf("INV-%s-%05d", dateStr, randomNum)
+
+	// insert data to transactions
+	transactionId, message, err := models.MakeTransaction(userId.(int), bodyCheckout, carts)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: message,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
+		Success: true,
+		Message: message,
+		Data: gin.H{
+			"transactionId":    transactionId,
+			"noInvoice":        bodyCheckout.NoInvoice,
+			"dateTransaction":  bodyCheckout.DateTransaction,
+			"deliveryFee":      bodyCheckout.DeliveryFee,
+			"adminFee":         bodyCheckout.AdminFee,
+			"tax":              bodyCheckout.Tax,
+			"totalTransaction": bodyCheckout.TotalTransaction,
+		},
 	})
 }
