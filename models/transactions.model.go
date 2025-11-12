@@ -1,31 +1,36 @@
 package models
 
-import "time"
+import (
+	"backend-daily-greens/config"
+	"context"
+	"time"
+)
 
 type Transaction struct {
-	Id        int       `db:"id"`
-	NoOrder   string    `db:"no_order"`
-	DateOrder time.Time `db:"date_order"`
-	Status    string    `db:"status"`
-	Total     float64   `db:"total_transaction"`
+	Id              int       `db:"id"`
+	NoInvoice       string    `db:"no_invoice"`
+	DateTransaction time.Time `db:"date_transaction"`
+	Status          string    `db:"status"`
+	Total           float64   `db:"total_transaction"`
 }
 
 type TransactionDetail struct {
 	Id               int              `json:"id" db:"id"`
-	UserId           int              `json:"user_id" db:"user_id"`
-	NoOrder          string           `json:"no_order" db:"no_order"`
-	DateOrder        time.Time        `json:"date_order" db:"date_order"`
-	FullName         string           `json:"full_name" db:"full_name"`
+	UserId           int              `json:"userId" db:"user_id"`
+	NoInvoice        string           `json:"noInvoice" db:"no_invoice"`
+	DateTransaction  time.Time        `json:"dateOrder" db:"date_transaction"`
+	FullName         string           `json:"fullName" db:"full_name"`
 	Email            string           `json:"email" db:"email"`
 	Address          string           `json:"address" db:"address"`
 	Phone            string           `json:"phone" db:"phone"`
 	PaymentMethod    string           `json:"payment_method" db:"payment_method"`
-	Shipping         string           `json:"shipping" db:"shipping"`
+	OrderMethod      string           `json:"orderMethod" db:"order_method"`
 	Status           string           `json:"status" db:"status"`
-	TotalTransaction float64          `json:"total_transaction" db:"total_transaction"`
 	DeliveryFee      float64          `json:"delivery_fee" db:"delivery_fee"`
+	AdminFee         float64          `json:"adminFee" db:"admin_fee"`
 	Tax              float64          `json:"tax" db:"tax"`
-	OrderedProducts  []OrderedProduct `json:"ordered_products"`
+	TotalTransaction float64          `json:"totalTransaction" db:"total_transaction"`
+	OrderedProducts  []OrderedProduct `json:"orderedProducts"`
 }
 
 type OrderedProduct struct {
@@ -34,7 +39,169 @@ type OrderedProduct struct {
 	ProductName     string  `json:"product_name" db:"product_name"`
 	ProductPrice    float64 `json:"product_price" db:"product_price"`
 	DiscountPercent float64 `json:"discount_percent" db:"discount_percent"`
+	DiscountPrice   float64 `json:"discount_price" db:"discount_price"`
+	Size            string  `json:"size" db:"size"`
+	SizeCost        float64 `json:"sizeCost" db:"size_cost"`
+	Variant         string  `json:"variant" db:"variant"`
+	VariantCost     float64 `json:"variantCost" db:"variant_cost"`
 	Amount          int     `json:"amount" db:"amount"`
 	Subtotal        float64 `json:"subtotal" db:"subtotal"`
-	Size            string  `json:"size" db:"size"`
+}
+
+type TransactionRequest struct {
+	NoInvoice        string
+	DateTransaction  time.Time
+	FullName         string `json:"fullName"`
+	Email            string `json:"email"`
+	Address          string `json:"address"`
+	Phone            string `json:"phone"`
+	PaymentMethodId  int    `json:"paymentMethodId" binding:"required"`
+	OrderMethodId    int    `json:"orderMethodId" binding:"required"`
+	DeliveryFee      float64
+	AdminFee         float64
+	Tax              float64
+	TotalTransaction float64
+}
+
+func GetDeliveryFeeAndAdminFee(orderMethodId int, paymentMethodId int) (float64, float64, string, error) {
+	var deliveryFee, adminFee float64 = 0, 0
+	message := ""
+
+	// get delivery fee by order method id
+	err := config.DB.QueryRow(context.Background(),
+		`SELECT COALESCE(delivery_fee, 0) FROM order_methods WHERE id = $1`,
+		orderMethodId,
+	).Scan(&deliveryFee)
+	if err != nil {
+		message = "Invalid order method id"
+		return deliveryFee, adminFee, message, err
+	}
+
+	// get admin fee by payment method id
+	err = config.DB.QueryRow(context.Background(),
+		`SELECT COALESCE(admin_fee, 0) FROM payment_methods WHERE id = $1`,
+		paymentMethodId,
+	).Scan(&adminFee)
+	if err != nil {
+		message = "Invalid payment method id"
+		return deliveryFee, adminFee, message, err
+	}
+
+	return deliveryFee, adminFee, message, nil
+}
+
+func MakeTransaction(userId int, bodyCheckout TransactionRequest, carts []Cart) (int, string, error) {
+	// start transaction
+	message := ""
+	tx, err := config.DB.Begin(context.Background())
+	if err != nil {
+		message = "Failed to start transaction"
+		return 0, message, err
+	}
+	defer tx.Rollback(context.Background())
+
+	// insert data to transactions
+	var transactionId int
+	insertTransaction := `INSERT INTO transactions (
+							user_id, 
+							no_invoice, 
+							date_transaction,
+							full_name,
+							email,
+							address,
+							phone,
+							payment_method_id,
+							order_method_id,
+							delivery_fee,
+							admin_fee,
+							tax,
+							total_transaction,
+							created_by,
+							updated_by)
+						VALUES 
+							($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+						RETURNING 
+							id`
+
+	err = tx.QueryRow(context.Background(), insertTransaction,
+		userId,
+		bodyCheckout.NoInvoice,
+		bodyCheckout.DateTransaction,
+		bodyCheckout.FullName,
+		bodyCheckout.Email,
+		bodyCheckout.Address,
+		bodyCheckout.Phone,
+		bodyCheckout.PaymentMethodId,
+		bodyCheckout.OrderMethodId,
+		bodyCheckout.DeliveryFee,
+		bodyCheckout.AdminFee,
+		bodyCheckout.Tax,
+		bodyCheckout.TotalTransaction,
+		userId,
+		userId,
+	).Scan(&transactionId)
+	if err != nil {
+		message = "Failed to insert transaction"
+		return 0, message, err
+	}
+
+	// insert data to transaction_items
+	for _, cart := range carts {
+		queryOrdered := `INSERT INTO transaction_items (
+							transaction_id, 
+							product_id, 
+							product_name, 
+							product_price, 
+							discount_percent, 
+							discount_price, 
+							size, 
+							size_cost, 
+							variant, 
+							variant_cost, 
+							amount, 
+							subtotal, 
+							created_by, 
+							updated_by) 
+						VALUES 
+							($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`
+
+		_, err := tx.Exec(context.Background(), queryOrdered,
+			transactionId,
+			cart.ProductId,
+			cart.ProductName,
+			cart.ProductPrice,
+			cart.DiscountPercent,
+			cart.DiscountPrice,
+			cart.SizeName,
+			cart.SizeCost,
+			cart.VariantName,
+			cart.VariantCost,
+			cart.Amount,
+			cart.Subtotal,
+			userId,
+			userId,
+		)
+		if err != nil {
+			message = "Failed to insert ordered product"
+			return 0, message, err
+		}
+
+		// update stock
+		_, err = tx.Exec(context.Background(),
+			`UPDATE products SET stock = stock - $1 WHERE id = $2`,
+			cart.Amount, cart.ProductId,
+		)
+		if err != nil {
+			message = "Failed to update stock of product"
+			return 0, message, err
+		}
+	}
+
+	if err := tx.Commit(context.Background()); err != nil {
+		message = "Failed to commit transaction"
+		return 0, message, err
+	}
+
+	message = "Checkout completed successfully"
+	return transactionId, message, nil
 }
