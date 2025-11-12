@@ -14,6 +14,9 @@ type Cart struct {
 	ProductName   string   `db:"product_name" json:"productName"`
 	SizeName      string   `db:"size_name" json:"sizeName"`
 	VariantName   string   `db:"variant_name" json:"variantName"`
+	ProductPrice  string   `db:"product_price" json:"productPrice"`
+	SizeCost      string   `db:"size_cost" json:"sizeCost"`
+	VariantCost   string   `db:"variant_cost" json:"variantCost"`
 	Amount        int      `db:"amount" json:"amount"`
 	Subtotal      float64  `db:"subtotal" json:"subtotal"`
 }
@@ -32,14 +35,19 @@ func GetListCart(userId int) ([]Cart, string, error) {
 	carts := []Cart{}
 	message := ""
 	var err error
+
+	// get cart list
 	rows, err := config.DB.Query(context.Background(),
 		`SELECT 
 			c.id, 
 			c.user_id, 
 			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS product_images, 
-			p.name AS product_name, 
-			s.name AS size_name, 
+			p.name AS product_name,
+			s.name AS size_name,
 			v.name AS variant_name, 
+			p.price AS product_price,
+			v.variant_cost AS variant_cost,
+			s.size_cost AS size_cost,
 			c.amount, 
 			c.subtotal
 			FROM carts c
@@ -48,7 +56,7 @@ func GetListCart(userId int) ([]Cart, string, error) {
 		LEFT JOIN sizes s  ON s.id = c.size_id
 		LEFT JOIN variants v ON v.id = c.variant_id
 		WHERE c.user_id = $1
-		GROUP BY c.id, p.name, s.name, v.name
+		GROUP BY c.id, p.name, s.name, v.name, p.price, s.size_cost, v.variant_cost
 		ORDER BY c.updated_at DESC`, userId)
 	if err != nil {
 		message = "Failed to fetch list carts from database"
@@ -70,6 +78,8 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 	var cartIsExist bool
 	responseCart := CartRequest{}
 	message := ""
+
+	// check whether the cart item already exists in the database
 	err := config.DB.QueryRow(
 		context.Background(),
 		"SELECT EXISTS(SELECT 1 FROM carts WHERE user_id = $1 AND product_id = $2 AND size_id = $3 AND variant_id = $4)", bodyAdd.UserId, bodyAdd.ProductId, bodyAdd.SizeId, bodyAdd.VariantId).Scan(&cartIsExist)
@@ -80,12 +90,16 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 
 	if cartIsExist {
 		var oldAmount float64
+
+		// get the previous amount
 		err = config.DB.QueryRow(context.Background(), `SELECT amount FROM carts WHERE user_id = $1`, bodyAdd.UserId).Scan(&oldAmount)
 		if err != nil {
 			message = "Internal server error while get amount of the product"
 			return responseCart, message, err
 		}
 		bodyAdd.Amount += oldAmount
+
+		//get the new subtotal
 		err := config.DB.QueryRow(context.Background(),
 			`SELECT 
 				(p.price + s.size_cost + v.variant_cost) * $4 AS subtotal
@@ -100,6 +114,7 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 			return responseCart, message, err
 		}
 
+		// update cart items
 		_, err = config.DB.Exec(
 			context.Background(),
 			`UPDATE carts SET amount = $1, subtotal = $2, updated_at = NOW(), updated_by = $3 WHERE user_id = $4`,
@@ -113,6 +128,7 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 			return responseCart, message, err
 		}
 	} else {
+		// get the subtotal
 		err := config.DB.QueryRow(context.Background(),
 			`SELECT 
 				(p.price + s.size_cost + v.variant_cost) * $4 AS subtotal
@@ -127,6 +143,7 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 			return responseCart, message, err
 		}
 
+		// add cart items
 		err = config.DB.QueryRow(
 			context.Background(),
 			`INSERT INTO carts (user_id, product_id, size_id, variant_id, amount, subtotal, created_by, updated_by)
