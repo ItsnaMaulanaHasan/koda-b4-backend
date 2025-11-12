@@ -10,8 +10,8 @@ import (
 func transactionsRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 	transactions := admin.Group("/transactions")
 	{
-		transactions.GET("", controllers.GetAllTransaction)
-		transactions.GET("/:id", controllers.GetTransactionById)
+		transactions.GET("", controllers.ListTransactions)
+		transactions.GET("/:id", controllers.DetailTransactions)
 		transactions.PATCH("/:id", controllers.UpdateTransactionStatus)
 	}
 

@@ -17,9 +17,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// GetAllTransaction godoc
-// @Summary          Get all transaction
-// @Description  	 Retrieving all transaction data with pagination support
+// ListTransactions  godoc
+// @Summary          Get list transactions
+// @Description  	 Retrieving list transactions with pagination support and search
 // @Tags         	 admin/transactions
 // @Produce      	 json
 // @Security     	 BearerAuth
@@ -31,7 +31,7 @@ import (
 // @Failure      	 400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
 // @Failure      	 500            {object}  lib.ResponseError  "Internal server error while fetching or processing transaction data."
 // @Router       	 /admin/transactions [get]
-func GetAllTransaction(ctx *gin.Context) {
+func ListTransactions(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 	search := ctx.Query("search")
@@ -185,21 +185,21 @@ func GetAllTransaction(ctx *gin.Context) {
 	})
 }
 
-// GetTransactionById godoc
-// @Summary      Get transaction by Id
-// @Description  Retrieving transaction detail data based on Id including ordered products
-// @Tags         admin/transactions
-// @Accept       x-www-form-urlencoded
-// @Produce      json
-// @Security     BearerAuth
-// @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
-// @Param        id             path    int     true  "Transaction Id"
-// @Success      200  {object}  lib.ResponseSuccess{data=models.TransactionDetail}  "Successfully retrieved transaction detail"
-// @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
-// @Failure      404  {object}  lib.ResponseError  "Transaction not found"
-// @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching transaction from database"
-// @Router       /admin/transactions/{id} [get]
-func GetTransactionById(ctx *gin.Context) {
+// TransactionDetail godoc
+// @Summary          Get transaction by Id
+// @Description      Retrieving transaction detail data based on Id including transaction items
+// @Tags             admin/transactions
+// @Accept           x-www-form-urlencoded
+// @Produce          json
+// @Security         BearerAuth
+// @Param            Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param            id             path    int     true  "Transaction Id"
+// @Success          200  {object}  lib.ResponseSuccess{data=models.TransactionDetail}  "Successfully retrieved transaction detail"
+// @Failure          400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure          404  {object}  lib.ResponseError  "Transaction not found"
+// @Failure          500  {object}  lib.ResponseError  "Internal server error while fetching transaction from database"
+// @Router           /admin/transactions/{id} [get]
+func DetailTransactions(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
