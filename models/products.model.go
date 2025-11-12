@@ -22,7 +22,7 @@ type AdminProductResponse struct {
 	Stock             int      `db:"stock" json:"stock"`
 	IsActive          bool     `db:"is_active" json:"isActive"`
 	IsFavourite       bool     `db:"is_favourite" json:"isFavourite"`
-	SizeProducts      []string `db:"size_products" json:"sizeProducts"`
+	SizeProducts      []string `db:"product_sizes" json:"sizeProducts"`
 	ProductCategories []string `db:"product_categories" json:"productCategories"`
 	ProductVariants   []string `db:"product_variants" json:"productVariants"`
 }
@@ -61,18 +61,19 @@ type PublicProductResponse struct {
 }
 
 type PublicProductDetailResponse struct {
-	Id                int      `db:"id" json:"id"`
-	Images            []string `db:"images" json:"images"`
-	Name              string   `db:"name" json:"name"`
-	Description       string   `db:"description" json:"description"`
-	Price             float64  `db:"price" json:"price"`
-	DiscountPercent   float64  `db:"discount_percent" json:"discountPercent"`
-	Rating            float64  `db:"rating" json:"rating"`
-	IsFlashSale       bool     `db:"is_flash_sale" json:"isFlashSale"`
-	Stock             int      `db:"stock" json:"stock"`
-	SizeProducts      []string `db:"size_products" json:"sizeProducts"`
-	ProductCategories []string `db:"product_categories" json:"productCategories"`
-	ProductVariants   []string `db:"product_variants" json:"productVariants"`
+	Id                int                     `db:"id" json:"id"`
+	Images            []string                `db:"images" json:"images"`
+	Name              string                  `db:"name" json:"name"`
+	Description       string                  `db:"description" json:"description"`
+	Price             float64                 `db:"price" json:"price"`
+	DiscountPercent   float64                 `db:"discount_percent" json:"discountPercent"`
+	Rating            float64                 `db:"rating" json:"rating"`
+	IsFlashSale       bool                    `db:"is_flash_sale" json:"isFlashSale"`
+	Stock             int                     `db:"stock" json:"stock"`
+	SizeProducts      []string                `db:"product_sizes" json:"sizeProducts"`
+	ProductCategories []string                `db:"product_categories" json:"productCategories"`
+	ProductVariants   []string                `db:"product_variants" json:"productVariants"`
+	Recomendations    []PublicProductResponse `db:"-" json:"Recomendations"`
 }
 
 func TotalDataProducts(search string) (int, error) {
@@ -114,12 +115,12 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 				p.is_active,
 				p.is_favourite,
 				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
-				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
 				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
 			FROM products p
 			LEFT JOIN product_images pi ON pi.product_id = p.id
-			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN product_sizes sp ON sp.product_id = p.id
 			LEFT JOIN sizes s ON s.id = sp.size_id
 			LEFT JOIN product_categories pc ON pc.product_id = p.id
 			LEFT JOIN categories c ON c.id = pc.category_id
@@ -145,12 +146,12 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 				p.is_active,
 				p.is_favourite,
 				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
-				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
 				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
 			FROM products p
 			LEFT JOIN product_images pi ON pi.product_id = p.id
-			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN product_sizes sp ON sp.product_id = p.id
 			LEFT JOIN sizes s ON s.id = sp.size_id
 			LEFT JOIN product_categories pc ON pc.product_id = p.id
 			LEFT JOIN categories c ON c.id = pc.category_id
@@ -187,12 +188,12 @@ func GetProductByIdAdmin(id int) (AdminProductResponse, error) {
 				p.is_active,
 				p.is_favourite,
 				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
-				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
 				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
 			FROM products p
 			LEFT JOIN product_images pi ON pi.product_id = p.id
-			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN product_sizes sp ON sp.product_id = p.id
 			LEFT JOIN sizes s ON s.id = sp.size_id
 			LEFT JOIN product_categories pc ON pc.product_id = p.id
 			LEFT JOIN categories c ON c.id = pc.category_id
@@ -346,7 +347,7 @@ func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64
 	query += ` GROUP BY p.id`
 
 	// Sorting
-	orderBy := "p.id ASC" // default
+	orderBy := "p.id ASC"
 	if sort != "" {
 		switch sort {
 		case "name_asc":
@@ -392,12 +393,12 @@ func GetProductByIdPublic(id int) (PublicProductDetailResponse, error) {
 				p.is_flash_sale,
 				COALESCE(p.stock, 0) AS stock,
 				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
-				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS size_products,
+				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
 				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
 			FROM products p
 			LEFT JOIN product_images pi ON pi.product_id = p.id
-			LEFT JOIN size_products sp ON sp.product_id = p.id
+			LEFT JOIN product_sizes sp ON sp.product_id = p.id
 			LEFT JOIN sizes s ON s.id = sp.size_id
 			LEFT JOIN product_categories pc ON pc.product_id = p.id
 			LEFT JOIN categories c ON c.id = pc.category_id
@@ -420,5 +421,45 @@ func GetProductByIdPublic(id int) (PublicProductDetailResponse, error) {
 		return product, err
 	}
 
+	queryRecomendation := `
+						SELECT 
+							p.id,
+							p.name,
+							p.description,
+							p.price,
+							COALESCE(p.discount_percent, 0) AS discount_percent,
+							p.is_flash_sale,
+							p.is_favourite,
+							COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images
+						FROM products p
+						LEFT JOIN product_images pi ON pi.product_id = p.id
+						WHERE p.is_active = true
+						AND p.id != $1
+						AND EXISTS (
+							SELECT 1
+							FROM product_categories pc1
+							WHERE pc1.product_id = p.id
+							AND pc1.category_id IN (
+								SELECT pc2.category_id
+								FROM product_categories pc2
+								WHERE pc2.product_id = $1
+							)
+						)
+						GROUP BY p.id
+						ORDER BY RANDOM()
+						LIMIT 5;`
+
+	rowsRec, err := config.DB.Query(context.Background(), queryRecomendation, id)
+	if err != nil {
+		return product, err
+	}
+	defer rowsRec.Close()
+
+	product.Recomendations, err = pgx.CollectRows(rowsRec, pgx.RowToStructByName[PublicProductResponse])
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return product, err
+	}
+
 	return product, nil
+
 }
