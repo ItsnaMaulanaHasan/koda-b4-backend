@@ -91,14 +91,15 @@ func GetDeliveryFeeAndAdminFee(orderMethodId int, paymentMethodId int) (float64,
 }
 
 func MakeTransaction(userId int, bodyCheckout TransactionRequest, carts []Cart) (int, string, error) {
-	// start transaction
 	message := ""
-	tx, err := config.DB.Begin(context.Background())
+	ctx := context.Background()
+	// start transaction
+	tx, err := config.DB.Begin(ctx)
 	if err != nil {
 		message = "Failed to start transaction"
 		return 0, message, err
 	}
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(ctx)
 
 	// insert data to transactions
 	var transactionId int
@@ -123,7 +124,7 @@ func MakeTransaction(userId int, bodyCheckout TransactionRequest, carts []Cart) 
 						RETURNING 
 							id`
 
-	err = tx.QueryRow(context.Background(), insertTransaction,
+	err = tx.QueryRow(ctx, insertTransaction,
 		userId,
 		bodyCheckout.NoInvoice,
 		bodyCheckout.DateTransaction,
@@ -165,7 +166,7 @@ func MakeTransaction(userId int, bodyCheckout TransactionRequest, carts []Cart) 
 						VALUES 
 							($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`
 
-		_, err := tx.Exec(context.Background(), queryOrdered,
+		_, err := tx.Exec(ctx, queryOrdered,
 			transactionId,
 			cart.ProductId,
 			cart.ProductName,
@@ -187,7 +188,7 @@ func MakeTransaction(userId int, bodyCheckout TransactionRequest, carts []Cart) 
 		}
 
 		// update stock
-		_, err = tx.Exec(context.Background(),
+		_, err = tx.Exec(ctx,
 			`UPDATE products SET stock = stock - $1 WHERE id = $2`,
 			cart.Amount, cart.ProductId,
 		)
@@ -197,7 +198,8 @@ func MakeTransaction(userId int, bodyCheckout TransactionRequest, carts []Cart) 
 		}
 	}
 
-	if err := tx.Commit(context.Background()); err != nil {
+	err = tx.Commit(ctx)
+	if err != nil {
 		message = "Failed to commit transaction"
 		return 0, message, err
 	}

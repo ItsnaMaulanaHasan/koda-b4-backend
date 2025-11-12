@@ -406,7 +406,7 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 // @Router       /transactions [post]
 func Checkout(ctx *gin.Context) {
 	var bodyCheckout models.TransactionRequest
-	err := ctx.ShouldBindBodyWithJSON(&bodyCheckout)
+	err := ctx.ShouldBindJSON(&bodyCheckout)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
