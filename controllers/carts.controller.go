@@ -80,7 +80,7 @@ func AddCart(ctx *gin.Context) {
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
-				Message: "Internal server error while get price of the product",
+				Message: "Internal server error while get amount of the product",
 				Error:   err.Error(),
 			})
 			return
