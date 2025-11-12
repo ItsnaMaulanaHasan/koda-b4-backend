@@ -100,7 +100,6 @@ func AddCart(ctx *gin.Context) {
 			 RETURNING id`,
 			bodyAdd.UserId,
 			bodyAdd.ProductId,
-			bodyAdd.UserId,
 			bodyAdd.SizeId,
 			bodyAdd.VariantId,
 			bodyAdd.Amount,
