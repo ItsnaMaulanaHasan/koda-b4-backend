@@ -1,13 +1,14 @@
 package models
 
 type Cart struct {
-	Id          int     `db:"id"`
-	UserId      int     `db:"user_id"`
-	ProductName string  `db:"product_name"`
-	Size        string  `db:"size"`
-	Variant     string  `db:"variant"`
-	Amount      int     `db:"amount"`
-	Subtotal    float64 `db:"subtotal"`
+	Id            int      `db:"id"`
+	UserId        int      `db:"user_id"`
+	ProductImages []string `db:"product_images"`
+	ProductName   string   `db:"product_name"`
+	SizeName      string   `db:"size_name"`
+	VariantName   string   `db:"variant_name"`
+	Amount        int      `db:"amount"`
+	Subtotal      float64  `db:"subtotal"`
 }
 
 type CartRequest struct {
