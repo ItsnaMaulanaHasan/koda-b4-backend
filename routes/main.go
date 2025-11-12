@@ -8,7 +8,7 @@ import (
 
 func SetUpRoutes(r *gin.Engine) {
 	authRouter(r.Group("/auth"))
-	cartsRouter(r.Group("/carts"))
+	cartsRouter(r.Group("/carts", middlewares.Auth()))
 
 	admin := r.Group("/admin", middlewares.Auth(), middlewares.AdminOnly())
 	usersRoutes(r, admin)
