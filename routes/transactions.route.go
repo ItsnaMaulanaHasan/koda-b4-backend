@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupTransactionRoutes(r *gin.Engine, admin *gin.RouterGroup) {
+func transactionsRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 	transactions := admin.Group("/transactions")
 	{
 		transactions.GET("", controllers.GetAllTransaction)

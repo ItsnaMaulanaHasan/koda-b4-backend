@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupUserRoutes(r *gin.Engine, admin *gin.RouterGroup) {
+func usersRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 	users := admin.Group("/users")
 	{
 		users.GET("", controllers.GetAllUser)

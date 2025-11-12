@@ -8,10 +8,11 @@ import (
 
 func SetUpRoutes(r *gin.Engine) {
 	authRouter(r.Group("/auth"))
+	cartsRouter(r.Group("/carts"))
 
 	admin := r.Group("/admin", middlewares.Auth(), middlewares.AdminOnly())
-	SetupUserRoutes(r, admin)
-	SetupProductRoutes(r, admin)
-	SetupTransactionRoutes(r, admin)
-	SetupCategoryRoutes(r, admin)
+	usersRoutes(r, admin)
+	productsRoutes(r, admin)
+	transactionsRoutes(r, admin)
+	categoriesRoutes(r, admin)
 }

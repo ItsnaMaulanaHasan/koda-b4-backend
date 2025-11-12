@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupCategoryRoutes(r *gin.Engine, admin *gin.RouterGroup) {
+func categoriesRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 	categories := admin.Group("/categories")
 	{
 		categories.GET("", controllers.GetAllCategory)
