@@ -3,6 +3,8 @@ package models
 import (
 	"backend-daily-greens/config"
 	"context"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Cart struct {
@@ -24,6 +26,44 @@ type CartRequest struct {
 	VariantId int     `json:"variantId"`
 	Amount    float64 `json:"amount"`
 	Subtotal  float64 `json:"-"`
+}
+
+func GetListCart(userId int) ([]Cart, string, error) {
+	carts := []Cart{}
+	message := ""
+	var err error
+	rows, err := config.DB.Query(context.Background(),
+		`SELECT 
+			c.id, 
+			c.user_id, 
+			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS product_images, 
+			p.name AS product_name, 
+			s.name AS size_name, 
+			v.name AS variant_name, 
+			c.amount, 
+			c.subtotal
+			FROM carts c
+		LEFT JOIN products p ON p.id = c.product_id
+		LEFT JOIN product_images pi ON p.id = pi.product_id
+		LEFT JOIN sizes s  ON s.id = c.size_id
+		LEFT JOIN variants v ON v.id = c.variant_id
+		WHERE c.user_id = $1
+		GROUP BY c.id, p.name, s.name, v.name
+		ORDER BY c.updated_at DESC`, userId)
+	if err != nil {
+		message = "Failed to fetch list carts from database"
+		return carts, message, err
+	}
+	defer rows.Close()
+
+	carts, err = pgx.CollectRows(rows, pgx.RowToStructByName[Cart])
+	if err != nil {
+		message = "Failed to process carts data from database"
+		return carts, message, err
+	}
+
+	message = "Success get list carts"
+	return carts, message, nil
 }
 
 func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
@@ -106,6 +146,7 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 			return responseCart, message, err
 		}
 	}
+	message = "Cart added successfully"
 	responseCart = CartRequest{
 		Id:        bodyAdd.Id,
 		UserId:    bodyAdd.UserId,

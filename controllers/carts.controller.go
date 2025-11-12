@@ -1,14 +1,11 @@
 package controllers
 
 import (
-	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 )
 
 // ListCarts     godoc
@@ -31,39 +28,12 @@ func ListCarts(ctx *gin.Context) {
 		})
 		return
 	}
-	rows, err := config.DB.Query(context.Background(),
-		`SELECT 
-			c.id, 
-			c.user_id, 
-			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS product_images, 
-			p.name AS product_name, 
-			s.name AS size_name, 
-			v.name AS variant_name, 
-			c.amount, 
-			c.subtotal
-			FROM carts c
-		LEFT JOIN products p ON p.id = c.product_id
-		LEFT JOIN product_images pi ON p.id = pi.product_id
-		LEFT JOIN sizes s  ON s.id = c.size_id
-		LEFT JOIN variants v ON v.id = c.variant_id
-		WHERE c.user_id = $1
-		GROUP BY c.id, p.name, s.name, v.name
-		ORDER BY c.updated_at DESC`, userIdFromToken)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to fetch list carts from database",
-			Error:   err.Error(),
-		})
-		return
-	}
-	defer rows.Close()
 
-	carts, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.Cart])
+	carts, message, err := models.GetListCart(userIdFromToken.(int))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to process carts data from database",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
@@ -71,7 +41,7 @@ func ListCarts(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Success get list carts",
+		"message": message,
 		"data":    carts,
 	})
 }
@@ -124,7 +94,7 @@ func AddCart(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
-		Message: "Cart added successfully",
+		Message: message,
 		Data:    responseCart,
 	})
 }
