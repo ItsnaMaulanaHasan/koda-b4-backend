@@ -146,15 +146,14 @@ func GetAllTransaction(ctx *gin.Context) {
 
 	var next any
 	var prev any
-	switch page {
-	case 1:
-		if page < totalPage {
-			next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		} else {
-			next = nil
-		}
+	switch {
+	case totalData == 0:
+		page = 0
+		next, prev = nil, nil
+	case page == 1 && totalPage > 1:
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
 		prev = nil
-	case totalPage:
+	case page == totalPage && totalPage > 1:
 		next = nil
 		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
 	default:
