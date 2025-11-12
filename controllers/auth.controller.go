@@ -22,14 +22,18 @@ import (
 // @Tags         auth
 // @Accept       x-www-form-urlencoded
 // @Produce      json
-// @Param        user formData  models.UserRegisterRequest true "User registration data"
-// @Success      201  {object}  lib.ResponseSuccess{data=models.UserResponse}  "User created successfully."
+// @Param        firstName formData  string  true  "First name user"
+// @Param        lastName  formData  string  true  "Last name user"
+// @Param        email     formData  string  true  "Email user"
+// @Param        password  formData  string  true  "Password user" format(password)
+// @Param        role      formData  string  true  "Role user" default(customer)
+// @Success      201  {object}  lib.ResponseSuccess{data=models.RegisterResponse}  "User created successfully."
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password."
 // @Failure      409  {object}  lib.ResponseError  "Email already registered."
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while creating user."
 // @Router       /auth/register [post]
 func Register(ctx *gin.Context) {
-	var bodyRegister models.UserRegisterRequest
+	var bodyRegister models.Register
 	err := ctx.ShouldBindWith(&bodyRegister, binding.Form)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -97,7 +101,7 @@ func Register(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
 		Message: "User created successfully",
-		Data: models.UserResponse{
+		Data: models.Register{
 			Id:        bodyRegister.Id,
 			FirstName: bodyRegister.FirstName,
 			LastName:  bodyRegister.LastName,
