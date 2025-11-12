@@ -22,11 +22,11 @@ func ListCarts(ctx *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
-// @Param        dataCart       json    models.CartRequest  true  "Data request add cart"
-// @Success      201  {object}  lib.ResponseSuccess{data=models.Cart}  "Category created successfully"
-// @Failure      400  {object}  lib.ResponseError  "Invalid request body"
-// @Failure      401  {object}  lib.ResponseError  "User unauthorized"
-// @Failure      500  {object}  lib.ResponseError  "Internal server error while adding, updating, or get data from cart"
+// @Param        dataCart       body    models.CartRequest  true  "Data request add cart"
+// @Success      201            {object}  lib.ResponseSuccess{data=models.Cart}  "Category created successfully"
+// @Failure      400            {object}  lib.ResponseError  "Invalid request body"
+// @Failure      401            {object}  lib.ResponseError  "User unauthorized"
+// @Failure      500            {object}  lib.ResponseError  "Internal server error while adding, updating, or get data from cart"
 // @Router       /carts [post]
 func AddCart(ctx *gin.Context) {
 	var bodyAdd models.CartRequest

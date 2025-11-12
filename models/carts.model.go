@@ -17,5 +17,5 @@ type CartRequest struct {
 	SizeId    int     `json:"sizeId"`
 	VariantId int     `json:"variantId"`
 	Amount    float64 `json:"amount"`
-	Subtotal  float64 `json:"subtotal"`
+	Subtotal  float64 `json:"-"`
 }
