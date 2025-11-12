@@ -80,7 +80,7 @@ INSERT INTO
         created_by,
         updated_by
     )
-VALUES ('R', 1, 1),
+VALUES ('R', 0, 1, 1),
     ('L', 2000, 1, 1),
     ('XL', 7000, 1, 1),
     ('250gr', 10000, 1, 1);
