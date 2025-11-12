@@ -5,7 +5,6 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -17,9 +16,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// GetAllUser    godoc
-// @Summary      Get all users
-// @Description  Retrieving all user data with pagination support
+// ListUsers     godoc
+// @Summary      Get list users
+// @Description  Retrieving list users with pagination support
 // @Tags         admin/users
 // @Produce      json
 // @Security     BearerAuth
@@ -31,7 +30,7 @@ import (
 // @Failure      400    		{object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
 // @Failure      500    		{object}  lib.ResponseError  "Internal server error while fetching or processing user data"
 // @Router       /admin/users [get]
-func GetAllUser(ctx *gin.Context) {
+func ListUsers(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 	search := ctx.Query("search")
@@ -198,9 +197,9 @@ func GetAllUser(ctx *gin.Context) {
 	})
 }
 
-// GetUserById   godoc
-// @Summary      Get user by Id
-// @Description  Retrieving user data based on Id
+// DetailUser    godoc
+// @Summary      Get detail user
+// @Description  Retrieving detail user based on Id
 // @Tags         admin/users
 // @Accept 		 x-www-form-urlencoded
 // @Produce      json
@@ -212,7 +211,7 @@ func GetAllUser(ctx *gin.Context) {
 // @Failure      404  {object}  lib.ResponseError  "User not found"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching users from database"
 // @Router       /admin/users/{id} [get]
-func GetUserById(ctx *gin.Context) {
+func DetailUser(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -223,50 +222,18 @@ func GetUserById(ctx *gin.Context) {
 		return
 	}
 
-	rows, err := config.DB.Query(context.Background(),
-		`SELECT 
-			users.id,
-			COALESCE(profiles.image, '') AS image,
-			COALESCE(users.first_name, '') AS first_name,
-			COALESCE(users.last_name, '') AS last_name,
-			COALESCE(profiles.phone_number, '') AS phone_number,
-			COALESCE(profiles.address, '') AS address,
-			users.email,
-			users.role
-		FROM users
-		LEFT JOIN profiles ON users.id = profiles.user_id
-		WHERE users.id = $1`, id)
+	user, message, err := models.GetUserById(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to fetch user from database",
+			Message: message,
 			Error:   err.Error(),
 		})
-		return
-	}
-	defer rows.Close()
-
-	user, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.UserResponse])
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, lib.ResponseError{
-				Success: false,
-				Message: "User not found",
-			})
-			return
-		}
-
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to process user data",
-			Error:   err.Error(),
-		})
-		return
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
-		Message: "Success get user",
+		Message: message,
 		Data:    user,
 	})
 }

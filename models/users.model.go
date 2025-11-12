@@ -1,5 +1,13 @@
 package models
 
+import (
+	"backend-daily-greens/config"
+	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+)
+
 type User struct {
 	Id           int
 	ProfilePhoto string `form:"profilephoto"`
@@ -40,4 +48,40 @@ type UserResponse struct {
 	Address      string `json:"address" db:"address"`
 	Email        string `json:"email" db:"email"`
 	Role         string `json:"role" db:"role"`
+}
+
+func GetUserById(id int) (UserResponse, string, error) {
+	user := UserResponse{}
+	message := ""
+	rows, err := config.DB.Query(context.Background(),
+		`SELECT 
+			users.id,
+			COALESCE(profiles.image, '') AS image,
+			COALESCE(users.first_name, '') AS first_name,
+			COALESCE(users.last_name, '') AS last_name,
+			COALESCE(profiles.phone_number, '') AS phone_number,
+			COALESCE(profiles.address, '') AS address,
+			users.email,
+			users.role
+		FROM users
+		LEFT JOIN profiles ON users.id = profiles.user_id
+		WHERE users.id = $1`, id)
+	if err != nil {
+		message = "Failed to fetch user from database"
+		return user, message, err
+	}
+	defer rows.Close()
+
+	user, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[UserResponse])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			message = "User not found"
+			return user, message, err
+		}
+		message = "Failed to process user data"
+		return user, message, err
+	}
+
+	message = "Success get user"
+	return user, message, nil
 }
