@@ -47,6 +47,8 @@ ALTER TABLE "products" DROP CONSTRAINT "fk_products_updated_by";
 
 ALTER TABLE "products" DROP CONSTRAINT "fk_producst_created_by";
 
+DROP TABLE "product_variants";
+
 DROP TABLE "product_categories";
 
 DROP TABLE "product_sizes";
