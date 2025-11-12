@@ -96,6 +96,31 @@ INSERT INTO
 VALUES ('HOT', 0, 1, 1),
     ('ICE', 3000, 1, 1);
 
+INSERT INTO
+    order_methods (
+        name,
+        delivery_fee,
+        created_by,
+        updated_by
+    )
+VALUES ('Dine In', 0, 1, 1),
+    ('Door Devlivery', 15000, 1, 1),
+    ('Pick Up', 0, 1, 1);
+
+INSERT INTO
+    payment_methods (
+        name,
+        admin_fee,
+        created_by,
+        updated_by
+    )
+VALUES ('Transfer BRI', 2500, 1, 1),
+    ('Dana', 2500, 1, 1),
+    ('Transfer BCA', 0, 1, 1),
+    ('Gopay', 0, 1, 1),
+    ('Ovo', 2500, 1, 1),
+    ('Paypal', 5000, 1, 1);
+
 -- insert products
 INSERT INTO
     products (
