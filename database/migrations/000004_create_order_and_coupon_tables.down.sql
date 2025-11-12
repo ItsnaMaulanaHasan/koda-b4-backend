@@ -4,7 +4,7 @@ ALTER TABLE "coupon_usage"
 DROP CONSTRAINT "fk_coupon_usage_coupon_id";
 
 ALTER TABLE "coupon_usage"
-DROP CONSTRAINT "fk_coupon_usage_order_id";
+DROP CONSTRAINT "fk_coupon_usage_transaction_id";
 
 ALTER TABLE "coupon_usage"
 DROP CONSTRAINT "fk_coupon_usage_created_by";
@@ -16,17 +16,17 @@ ALTER TABLE "coupons" DROP CONSTRAINT "fk_coupons_updated_by";
 
 ALTER TABLE "coupons" DROP CONSTRAINT "fk_coupons_created_by";
 
-ALTER TABLE "ordered_products"
-DROP CONSTRAINT "fk_ordered_products_updated_by";
+ALTER TABLE "transaction_items"
+DROP CONSTRAINT "fk_transaction_items_updated_by";
 
-ALTER TABLE "ordered_products"
-DROP CONSTRAINT "fk_ordered_products_created_by";
+ALTER TABLE "transaction_items"
+DROP CONSTRAINT "fk_transaction_items_created_by";
 
-ALTER TABLE "ordered_products"
-DROP CONSTRAINT "fk_ordered_products_product_id";
+ALTER TABLE "transaction_items"
+DROP CONSTRAINT "fk_transaction_items_product_id";
 
-ALTER TABLE "ordered_products"
-DROP CONSTRAINT "fk_ordered_products_order_id";
+ALTER TABLE "transaction_items"
+DROP CONSTRAINT "fk_transaction_items_transaction_id";
 
 ALTER TABLE "transactions"
 DROP CONSTRAINT "fk_transactions_updated_by";
@@ -46,6 +46,6 @@ DROP TABLE "coupon_usage";
 
 DROP TABLE "coupons";
 
-DROP TABLE "ordered_products";
+DROP TABLE "transaction_items";
 
 DROP TABLE "transactions";

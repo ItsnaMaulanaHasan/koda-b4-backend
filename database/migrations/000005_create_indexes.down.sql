@@ -6,7 +6,7 @@ DROP INDEX IF EXISTS idx_sessions_user_expired;
 
 DROP INDEX IF EXISTS idx_sessions_token;
 
-DROP INDEX IF EXISTS idx_ordered_products_order;
+DROP INDEX IF EXISTS idx_transaction_items_order;
 
 DROP INDEX IF EXISTS idx_product_images_product;
 
