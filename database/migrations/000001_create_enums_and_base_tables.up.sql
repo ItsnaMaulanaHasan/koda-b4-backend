@@ -4,12 +4,6 @@ CREATE TYPE "status" AS ENUM (
   'Done'
 );
 
-CREATE TYPE "shipping" AS ENUM (
-  'Delivery',
-  'Dine In',
-  'Pick Up'
-);
-
 CREATE TABLE "users" (
     "id" serial PRIMARY KEY,
     "first_name" varchar(255) NOT NULL,
@@ -52,6 +46,26 @@ CREATE TABLE "variants" (
     "updated_by" int
 );
 
+CREATE TABLE "order_methods" (
+    "id" serial PRIMARY KEY,
+    "name" varchar(30),
+    "delivery_fee" numeric(10, 2) DEFAULT 0,
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "created_by" int,
+    "updated_by" int
+);
+
+CREATE TABLE "payment_methods" (
+    "id" serial PRIMARY KEY,
+    "name" varchar(30),
+    "admin_fee" numeric(10, 2) DEFAULT 0,
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "created_by" int,
+    "updated_by" int
+);
+
 ALTER TABLE "users"
 ADD CONSTRAINT "fk_users_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
 
@@ -75,3 +89,15 @@ ADD CONSTRAINT "fk_variants_created_by" FOREIGN KEY ("created_by") REFERENCES "u
 
 ALTER TABLE "variants"
 ADD CONSTRAINT "fk_variants_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
+
+ALTER TABLE "order_methods"
+ADD CONSTRAINT "fk_order_methods_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
+
+ALTER TABLE "order_methods"
+ADD CONSTRAINT "fk_order_methods_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
+
+ALTER TABLE "payment_methods"
+ADD CONSTRAINT "fk_payment_methods_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
+
+ALTER TABLE "payment_methods"
+ADD CONSTRAINT "fk_payment_methods_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");

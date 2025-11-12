@@ -31,6 +31,12 @@ DROP CONSTRAINT "fk_transactions_updated_by";
 ALTER TABLE "transactions"
 DROP CONSTRAINT "fk_transactions_created_by";
 
+ALTER TABLE "transactions"
+DROP CONSTRAINT "fk_order_method_id_user_id";
+
+ALTER TABLE "transactions"
+DROP CONSTRAINT "fk_payment_method_id_user_id";
+
 ALTER TABLE "transactions" DROP CONSTRAINT "fk_transactions_user_id";
 
 DROP TABLE "coupon_usage";
