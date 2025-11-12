@@ -3,8 +3,10 @@ package models
 import (
 	"backend-daily-greens/config"
 	"context"
+	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Cart struct {
@@ -26,13 +28,13 @@ type Cart struct {
 }
 
 type CartRequest struct {
-	Id        int     `json:"-"`
-	UserId    int     `json:"-"`
+	Id        int     `json:"id" swaggerignore:"true"`
+	UserId    int     `json:"userId" swaggerignore:"true"`
 	ProductId int     `json:"productId"`
 	SizeId    int     `json:"sizeId"`
 	VariantId int     `json:"variantId"`
-	Amount    float64 `json:"amount"`
-	Subtotal  float64 `json:"-"`
+	Amount    int     `json:"amount"`
+	Subtotal  float64 `json:"subtotal" swaggerignore:"true"`
 }
 
 func GetListCart(userId int) ([]Cart, string, error) {
@@ -64,7 +66,7 @@ func GetListCart(userId int) ([]Cart, string, error) {
 		LEFT JOIN sizes s  ON s.id = c.size_id
 		LEFT JOIN variants v ON v.id = c.variant_id
 		WHERE c.user_id = $1
-		GROUP BY c.id, p.name, p.price, p.is_flash_sale, p.discount_percent, s.name, s.size_cost, v.name, v.variant_cost
+		GROUP BY c.id, c.product_id, p.name, p.price, p.is_flash_sale, p.discount_percent, s.name, s.size_cost, v.name, v.variant_cost
 		ORDER BY c.updated_at DESC`, userId)
 	if err != nil {
 		message = "Failed to fetch list carts from database"
@@ -83,13 +85,39 @@ func GetListCart(userId int) ([]Cart, string, error) {
 }
 
 func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
-	var cartIsExist bool
+	ctx := context.Background()
 	responseCart := CartRequest{}
 	message := ""
 
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		message = "Failed to start database transaction"
+		return responseCart, message, err
+	}
+	defer tx.Rollback(ctx)
+
+	// get stock product
+	var stock int
+	err = tx.QueryRow(ctx, `SELECT stock FROM products WHERE id = $1`, bodyAdd.ProductId).Scan(&stock)
+	if err != nil {
+		message = "Internal server error while get stock from products"
+		return responseCart, message, err
+	}
+
+	if bodyAdd.Amount <= 0 {
+		message = "invalid amount, must be greater than 0"
+		return responseCart, message, errors.New(message)
+	}
+
+	if bodyAdd.Amount > stock {
+		message = "amount exceeds available stock"
+		return responseCart, message, errors.New(message)
+	}
+
 	// check whether the cart item already exists in the database
-	err := config.DB.QueryRow(
-		context.Background(),
+	var cartIsExist bool
+	err = tx.QueryRow(
+		ctx,
 		"SELECT EXISTS(SELECT 1 FROM carts WHERE user_id = $1 AND product_id = $2 AND size_id = $3 AND variant_id = $4)", bodyAdd.UserId, bodyAdd.ProductId, bodyAdd.SizeId, bodyAdd.VariantId).Scan(&cartIsExist)
 	if err != nil {
 		message = "Internal server error while checking cart"
@@ -97,18 +125,21 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 	}
 
 	if cartIsExist {
-		var oldAmount float64
-
 		// get the previous amount
-		err = config.DB.QueryRow(context.Background(), `SELECT amount FROM carts WHERE user_id = $1`, bodyAdd.UserId).Scan(&oldAmount)
+		var oldAmount int
+		err = tx.QueryRow(ctx,
+			`SELECT amount FROM carts 
+     		WHERE user_id = $1 AND product_id = $2 AND size_id = $3 AND variant_id = $4`,
+			bodyAdd.UserId, bodyAdd.ProductId, bodyAdd.SizeId, bodyAdd.VariantId,
+		).Scan(&oldAmount)
 		if err != nil {
 			message = "Internal server error while get amount of the product"
 			return responseCart, message, err
 		}
 		bodyAdd.Amount += oldAmount
 
-		//get the new subtotal
-		err := config.DB.QueryRow(context.Background(),
+		// calculate new subtotal
+		err := tx.QueryRow(ctx,
 			`SELECT 
 				((p.price * (1-(p.discount_percent/100))) + s.size_cost + v.variant_cost) * $4 AS subtotal
 			FROM products p
@@ -123,8 +154,8 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 		}
 
 		// update cart items
-		_, err = config.DB.Exec(
-			context.Background(),
+		_, err = tx.Exec(
+			ctx,
 			`UPDATE carts SET amount = $1, subtotal = $2, updated_at = NOW(), updated_by = $3 WHERE user_id = $4`,
 			bodyAdd.Amount,
 			bodyAdd.Subtotal,
@@ -136,8 +167,8 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 			return responseCart, message, err
 		}
 	} else {
-		// get the subtotal
-		err := config.DB.QueryRow(context.Background(),
+		// calculate subtotal for new cart
+		err := tx.QueryRow(ctx,
 			`SELECT 
 				((p.price * (1-(p.discount_percent/100))) + s.size_cost + v.variant_cost) * $4 AS subtotal
 			FROM products p
@@ -152,8 +183,8 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 		}
 
 		// add cart items
-		err = config.DB.QueryRow(
-			context.Background(),
+		err = tx.QueryRow(
+			ctx,
 			`INSERT INTO carts (user_id, product_id, size_id, variant_id, amount, subtotal, created_by, updated_by)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			 RETURNING id`,
@@ -171,6 +202,14 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 			return responseCart, message, err
 		}
 	}
+
+	// commit transaction
+	err = tx.Commit(ctx)
+	if err != nil {
+		message = "Failed to commit transaction"
+		return responseCart, message, err
+	}
+
 	message = "Cart added successfully"
 	responseCart = CartRequest{
 		Id:        bodyAdd.Id,
@@ -183,4 +222,13 @@ func AddToCart(bodyAdd CartRequest) (CartRequest, string, error) {
 	}
 
 	return responseCart, message, nil
+}
+
+func DeleteCartById(cartId int) (pgconn.CommandTag, error) {
+	commandTag, err := config.DB.Exec(context.Background(), `DELETE FROM carts WHERE id = $1`, cartId)
+	if err != nil {
+		return commandTag, err
+	}
+
+	return commandTag, nil
 }
