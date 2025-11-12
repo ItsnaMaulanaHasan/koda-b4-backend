@@ -854,7 +854,7 @@ func UpdateProduct(ctx *gin.Context) {
 	})
 }
 
-// DeleteUser    godoc
+// DeleteProduct    godoc
 // @Summary      Delete product
 // @Description  Delete product by Id
 // @Tags         admin/products

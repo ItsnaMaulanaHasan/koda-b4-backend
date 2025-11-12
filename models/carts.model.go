@@ -10,6 +10,7 @@ import (
 type Cart struct {
 	Id              int      `db:"id" json:"id"`
 	UserId          int      `db:"user_id" json:"userId"`
+	ProductId       int      `db:"product_id" json:"productId"`
 	ProductImages   []string `db:"product_images" json:"productImages"`
 	ProductName     string   `db:"product_name" json:"productName"`
 	ProductPrice    float64  `db:"product_price" json:"productPrice"`
@@ -43,7 +44,8 @@ func GetListCart(userId int) ([]Cart, string, error) {
 	rows, err := config.DB.Query(context.Background(),
 		`SELECT 
 			c.id, 
-			c.user_id, 
+			c.user_id,
+			c.product_id, 
 			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS product_images, 
 			p.name AS product_name,
 			p.price AS product_price,
