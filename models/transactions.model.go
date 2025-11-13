@@ -15,25 +15,25 @@ type Transaction struct {
 }
 
 type TransactionDetail struct {
-	Id               int              `json:"id" db:"id"`
-	UserId           int              `json:"userId" db:"user_id"`
-	NoInvoice        string           `json:"noInvoice" db:"no_invoice"`
-	DateTransaction  time.Time        `json:"dateOrder" db:"date_transaction"`
-	FullName         string           `json:"fullName" db:"full_name"`
-	Email            string           `json:"email" db:"email"`
-	Address          string           `json:"address" db:"address"`
-	Phone            string           `json:"phone" db:"phone"`
-	PaymentMethod    string           `json:"payment_method" db:"payment_method"`
-	OrderMethod      string           `json:"orderMethod" db:"order_method"`
-	Status           string           `json:"status" db:"status"`
-	DeliveryFee      float64          `json:"delivery_fee" db:"delivery_fee"`
-	AdminFee         float64          `json:"adminFee" db:"admin_fee"`
-	Tax              float64          `json:"tax" db:"tax"`
-	TotalTransaction float64          `json:"totalTransaction" db:"total_transaction"`
-	OrderedProducts  []OrderedProduct `json:"orderedProducts"`
+	Id               int                `json:"id" db:"id"`
+	UserId           int                `json:"userId" db:"user_id"`
+	NoInvoice        string             `json:"noInvoice" db:"no_invoice"`
+	DateTransaction  time.Time          `json:"dateOrder" db:"date_transaction"`
+	FullName         string             `json:"fullName" db:"full_name"`
+	Email            string             `json:"email" db:"email"`
+	Address          string             `json:"address" db:"address"`
+	Phone            string             `json:"phone" db:"phone"`
+	PaymentMethod    string             `json:"payment_method" db:"payment_method"`
+	OrderMethod      string             `json:"orderMethod" db:"order_method"`
+	Status           string             `json:"status" db:"status"`
+	DeliveryFee      float64            `json:"delivery_fee" db:"delivery_fee"`
+	AdminFee         float64            `json:"adminFee" db:"admin_fee"`
+	Tax              float64            `json:"tax" db:"tax"`
+	TotalTransaction float64            `json:"totalTransaction" db:"total_transaction"`
+	TransactionItems []TransactionItems `json:"transactionItems"`
 }
 
-type OrderedProduct struct {
+type TransactionItems struct {
 	Id              int     `json:"id" db:"id"`
 	ProductId       int     `json:"product_id" db:"product_id"`
 	ProductName     string  `json:"product_name" db:"product_name"`

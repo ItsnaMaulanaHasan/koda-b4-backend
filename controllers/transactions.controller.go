@@ -279,7 +279,7 @@ func DetailTransactions(ctx *gin.Context) {
 	}
 	defer productRows.Close()
 
-	orderedProducts, err := pgx.CollectRows(productRows, pgx.RowToStructByName[models.OrderedProduct])
+	transactionItems, err := pgx.CollectRows(productRows, pgx.RowToStructByName[models.TransactionItems])
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -289,7 +289,7 @@ func DetailTransactions(ctx *gin.Context) {
 		return
 	}
 
-	transaction.OrderedProducts = orderedProducts
+	transaction.TransactionItems = transactionItems
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
@@ -402,6 +402,7 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 // @Param        DataCheckout   body      models.TransactionRequest  true  "Data Checkout"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.TransactionDetail}  "Transaction created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body"
+// @Failure      401  {object}  lib.ResponseError  "User unathorized"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while acces database"
 // @Router       /transactions [post]
 func Checkout(ctx *gin.Context) {
