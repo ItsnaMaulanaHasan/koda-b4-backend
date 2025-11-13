@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/routes"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 var App *gin.Engine
 
 func init() {
+	config.ConnectDatabase()
+
 	App = gin.New()
 	App.Use(gin.Recovery())
 

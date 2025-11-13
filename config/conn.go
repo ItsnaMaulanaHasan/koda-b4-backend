@@ -4,30 +4,36 @@ import (
 	"context"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var DB *pgxpool.Pool
+var once sync.Once
 
 func ConnectDatabase() {
-	var err error
-	ctx := context.Background()
+	once.Do(func() {
+		ctx := context.Background()
 
-	connStr := os.Getenv("DATABASE_URL")
+		connStr := os.Getenv("DATABASE_URL")
+		if connStr == "" {
+			log.Fatal("DATABASE_URL is not set")
+		}
 
-	DB, err = pgxpool.New(ctx, connStr)
+		DB, err := pgxpool.New(ctx, connStr)
 
-	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
-	}
+		if err != nil {
+			log.Fatal("Failed to connect to database:", err)
+		}
 
-	err = DB.Ping(ctx)
-	if err != nil {
-		log.Fatal("Failed to ping database:", err)
-	}
+		err = DB.Ping(ctx)
+		if err != nil {
+			log.Fatal("Failed to ping database:", err)
+		}
 
-	log.Println("Database connected successfully!")
+		log.Println("Database connected successfully!")
+	})
 }
 
 func CloseDatabase() {
