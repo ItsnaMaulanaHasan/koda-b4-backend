@@ -1,4 +1,4 @@
-package api
+package handler
 
 import (
 	"backend-daily-greens/lib"
@@ -13,7 +13,7 @@ import (
 var App *gin.Engine
 
 func init() {
-	App := gin.New()
+	App = gin.New()
 	App.Use(gin.Recovery())
 
 	router := App.Group("/")
