@@ -55,6 +55,7 @@ func ListHistories(ctx *gin.Context) {
 		return
 	}
 
+	// get user id from token
 	userId, exists := ctx.Get("userId")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
@@ -64,6 +65,7 @@ func ListHistories(ctx *gin.Context) {
 		return
 	}
 
+	// get list histories
 	histories, totalData, message, err := models.GetListHistories(userId.(int), page, limit, month, statusId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -73,6 +75,7 @@ func ListHistories(ctx *gin.Context) {
 		})
 	}
 
+	// calculate total page
 	totalPage := (totalData + limit - 1) / limit
 	if page > totalPage && totalData > 0 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -82,6 +85,7 @@ func ListHistories(ctx *gin.Context) {
 		return
 	}
 
+	// hateoas
 	host := ctx.Request.Host
 	scheme := "http"
 	if ctx.Request.TLS != nil {
