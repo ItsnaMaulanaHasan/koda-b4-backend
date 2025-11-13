@@ -23,6 +23,7 @@ import (
 // @Failure         500  {object}  lib.ResponseError  "Internal server error while fetching profiles from database"
 // @Router          /profiles [get]
 func DetailProfile(ctx *gin.Context) {
+	// get user id from token
 	userId, exist := ctx.Get("userId")
 	if !exist {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
@@ -32,6 +33,7 @@ func DetailProfile(ctx *gin.Context) {
 		return
 	}
 
+	// get detail profile
 	user, message, err := models.GetProfileById(userId.(int))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

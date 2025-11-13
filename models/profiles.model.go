@@ -21,6 +21,8 @@ type UserProfile struct {
 func GetProfileById(userId int) (UserProfile, string, error) {
 	user := UserProfile{}
 	message := ""
+
+	// get detail profile
 	rows, err := config.DB.Query(context.Background(),
 		`SELECT 
 			COALESCE(p.image, '') AS profile_photo,

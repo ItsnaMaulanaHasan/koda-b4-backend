@@ -117,7 +117,6 @@ func AddCart(ctx *gin.Context) {
 // @Summary      Delete cart
 // @Description  Delete cart by Id
 // @Tags         carts
-// @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Security     BearerAuth
 // @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)

@@ -21,9 +21,10 @@ import (
 // @Param          limit          query     int     false  "Number of items per page"  default(5)  minimum(1)  maximum(10)
 // @Param          month          query     int     false  "Month filter (1–12)"
 // @Param          status         query     int     false  "Id of status"  default(1)
-// @Success        200            {object}  object{success=bool,message=string,data=[]models.Transaction,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved transaction list"
-// @Failure        400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
-// @Failure        500            {object}  lib.ResponseError  "Internal server error while fetching or processing transaction data."
+// @Success        200            {object}  object{success=bool,message=string,data=[]models.History,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved histories list"
+// @Failure        400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
+// @Failure        401            {object}  lib.ResponseError  "User unathorized"
+// @Failure        500            {object}  lib.ResponseError  "Internal server error while fetching or processing history data"
 // @Router         /history [get]
 func ListHistories(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
