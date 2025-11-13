@@ -8,7 +8,7 @@ CREATE INDEX idx_transactions_user_date ON transactions (user_id, date_transacti
 
 CREATE INDEX idx_carts_user ON carts (user_id);
 
-CREATE INDEX idx_transactions_status ON transactions (status);
+CREATE INDEX idx_transactions_status ON transactions (status_id);
 
 CREATE INDEX idx_products_active ON products (is_active)
 WHERE

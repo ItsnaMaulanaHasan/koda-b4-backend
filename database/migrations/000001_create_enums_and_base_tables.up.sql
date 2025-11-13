@@ -62,12 +62,12 @@ CREATE TABLE "payment_methods" (
 
 CREATE TABLE "status" (
     "id" serial PRIMARY KEY,
-    "name" varchar(30) UNIQUE DEFAULT "On Progress",
+    "name" varchar(30) UNIQUE DEFAULT 'On Progress',
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
-)
+);
 
 ALTER TABLE "users"
 ADD CONSTRAINT "fk_users_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
@@ -104,3 +104,9 @@ ADD CONSTRAINT "fk_payment_methods_created_by" FOREIGN KEY ("created_by") REFERE
 
 ALTER TABLE "payment_methods"
 ADD CONSTRAINT "fk_payment_methods_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
+
+ALTER TABLE "status"
+ADD CONSTRAINT "fk_status_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
+
+ALTER TABLE "status"
+ADD CONSTRAINT "fk_status_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");

@@ -1,3 +1,7 @@
+ALTER TABLE "status" DROP CONSTRAINT "fk_status_updated_by";
+
+ALTER TABLE "status" DROP CONSTRAINT "fk_status_created_by";
+
 ALTER TABLE "payment_methods"
 DROP CONSTRAINT "fk_payment_methods_updated_by";
 
@@ -26,6 +30,8 @@ ALTER TABLE "users" DROP CONSTRAINT "fk_users_updated_by";
 
 ALTER TABLE "users" DROP CONSTRAINT "fk_users_created_by";
 
+DROP TABLE "status";
+
 DROP TABLE "payment_methods";
 
 DROP TABLE "order_methods";
@@ -37,5 +43,3 @@ DROP TABLE "sizes";
 DROP TABLE "categories";
 
 DROP TABLE "users";
-
-DROP TYPE "status";

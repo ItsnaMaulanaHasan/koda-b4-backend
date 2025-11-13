@@ -9,7 +9,7 @@ CREATE TABLE "transactions" (
     "phone" varchar(20) NOT NULL,
     "payment_method_id" int,
     "order_method_id" int,
-    "status_id" status DEFAULT 1,
+    "status_id" int DEFAULT 1,
     "delivery_fee" numeric(10, 2) DEFAULT 0,
     "admin_fee" numeric(10, 2) DEFAULT 0,
     "tax" numeric(10, 2) DEFAULT 0,
