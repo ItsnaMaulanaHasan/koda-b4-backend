@@ -49,15 +49,14 @@ type ProductRequest struct {
 }
 
 type PublicProductResponse struct {
-	Id                int      `db:"id" json:"id"`
-	Images            []string `db:"images" json:"images"`
-	Name              string   `db:"name" json:"name"`
-	Description       string   `db:"description" json:"description"`
-	Price             float64  `db:"price" json:"price"`
-	DiscountPercent   float64  `db:"discount_percent" json:"discountPercent"`
-	IsFlashSale       bool     `db:"is_flash_sale" json:"isFlashSale"`
-	IsFavourite       bool     `db:"is_favourite" json:"isFavourite"`
-	ProductCategories []string `db:"product_categories" json:"productCategories"`
+	Id              int      `db:"id" json:"id"`
+	Images          []string `db:"images" json:"images"`
+	Name            string   `db:"name" json:"name"`
+	Description     string   `db:"description" json:"description"`
+	Price           float64  `db:"price" json:"price"`
+	DiscountPercent float64  `db:"discount_percent" json:"discountPercent"`
+	IsFlashSale     bool     `db:"is_flash_sale" json:"isFlashSale"`
+	IsFavourite     bool     `db:"is_favourite" json:"isFavourite"`
 }
 
 type PublicProductDetailResponse struct {
@@ -270,7 +269,7 @@ func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 			COALESCE(p.discount_percent, 0) AS discount_percent,
 			p.is_flash_sale,
 			p.is_favourite,
-			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images
 		FROM products p
 		LEFT JOIN product_images pi ON pi.product_id = p.id
 		WHERE p.is_favourite = true AND p.is_active = true
@@ -304,13 +303,10 @@ func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64
 			COALESCE(p.discount_percent, 0) AS discount_percent,
 			p.is_flash_sale,
 			p.is_favourite,
-			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images
 		FROM products p
 		LEFT JOIN product_images pi ON pi.product_id = p.id
-		WHERE p.is_active = true
-		GROUP BY p.id
-		ORDER BY p.id ASC
-		WHERE 1=1`
+		WHERE p.is_active = true`
 
 	// Dynamic parameters
 	args := []any{}
