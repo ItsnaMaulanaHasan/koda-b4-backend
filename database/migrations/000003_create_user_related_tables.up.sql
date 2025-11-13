@@ -60,7 +60,7 @@ CREATE TABLE "carts" (
     "size_id" int,
     "variant_id" int,
     "amount" int CHECK ("amount" > 0),
-    "subtotal" numeric(10, 2) NOT NULL,
+    "subtotal" numeric(10, 2) NOT NULL DEFAULT 0,
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
