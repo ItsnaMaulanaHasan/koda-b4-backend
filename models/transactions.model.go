@@ -49,18 +49,18 @@ type TransactionItems struct {
 }
 
 type TransactionRequest struct {
-	NoInvoice        string
-	DateTransaction  time.Time
-	FullName         string `json:"fullName"`
-	Email            string `json:"email"`
-	Address          string `json:"address"`
-	Phone            string `json:"phone"`
-	PaymentMethodId  int    `json:"paymentMethodId" binding:"required"`
-	OrderMethodId    int    `json:"orderMethodId" binding:"required"`
-	DeliveryFee      float64
-	AdminFee         float64
-	Tax              float64
-	TotalTransaction float64
+	NoInvoice        string    `json:"-" swaggerignore:"true"`
+	DateTransaction  time.Time `json:"-" swaggerignore:"true"`
+	FullName         string    `json:"fullName"`
+	Email            string    `json:"email"`
+	Address          string    `json:"address"`
+	Phone            string    `json:"phone"`
+	PaymentMethodId  int       `json:"paymentMethodId" binding:"required"`
+	OrderMethodId    int       `json:"orderMethodId" binding:"required"`
+	DeliveryFee      float64   `json:"-" swaggerignore:"true"`
+	AdminFee         float64   `json:"-" swaggerignore:"true"`
+	Tax              float64   `json:"-" swaggerignore:"true"`
+	TotalTransaction float64   `json:"-" swaggerignore:"true"`
 }
 
 func GetDeliveryFeeAndAdminFee(orderMethodId int, paymentMethodId int) (float64, float64, string, error) {

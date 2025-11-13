@@ -11,12 +11,12 @@ import (
 )
 
 type History struct {
-	Id               int     `db:"id" json:"id"`
-	NoInvoice        string  `db:"no_invoice" json:"no_invoice"`
-	DateTransaction  string  `db:"date_transaction" json:"date_transaction"`
-	Status           string  `db:"status" json:"status"`
-	TotalTransaction float64 `db:"total_transaction" json:"total_transaction"`
-	Image            string  `db:"image" json:"image"`
+	Id               int       `db:"id" json:"id"`
+	NoInvoice        string    `db:"no_invoice" json:"no_invoice"`
+	DateTransaction  time.Time `db:"date_transaction" json:"date_transaction"`
+	Status           string    `db:"status" json:"status"`
+	TotalTransaction float64   `db:"total_transaction" json:"total_transaction"`
+	Image            string    `db:"image" json:"image"`
 }
 
 type HistoryDetail struct {
@@ -40,6 +40,7 @@ type HistoryDetail struct {
 
 type HistoryItems struct {
 	Id              int     `json:"id" db:"id"`
+	TransactionId   int     `json:"transactionId" db:"transaction_id"`
 	ProductId       int     `json:"product_id" db:"product_id"`
 	ProductName     string  `json:"product_name" db:"product_name"`
 	ProductPrice    float64 `json:"product_price" db:"product_price"`
@@ -63,12 +64,12 @@ func GetListHistories(userId int, page int, limit int, month int, statusId int) 
 				t.date_transaction,
 				s.name AS status,
 				t.total_transaction,
-				pi.image
+				COALESCE(MAX(pi.image), '') AS image
 			FROM transactions t
 			JOIN status s ON t.status_id = s.id
 			JOIN transaction_items ti ON t.id = ti.transaction_id
 			JOIN products p ON ti.product_id = p.id
-			JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
+			LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
 			WHERE t.user_id = $1`
 
 	params := []any{userId}
@@ -85,13 +86,17 @@ func GetListHistories(userId int, page int, limit int, month int, statusId int) 
 		paramIndex++
 	}
 
+	groupClause := " GROUP BY t.id, s.name, t.no_invoice, t.date_transaction, t.total_transaction"
+
 	// get total data
-	countQuery := "SELECT COUNT(*) FROM (" + query + ") AS sub"
+	countQuery := "SELECT COUNT(*) FROM (" + query + groupClause + ") AS sub"
 	err := config.DB.QueryRow(context.Background(), countQuery, params...).Scan(&totalData)
 	if err != nil {
 		message = "Failed to count total transactions in database"
 		return histories, totalData, message, err
 	}
+
+	query += groupClause
 
 	offset := (page - 1) * limit
 	query += fmt.Sprintf(" ORDER BY t.date_transaction DESC, t.id DESC LIMIT $%d OFFSET $%d", paramIndex, paramIndex+1)
@@ -133,7 +138,7 @@ func GetDetailHistory(userId int) (HistoryDetail, string, error) {
 			t.delivery_fee,
 			t.admin_fee,
 			t.tax,
-			t.total_transaction,
+			t.total_transaction
 		FROM 
 			transactions t
 		JOIN 
@@ -186,7 +191,7 @@ func GetDetailHistory(userId int) (HistoryDetail, string, error) {
 
 	historyItems, err := pgx.CollectRows(itemRows, pgx.RowToStructByName[HistoryItems])
 	if err != nil {
-		message = "Failed to process ordered products data"
+		message = "Failed to process history items"
 		return historyDetail, message, err
 	}
 
