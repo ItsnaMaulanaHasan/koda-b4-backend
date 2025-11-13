@@ -156,7 +156,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 	if ctx.Request.TLS != nil {
 		scheme = "https"
 	}
-	baseURL := fmt.Sprintf("%s://%s/admin/users", scheme, host)
+	baseURL := fmt.Sprintf("%s://%s/admin/products", scheme, host)
 
 	var next any
 	var prev any
@@ -1148,7 +1148,7 @@ func ListProductsPublic(ctx *gin.Context) {
 	if ctx.Request.TLS != nil {
 		scheme = "https"
 	}
-	baseURL := fmt.Sprintf("%s://%s/admin/users", scheme, host)
+	baseURL := fmt.Sprintf("%s://%s/products", scheme, host)
 
 	var next any
 	var prev any
