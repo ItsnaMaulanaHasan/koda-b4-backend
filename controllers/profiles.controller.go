@@ -41,12 +41,14 @@ func DetailProfile(ctx *gin.Context) {
 				Success: false,
 				Message: message,
 			})
+			return
 		}
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
 			Message: message,
 			Error:   err.Error(),
 		})
+		return
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{

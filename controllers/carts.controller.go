@@ -53,7 +53,7 @@ func ListCarts(ctx *gin.Context) {
 // @Summary      Add new cart
 // @Description  Add a new cart to list carts of user
 // @Tags         carts
-// @Accept       json
+// @Accept       application/json
 // @Produce      json
 // @Security     BearerAuth
 // @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
