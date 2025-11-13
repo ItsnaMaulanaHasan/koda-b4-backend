@@ -22,15 +22,16 @@ import (
 
 func main() {
 	godotenv.Load()
-
 	config.ConnectDatabase()
 	defer config.CloseDatabase()
 
 	r := gin.Default()
+
 	r.MaxMultipartMemory = 1 << 20
 
 	r.Use(middlewares.AllowPrefic())
 	r.Use(middlewares.CorsMiddleware())
+
 	routes.SetUpRoutes(r)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
