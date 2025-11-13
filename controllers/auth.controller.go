@@ -27,7 +27,7 @@ import (
 // @Param        email     formData  string  true  "Email user"
 // @Param        password  formData  string  true  "Password user" format(password)
 // @Param        role      formData  string  true  "Role user" default(customer)
-// @Success      201  {object}  lib.ResponseSuccess{data=models.RegisterResponse}  "User created successfully."
+// @Success      201  {object}  lib.ResponseSuccess{data=models.Register}  "User created successfully."
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password."
 // @Failure      409  {object}  lib.ResponseError  "Email already registered."
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while creating user."
