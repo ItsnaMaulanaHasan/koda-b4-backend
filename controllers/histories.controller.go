@@ -3,11 +3,13 @@ package controllers
 import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 )
 
 // ListHistories   godoc
@@ -132,6 +134,51 @@ func ListHistories(ctx *gin.Context) {
 	})
 }
 
-func DetailHistoriy(ctx *gin.Context) {
+// DetailHistory     godoc
+// @Summary          Get detail history
+// @Description      Retrieving history detail data based on Id including transaction items
+// @Tags             histories
+// @Produce          json
+// @Security         BearerAuth
+// @Param            Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param            id             path    int     true  "History Id"
+// @Success          200  {object}  lib.ResponseSuccess{data=models.HistoryDetail}  "Successfully retrieved history detail"
+// @Failure          400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure          404  {object}  lib.ResponseError  "history not found"
+// @Failure          500  {object}  lib.ResponseError  "Internal server error while fetching history from database"
+// @Router           /histories/{id} [get]
+func DetailHistory(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
 
+	historyDetail, message, err := models.GetDetailHistory(id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, lib.ResponseError{
+				Success: false,
+				Message: message,
+				Error:   err.Error(),
+			})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: message,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: "Success get transaction detail",
+		Data:    historyDetail,
+	})
 }
