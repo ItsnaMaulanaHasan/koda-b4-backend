@@ -9,6 +9,8 @@ import (
 	_ "backend-daily-greens/docs"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 var App *gin.Engine
@@ -26,6 +28,7 @@ func init() {
 		})
 	})
 
+	App.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	routes.SetUpRoutes(App)
 }
 
