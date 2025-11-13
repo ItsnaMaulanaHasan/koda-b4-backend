@@ -9,7 +9,7 @@ CREATE TABLE "transactions" (
     "phone" varchar(20) NOT NULL,
     "payment_method_id" int,
     "order_method_id" int,
-    "status" status DEFAULT 'On Progress',
+    "status_id" status DEFAULT 1,
     "delivery_fee" numeric(10, 2) DEFAULT 0,
     "admin_fee" numeric(10, 2) DEFAULT 0,
     "tax" numeric(10, 2) DEFAULT 0,
@@ -76,6 +76,9 @@ ADD CONSTRAINT "fk_transactions_payment_method_id" FOREIGN KEY ("payment_method_
 
 ALTER TABLE "transactions"
 ADD CONSTRAINT "fk_transactions_order_method_id" FOREIGN KEY ("order_method_id") REFERENCES "order_methods" ("id");
+
+ALTER TABLE "transactions"
+ADD CONSTRAINT "fk_transactions_status_id" FOREIGN KEY ("status_id") REFERENCES "status" ("id");
 
 ALTER TABLE "transactions"
 ADD CONSTRAINT "fk_transactions_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");

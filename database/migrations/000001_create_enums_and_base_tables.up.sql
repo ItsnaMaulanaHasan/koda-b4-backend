@@ -1,9 +1,3 @@
-CREATE TYPE "status" AS ENUM (
-  'On Progress',
-  'Shipping',
-  'Done'
-);
-
 CREATE TABLE "users" (
     "id" serial PRIMARY KEY,
     "first_name" varchar(255) NOT NULL,
@@ -48,7 +42,7 @@ CREATE TABLE "variants" (
 
 CREATE TABLE "order_methods" (
     "id" serial PRIMARY KEY,
-    "name" varchar(30),
+    "name" varchar(30) UNIQUE NOT NULL,
     "delivery_fee" numeric(10, 2) DEFAULT 0,
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
@@ -58,13 +52,22 @@ CREATE TABLE "order_methods" (
 
 CREATE TABLE "payment_methods" (
     "id" serial PRIMARY KEY,
-    "name" varchar(30),
+    "name" varchar(30) UNIQUE NOT NULL,
     "admin_fee" numeric(10, 2) DEFAULT 0,
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "created_by" int,
     "updated_by" int
 );
+
+CREATE TABLE "status" (
+    "id" serial PRIMARY KEY,
+    "name" varchar(30) UNIQUE DEFAULT "On Progress",
+    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "created_by" int,
+    "updated_by" int
+)
 
 ALTER TABLE "users"
 ADD CONSTRAINT "fk_users_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");

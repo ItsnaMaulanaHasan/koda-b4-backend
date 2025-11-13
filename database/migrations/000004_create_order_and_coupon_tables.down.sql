@@ -35,6 +35,9 @@ ALTER TABLE "transactions"
 DROP CONSTRAINT "fk_transactions_created_by";
 
 ALTER TABLE "transactions"
+DROP CONSTRAINT "fk_transactions_status_id";
+
+ALTER TABLE "transactions"
 DROP CONSTRAINT "fk_transactions_order_method_id";
 
 ALTER TABLE "transactions"

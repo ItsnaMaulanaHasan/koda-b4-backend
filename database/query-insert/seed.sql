@@ -96,6 +96,7 @@ INSERT INTO
 VALUES ('HOT', 0, 1, 1),
     ('ICE', 3000, 1, 1);
 
+-- insert order_methods
 INSERT INTO
     order_methods (
         name,
@@ -107,6 +108,7 @@ VALUES ('Dine In', 0, 1, 1),
     ('Door Devlivery', 15000, 1, 1),
     ('Pick Up', 0, 1, 1);
 
+-- insert payment_methods
 INSERT INTO
     payment_methods (
         name,
@@ -120,6 +122,13 @@ VALUES ('Transfer BRI', 2500, 1, 1),
     ('Gopay', 0, 1, 1),
     ('Ovo', 2500, 1, 1),
     ('Paypal', 5000, 1, 1);
+
+-- insert status
+INSERT INTO
+    status (name, created_by, updated_by)
+VALUES ('On Progess', 1, 1),
+    ('Sending Goods', 1, 1),
+    ('Finish Order', 1, 1)
 
 -- insert products
 INSERT INTO
