@@ -24,7 +24,8 @@ func ConnectDatabase() {
 
 		connStr = strings.Replace(connStr, "postgresql://", "postgres://", 1)
 
-		DB, err := pgxpool.New(ctx, connStr)
+		var err error
+		DB, err = pgxpool.New(ctx, connStr)
 
 		if err != nil {
 			log.Fatal("Failed to connect to database:", err)

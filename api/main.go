@@ -31,7 +31,5 @@ func init() {
 
 func Handler(w http.ResponseWriter, r *http.Request) {
 	config.ConnectDatabase()
-	defer config.CloseDatabase()
-
 	App.ServeHTTP(w, r)
 }
