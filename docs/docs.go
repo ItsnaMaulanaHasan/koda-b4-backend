@@ -2735,6 +2735,90 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updating user profile based on Id",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "Update profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User first name",
+                        "name": "first_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User last name",
+                        "name": "last_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User email",
+                        "name": "email",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User phone",
+                        "name": "phone",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User address",
+                        "name": "address",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseSuccess"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Id format or invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseError"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error while updating user data",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseError"
+                        }
+                    }
+                }
             }
         },
         "/transactions": {
@@ -3111,6 +3195,9 @@ const docTemplate = `{
                 "subtotal": {
                     "type": "number"
                 },
+                "transactionId": {
+                    "type": "integer"
+                },
                 "variant": {
                     "type": "string"
                 },
@@ -3207,12 +3294,6 @@ const docTemplate = `{
                 },
                 "price": {
                     "type": "number"
-                },
-                "productCategories": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },
@@ -3415,9 +3496,9 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "daily-greens-backend.vercel.app",
 	BasePath:         "/",
-	Schemes:          []string{},
+	Schemes:          []string{"https"},
 	Title:            "API Documentation",
 	Description:      "Dokumentasi REST API menggunakan Gin dan Swagger",
 	InfoInstanceName: "swagger",

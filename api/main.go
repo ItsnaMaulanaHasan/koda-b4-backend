@@ -3,6 +3,7 @@ package handler
 import (
 	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
+	"backend-daily-greens/middlewares"
 	"backend-daily-greens/routes"
 	"net/http"
 
@@ -27,6 +28,11 @@ func init() {
 			Message: "Backend is running well",
 		})
 	})
+
+	App.MaxMultipartMemory = 1 << 20
+
+	App.Use(middlewares.AllowPrefic())
+	App.Use(middlewares.CorsMiddleware())
 
 	App.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	routes.SetUpRoutes(App)

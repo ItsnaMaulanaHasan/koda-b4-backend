@@ -4,8 +4,9 @@ package main
 // @version         1.0
 // @description     Dokumentasi REST API menggunakan Gin dan Swagger
 
-// @host      localhost:8080
+// @host      daily-greens-backend.vercel.app
 // @BasePath  /
+// @schemes https
 
 import (
 	"backend-daily-greens/config"
