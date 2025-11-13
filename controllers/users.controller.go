@@ -161,23 +161,21 @@ func ListUsers(ctx *gin.Context) {
 
 	var next any
 	var prev any
-	switch {
-	case totalData == 0:
-		page = 0
-		next, prev = nil, nil
-	case page == 1 && totalPage > 1:
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = nil
-	case page == totalPage && totalPage > 1:
-		next = nil
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	default:
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	}
 
 	if totalData == 0 {
 		page = 0
+		next = nil
+		prev = nil
+	} else if page == 1 && totalPage > 1 {
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
+		prev = nil
+	} else if page == totalPage && totalPage > 1 {
+		next = nil
+		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	} else if totalPage > 1 {
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
+		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	} else {
 		next = nil
 		prev = nil
 	}

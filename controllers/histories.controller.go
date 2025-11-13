@@ -27,7 +27,7 @@ import (
 // @Failure        400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
 // @Failure        401            {object}  lib.ResponseError  "User unathorized"
 // @Failure        500            {object}  lib.ResponseError  "Internal server error while fetching or processing history data"
-// @Router         /history [get]
+// @Router         /histories [get]
 func ListHistories(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "5"))
@@ -76,6 +76,7 @@ func ListHistories(ctx *gin.Context) {
 			Message: message,
 			Error:   err.Error(),
 		})
+		return
 	}
 
 	// calculate total page
@@ -98,23 +99,21 @@ func ListHistories(ctx *gin.Context) {
 
 	var next any
 	var prev any
-	switch {
-	case totalData == 0:
-		page = 0
-		next, prev = nil, nil
-	case page == 1 && totalPage > 1:
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = nil
-	case page == totalPage && totalPage > 1:
-		next = nil
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	default:
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	}
 
 	if totalData == 0 {
 		page = 0
+		next = nil
+		prev = nil
+	} else if page == 1 && totalPage > 1 {
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
+		prev = nil
+	} else if page == totalPage && totalPage > 1 {
+		next = nil
+		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	} else if totalPage > 1 {
+		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
+		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
+	} else {
 		next = nil
 		prev = nil
 	}
