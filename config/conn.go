@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,6 +21,8 @@ func ConnectDatabase() {
 		if connStr == "" {
 			log.Fatal("DATABASE_URL is not set")
 		}
+
+		connStr = strings.Replace(connStr, "postgresql://", "postgres://", 1)
 
 		DB, err := pgxpool.New(ctx, connStr)
 
