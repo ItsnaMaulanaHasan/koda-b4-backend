@@ -9,13 +9,13 @@ import (
 )
 
 type UserProfile struct {
-	Id           int    `db:""`
-	ProfilePhoto string `db:"image"`
-	FullName     string `db:"full_name"`
-	Email        string `db:"email"`
-	Phone        string `db:"phone"`
-	Address      string `db:"address"`
-	Password     string `db:"password"`
+	Id           int    `db:"id" json:"id"`
+	ProfilePhoto string `db:"profile_photo" json:"profilePhoto"`
+	FullName     string `db:"full_name" json:"fullName"`
+	Email        string `db:"email" json:"email"`
+	Phone        string `db:"phone" json:"phone"`
+	Address      string `db:"address" json:"address"`
+	Password     string `db:"password" json:"-"`
 }
 
 func GetProfileById(userId int) (UserProfile, string, error) {
@@ -23,14 +23,15 @@ func GetProfileById(userId int) (UserProfile, string, error) {
 	message := ""
 	rows, err := config.DB.Query(context.Background(),
 		`SELECT 
-			p.image
-			(u.fisrt_name + u.last_name) AS full_name,
+			COALESCE(p.image, '') AS profile_photo,
+			(u.first_name || ' ' || u.last_name) AS full_name,
 			u.email,
-			p.address,
-			p.phone
+			COALESCE(p.address, '') AS address,
+			COALESCE(p.phone, '') AS phone,
+			u.password
 		FROM users u
-		JOIN profiles p ON u.id = p.user_id
-		WHERE u.id = $1)`, userId)
+		LEFT JOIN profiles p ON u.id = p.user_id
+		WHERE u.id = $1`, userId)
 	if err != nil {
 		message = "Internal server error while fetch data profile"
 		return user, message, err

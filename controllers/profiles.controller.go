@@ -14,12 +14,11 @@ import (
 // @Summary         Get detail profile
 // @Description     Retrieving detail profile based on Id in token
 // @Tags            profiles
-// @Accept 		    x-www-form-urlencoded
 // @Produce         json
 // @Security        BearerAuth
 // @Param           Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
 // @Success         200  {object}  lib.ResponseSuccess{data=models.User}  "Successfully retrieved user"
-// @Failure         400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure         401  {object}  lib.ResponseError  "User unathorized"
 // @Failure         404  {object}  lib.ResponseError  "User not found"
 // @Failure         500  {object}  lib.ResponseError  "Internal server error while fetching profiles from database"
 // @Router          /profiles [get]
@@ -53,7 +52,6 @@ func DetailProfile(ctx *gin.Context) {
 		Message: "Success get data profile",
 		Data:    user,
 	})
-
 }
 
 func UpdateProfile(ctx *gin.Context) {
