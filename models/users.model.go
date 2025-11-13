@@ -20,7 +20,7 @@ type User struct {
 	Role         string `form:"role" db:"role"`
 }
 
-func GetUserById(id int) (User, string, error) {
+func GetDetailUser(id int) (User, string, error) {
 	user := User{}
 	message := ""
 	rows, err := config.DB.Query(context.Background(),
