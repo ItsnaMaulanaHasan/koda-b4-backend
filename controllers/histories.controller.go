@@ -1,16 +1,13 @@
 package controllers
 
 import (
-	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 )
 
 // ListHistories   godoc
@@ -32,7 +29,7 @@ func ListHistories(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "5"))
 	month, _ := strconv.Atoi(ctx.Query("month"))
-	status, _ := strconv.Atoi(ctx.DefaultQuery("status", "1"))
+	statusId, _ := strconv.Atoi(ctx.DefaultQuery("status", "1"))
 
 	if page < 1 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -67,45 +64,13 @@ func ListHistories(ctx *gin.Context) {
 		return
 	}
 
-	query := `SELECT 
-				t.id,
-				t.no_invoice,
-				t.date_transaction,
-				s.name AS status,
-				t.total_transaction,
-				pi.image
-			FROM transactions t
-			JOIN status s ON t.status_id = s.id
-			JOIN transaction_items ti ON t.id = ti.transaction_id
-			JOIN products p ON ti.product_id = p.id
-			JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
-			WHERE t.user_id = $1`
-
-	params := []any{userId}
-	paramIndex := 2
-
-	if month > 0 && month <= 12 {
-		query += fmt.Sprintf(" AND EXTRACT(MONTH FROM t.date_transaction) = $%d", paramIndex)
-		params = append(params, month)
-		paramIndex++
-	}
-	if status > 0 {
-		query += fmt.Sprintf(" AND t.status_id = $%d", paramIndex)
-		params = append(params, status)
-		paramIndex++
-	}
-
-	// get total data
-	countQuery := "SELECT COUNT(*) FROM (" + query + ") AS sub"
-	var totalData int
-	err := config.DB.QueryRow(context.Background(), countQuery, params...).Scan(&totalData)
+	histories, totalData, message, err := models.GetListHistories(userId.(int), page, limit, month, statusId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to count total transactions in database",
+			Message: message,
 			Error:   err.Error(),
 		})
-		return
 	}
 
 	totalPage := (totalData + limit - 1) / limit
@@ -117,37 +82,12 @@ func ListHistories(ctx *gin.Context) {
 		return
 	}
 
-	offset := (page - 1) * limit
-	query += fmt.Sprintf(" ORDER BY t.date_transaction DESC, t.id DESC LIMIT $%d OFFSET $%d", paramIndex, paramIndex+1)
-	params = append(params, limit, offset)
-
-	rows, err := config.DB.Query(context.Background(), query, params...)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to fetch transactions from database",
-			Error:   err.Error(),
-		})
-		return
-	}
-	defer rows.Close()
-
-	histories, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.Transaction])
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to process transaction data from database",
-			Error:   err.Error(),
-		})
-		return
-	}
-
 	host := ctx.Request.Host
 	scheme := "http"
 	if ctx.Request.TLS != nil {
 		scheme = "https"
 	}
-	baseURL := fmt.Sprintf("%s://%s/histoy", scheme, host)
+	baseURL := fmt.Sprintf("%s://%s/histories", scheme, host)
 
 	var next any
 	var prev any
@@ -174,7 +114,7 @@ func ListHistories(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Successfully retrieved transaction histories",
+		"message": message,
 		"data":    histories,
 		"meta": gin.H{
 			"currentPage": page,
