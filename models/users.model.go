@@ -13,7 +13,7 @@ type User struct {
 	ProfilePhoto string `form:"profilePhoto" db:"image"`
 	FirstName    string `form:"firstName" db:"first_name"`
 	LastName     string `form:"lastName" db:"last_name"`
-	Phone        string `form:"phone" db:"phone"`
+	Phone        string `form:"phoneNumber" db:"phone_number"`
 	Address      string `form:"address" db:"address"`
 	Email        string `form:"email" db:"email"`
 	Password     string `form:"-" db:"-" json:"-"`
