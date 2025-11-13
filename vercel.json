@@ -1,8 +1,21 @@
 {
+  "version": 2,
   "trailingSlash": false,
+  "builds": [
+    {
+      "src": "api/main.go",
+      "use": "@vercel/go"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/main.go"
+    }
+  ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
       "destination": "/api/main.go"
     }
   ]

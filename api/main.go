@@ -13,7 +13,8 @@ import (
 var App *gin.Engine
 
 func init() {
-	App := gin.Default()
+	App := gin.New()
+	App.Use(gin.Recovery())
 
 	router := App.Group("/")
 
