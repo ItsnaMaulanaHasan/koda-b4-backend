@@ -20,16 +20,6 @@ type User struct {
 	Role         string `form:"role" db:"role"`
 }
 
-type UserProfile struct {
-	Id           int `db:""`
-	ProfilePhoto string
-	FullName     string
-	Email        string
-	Phone        string
-	Address      string
-	Password     string
-}
-
 func GetUserById(id int) (User, string, error) {
 	user := User{}
 	message := ""
