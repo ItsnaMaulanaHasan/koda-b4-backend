@@ -224,7 +224,7 @@ func DetailProductAdmin(ctx *gin.Context) {
 	var product models.AdminProductResponse
 	cache, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
 	if cache == "" {
-		product, err = models.GetProductByIdAdmin(id)
+		product, err = models.GetDetailProductAdmin(id)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				ctx.JSON(http.StatusNotFound, lib.ResponseError{
@@ -1214,7 +1214,7 @@ func DetailProductPublic(ctx *gin.Context) {
 	var product models.PublicProductDetailResponse
 	cache, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
 	if cache == "" {
-		product, err = models.GetProductByIdPublic(id)
+		product, err = models.GetDetailProductPublic(id)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				ctx.JSON(http.StatusNotFound, lib.ResponseError{

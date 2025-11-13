@@ -222,7 +222,7 @@ func DetailUser(ctx *gin.Context) {
 		return
 	}
 
-	user, message, err := models.GetUserById(id)
+	user, message, err := models.GetDetailUser(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,

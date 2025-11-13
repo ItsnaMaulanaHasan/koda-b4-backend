@@ -18,7 +18,7 @@ type UserProfile struct {
 	Password     string `db:"password" json:"-"`
 }
 
-func GetProfileById(userId int) (UserProfile, string, error) {
+func GetDetailProfile(userId int) (UserProfile, string, error) {
 	user := UserProfile{}
 	message := ""
 

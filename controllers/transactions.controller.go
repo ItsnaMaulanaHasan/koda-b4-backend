@@ -428,7 +428,7 @@ func Checkout(ctx *gin.Context) {
 	}
 
 	// get user profile data based on user Id from token
-	user, message, err := models.GetUserById(userId.(int))
+	user, message, err := models.GetDetailUser(userId.(int))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,

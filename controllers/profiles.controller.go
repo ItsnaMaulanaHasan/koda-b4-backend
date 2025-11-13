@@ -34,7 +34,7 @@ func DetailProfile(ctx *gin.Context) {
 	}
 
 	// get detail profile
-	user, message, err := models.GetProfileById(userId.(int))
+	user, message, err := models.GetDetailProfile(userId.(int))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, lib.ResponseError{

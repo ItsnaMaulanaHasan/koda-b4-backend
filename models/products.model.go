@@ -174,7 +174,7 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 	return products, nil
 }
 
-func GetProductByIdAdmin(id int) (AdminProductResponse, error) {
+func GetDetailProductAdmin(id int) (AdminProductResponse, error) {
 	product := AdminProductResponse{}
 	query := `SELECT 
 				p.id,
@@ -381,7 +381,7 @@ func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64
 	return products, nil
 }
 
-func GetProductByIdPublic(id int) (PublicProductDetailResponse, error) {
+func GetDetailProductPublic(id int) (PublicProductDetailResponse, error) {
 	product := PublicProductDetailResponse{}
 	query := `SELECT 
 				p.id,
