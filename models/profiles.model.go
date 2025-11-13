@@ -25,11 +25,12 @@ func GetDetailProfile(userId int) (UserProfile, string, error) {
 	// get detail profile
 	rows, err := config.DB.Query(context.Background(),
 		`SELECT 
+			u.id,
 			COALESCE(p.image, '') AS profile_photo,
 			(u.first_name || ' ' || u.last_name) AS full_name,
 			u.email,
 			COALESCE(p.address, '') AS address,
-			COALESCE(p.phone, '') AS phone,
+			COALESCE(p.phone_number, '') AS phone,
 			u.password
 		FROM users u
 		LEFT JOIN profiles p ON u.id = p.user_id
