@@ -334,7 +334,7 @@ func CreateUser(ctx *gin.Context) {
 	}
 
 	var savedFilePath string
-	file, err := ctx.FormFile("profilephoto")
+	file, err := ctx.FormFile("profilePhoto")
 	if err == nil {
 		if file.Size > 1<<20 {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -420,7 +420,7 @@ func CreateUser(ctx *gin.Context) {
 // @Param        phone          formData  string  false "User phone"
 // @Param        address        formData  string  false "User address"
 // @Param        role           formData  string  false "User role"
-// @Param        profilephoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
+// @Param        profilePhoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
 // @Success      200  {object}  lib.ResponseSuccess "User updated successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid Id format or invalid request body"
 // @Failure      404  {object}  lib.ResponseError  "User not found"
@@ -462,7 +462,7 @@ func UpdateUser(ctx *gin.Context) {
 	}
 
 	var savedFilePath string
-	file, err := ctx.FormFile("profilephoto")
+	file, err := ctx.FormFile("profilePhoto")
 	if err == nil {
 		if file.Size > 1<<20 {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{

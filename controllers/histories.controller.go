@@ -25,7 +25,7 @@ import (
 // @Param          status         query     int     false  "Id of status"  default(1)
 // @Success        200            {object}  object{success=bool,message=string,data=[]models.History,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved histories list"
 // @Failure        400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
-// @Failure        401            {object}  lib.ResponseError  "User unathorized"
+// @Failure        401            {object}  lib.ResponseError  "User Id not found in token"
 // @Failure        500            {object}  lib.ResponseError  "Internal server error while fetching or processing history data"
 // @Router         /histories [get]
 func ListHistories(ctx *gin.Context) {

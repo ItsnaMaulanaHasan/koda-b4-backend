@@ -400,7 +400,7 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 // @Param        DataCheckout   body      models.TransactionRequest  true  "Data Checkout"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.TransactionDetail}  "Transaction created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body"
-// @Failure      401  {object}  lib.ResponseError  "User unathorized"
+// @Failure      401  {object}  lib.ResponseError  "User Id not found in token"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while acces database"
 // @Router       /transactions [post]
 func Checkout(ctx *gin.Context) {
