@@ -7,18 +7,19 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/jackc/pgx/v5"
 )
 
 // ListUsers     godoc
 // @Summary      Get list users
-// @Description  Retrieving list users with pagination support
+// @Description  Retrieving list users with pagination support and searching
 // @Tags         admin/users
 // @Produce      json
 // @Security     BearerAuth
@@ -59,20 +60,8 @@ func ListUsers(ctx *gin.Context) {
 		return
 	}
 
-	var totalData int
-	var err error
-	if search != "" {
-		err = config.DB.QueryRow(context.Background(),
-			`SELECT COUNT(*) FROM users 
-			LEFT JOIN profiles ON users.id = profiles.user_id 
-			WHERE users.full_name ILIKE $1
-			OR profiles.phone_number ILIKE $1
-			OR profiles.address ILIKE $1
-			OR users.email ILIKE $1`, "%"+search+"%").Scan(&totalData)
-	} else {
-		err = config.DB.QueryRow(context.Background(), `SELECT COUNT(*) FROM users`).Scan(&totalData)
-	}
-
+	// get total data user
+	totalData, err := models.GetTotalDataUsers(search)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -82,63 +71,17 @@ func ListUsers(ctx *gin.Context) {
 		return
 	}
 
-	offset := (page - 1) * limit
-	var rows pgx.Rows
-	if search != "" {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT 
-				users.id,
-				COALESCE(profiles.profile_photo, '') AS profile_photo,
-				COALESCE(users.full_name, '') AS full_name,
-				COALESCE(profiles.phone_number, '') AS phone_number,
-				COALESCE(profiles.address, '') AS address,
-				users.email,
-				users.role
-			FROM users
-			LEFT JOIN profiles ON users.id = profiles.user_id
-			WHERE users.full_name ILIKE $3
-			   OR profiles.phone_number ILIKE $3
-			   OR profiles.address ILIKE $3
-			   OR users.email ILIKE $3
-			ORDER BY users.id ASC
-			LIMIT $1 OFFSET $2`, limit, offset, "%"+search+"%")
-	} else {
-		rows, err = config.DB.Query(
-			context.Background(),
-			`SELECT 
-				users.id,
-				COALESCE(profiles.profile_photo, '') AS profile_photo,
-				COALESCE(users.full_name, '') AS full_name,
-				COALESCE(profiles.phone_number, '') AS phone_number,
-				COALESCE(profiles.address, '') AS address,
-				users.email,
-				users.role
-			FROM users
-			LEFT JOIN profiles ON users.id = profiles.user_id
-			ORDER BY users.id ASC
-			LIMIT $1 OFFSET $2`, limit, offset)
-	}
-
+	// get list all user
+	users, message, err := models.GetListAllUser(page, limit, search)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to fetch users from database",
+			Message: message,
 			Error:   err.Error(),
 		})
-		return
-	}
-	defer rows.Close()
-
-	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.User])
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to process user data from database",
-			Error:   err.Error(),
-		})
-		return
 	}
 
+	// get total page
 	totalPage := (totalData + limit - 1) / limit
 	if page > totalPage && totalData > 0 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -148,6 +91,7 @@ func ListUsers(ctx *gin.Context) {
 		return
 	}
 
+	// hateoas
 	host := ctx.Request.Host
 	scheme := "http"
 	if ctx.Request.TLS != nil {
@@ -178,7 +122,7 @@ func ListUsers(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Success get all user",
+		"message": message,
 		"data":    users,
 		"meta": gin.H{
 			"currentPage": page,
@@ -216,6 +160,7 @@ func DetailUser(ctx *gin.Context) {
 		return
 	}
 
+	// get detail user
 	user, message, err := models.GetDetailUser(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -240,16 +185,16 @@ func DetailUser(ctx *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
-// @Param        firstName     formData  string  true  "User first name"
-// @Param        lastName      formData  string  true  "User last name"
+// @Param        fullName       formData  string  true  "User full name"
 // @Param        email          formData  string  true  "User email"
 // @Param        password       formData  string  true  "User password"  format(password)
-// @Param        phone          formData  string  false "User phone"
-// @Param        address        formData  string  false "User address"
-// @Param        role           formData  string  false "User role"  default(customer)
-// @Param        profilePhoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
+// @Param        phone          formData  string  true  "User phone"
+// @Param        address        formData  string  true  "User address"
+// @Param        role           formData  string  true  "User role"  default(customer)
+// @Param        profilePhoto   formData  file    true  "Profile photo (JPEG/PNG, max 3MB)"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.User}  "User created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password"
+// @Failure      401  {object}  lib.ResponseError  "User unauthorized"
 // @Failure      409  {object}  lib.ResponseError  "Email already registered"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error while creating user"
 // @Router       /admin/users [post]
@@ -269,12 +214,8 @@ func CreateUser(ctx *gin.Context) {
 		bodyCreate.Role = "customer"
 	}
 
-	var exists bool
-	err = config.DB.QueryRow(
-		context.Background(),
-		"SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", bodyCreate.Email,
-	).Scan(&exists)
-
+	// check user email
+	exists, err := models.CheckUserEmail(bodyCreate.Email)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -292,6 +233,7 @@ func CreateUser(ctx *gin.Context) {
 		return
 	}
 
+	// hash password
 	hashedPassword, err := lib.HashPassword(bodyCreate.Password)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -303,7 +245,8 @@ func CreateUser(ctx *gin.Context) {
 	}
 	bodyCreate.Password = string(hashedPassword)
 
-	userIdFromToken, exists := ctx.Get("userId")
+	// get user id from token
+	userId, exists := ctx.Get("userId")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
@@ -312,97 +255,85 @@ func CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	err = config.DB.QueryRow(
-		context.Background(),
-		`INSERT INTO users (full_name, email, role, password, created_by, updated_by)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)
-		 RETURNING id`,
-		bodyCreate.FullName,
-		bodyCreate.Email,
-		bodyCreate.Role,
-		bodyCreate.Password,
-		userIdFromToken,
-		userIdFromToken,
-	).Scan(&bodyCreate.Id)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while inserting new user",
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	var savedFilePath string
+	// get file from body request
 	file, err := ctx.FormFile("profilePhoto")
-	if err == nil {
-		if file.Size > 1<<20 {
-			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-				Success: false,
-				Message: "File size must be less than 1MB",
-			})
-			return
-		}
-
-		contentType := file.Header.Get("Content-Type")
-		if contentType != "image/jpeg" && contentType != "image/png" {
-			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-				Success: false,
-				Message: "Only JPEG and PNG files are allowed",
-			})
-			return
-		}
-
-		ext := filepath.Ext(file.Filename)
-		fileName := fmt.Sprintf("user_%d_%d%s", bodyCreate.Id, time.Now().Unix(), ext)
-		savedFilePath = "uploads/profiles/" + fileName
-
-		if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to save uploaded file",
-				Error:   err.Error(),
-			})
-			return
-		}
-	}
-
-	_, err = config.DB.Exec(
-		context.Background(),
-		`INSERT INTO profiles (user_id, photo_profile, address, phone_number, created_by, updated_by)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		bodyCreate.Id,
-		savedFilePath,
-		bodyCreate.Address,
-		bodyCreate.Phone,
-		userIdFromToken,
-		userIdFromToken,
-	)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while inserting new user profile",
+			Message: "File is required",
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	profilePhoto := savedFilePath
-	phone := bodyCreate.Phone
-	address := bodyCreate.Address
+	if file.Size > 3<<20 {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "File size must be less than 3MB",
+		})
+		return
+	}
+
+	contentType := file.Header.Get("Content-Type")
+	allowedTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/png":  true,
+	}
+
+	if !allowedTypes[contentType] {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid file type. Only JPEG and PNG are allowed",
+		})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowedExt := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+	}
+
+	if !allowedExt[ext] {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid file extension. Only JPG and PNG are allowed",
+		})
+		return
+	}
+
+	fileName := fmt.Sprintf("user_%d_%d%s", userId, time.Now().Unix(), ext)
+	savedFilePath := "uploads/profiles/" + fileName
+
+	// insert data user
+	isSuccess, message, err := models.InsertDataUser(userId.(int), &bodyCreate, savedFilePath)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: isSuccess,
+			Message: message,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	os.MkdirAll("uploads/profiles", 0755)
+
+	err = ctx.SaveUploadedFile(file, savedFilePath)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "User created but failed to save profile photo",
+			Error:   err.Error(),
+		})
+		return
+	}
+	bodyCreate.ProfilePhoto = savedFilePath
 
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
 		Message: "User created successfully",
-		Data: models.User{
-			Id:           bodyCreate.Id,
-			ProfilePhoto: profilePhoto,
-			FullName:     bodyCreate.FullName,
-			Phone:        phone,
-			Address:      address,
-			Email:        bodyCreate.Email,
-			Role:         bodyCreate.Role,
-		},
+		Data:    bodyCreate,
 	})
 }
 
@@ -574,7 +505,7 @@ func DeleteUser(ctx *gin.Context) {
 		return
 	}
 
-	commandTag, err := config.DB.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, id)
+	commandTag, err := models.DeleteDataUser(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
