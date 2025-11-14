@@ -219,6 +219,7 @@ func UploadProfilePhoto(ctx *gin.Context) {
 			Message: message,
 			Error:   err.Error(),
 		})
+		return
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
