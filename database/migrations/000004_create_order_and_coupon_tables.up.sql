@@ -46,7 +46,7 @@ CREATE TABLE "coupons" (
     "description" text NOT NULL,
     "discount_percent" numeric(5, 2) NOT NULL DEFAULT 0,
     "min_purchase" numeric(10, 2) DEFAULT 0,
-    "image" text NOT NULL,
+    "coupon_image" text NOT NULL,
     "bg_color" varchar(20) NOT NULL,
     "valid_until" timestamp,
     "is_active" bool DEFAULT true,

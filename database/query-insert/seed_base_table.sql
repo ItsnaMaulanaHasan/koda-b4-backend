@@ -28,7 +28,7 @@ VALUES (
 INSERT INTO
     profiles (
         user_id,
-        image,
+        photo_profile,
         address,
         phone_number,
         created_by,

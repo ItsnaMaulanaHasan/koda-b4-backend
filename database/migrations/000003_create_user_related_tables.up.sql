@@ -2,7 +2,7 @@ CREATE TABLE "profiles" (
     "id" serial PRIMARY KEY,
     "user_id" int,
     "full_name" varchar(255) NOT NULL,
-    "image" text,
+    "photo_profile" text,
     "address" varchar(255),
     "phone_number" varchar(20),
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),

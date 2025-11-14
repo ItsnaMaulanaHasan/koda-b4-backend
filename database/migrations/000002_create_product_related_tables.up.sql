@@ -21,7 +21,7 @@ CREATE TABLE "products" (
 CREATE TABLE "product_images" (
     "id" serial PRIMARY KEY,
     "product_id" int,
-    "image" text NOT NULL,
+    "product_image" text NOT NULL,
     "is_primary" bool DEFAULT false,
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
     "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
