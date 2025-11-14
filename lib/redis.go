@@ -10,15 +10,19 @@ import (
 )
 
 func Redis() *redis.Client {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:      os.Getenv("REDIS_CLIENT"),
-		Password:  os.Getenv("REDIS_PASSWORD"),
-		DB:        0,
-		TLSConfig: &tls.Config{},
-	})
+	options := &redis.Options{
+		Addr:     os.Getenv("REDIS_CLIENT"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       0,
+	}
 
-	ctx := context.Background()
-	if err := rdb.Ping(ctx).Err(); err != nil {
+	if os.Getenv("ENVIRONMENT") != "development" {
+		options.TLSConfig = &tls.Config{}
+	}
+
+	rdb := redis.NewClient(options)
+
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		log.Fatalf("Redis connection failed: %v", err)
 	} else {
 		log.Println("Connected to Redis successfully!")
