@@ -10,7 +10,7 @@ import (
 
 type User struct {
 	Id           int    `json:"id" db:"id"`
-	ProfilePhoto string `form:"profilePhoto" db:"image"`
+	ProfilePhoto string `form:"profilePhoto" db:"profile_photo"`
 	FullName     string `form:"firstName" db:"full_name"`
 	Phone        string `form:"phoneNumber" db:"phone_number"`
 	Address      string `form:"address" db:"address"`
@@ -25,7 +25,7 @@ func GetDetailUser(id int) (User, string, error) {
 	rows, err := config.DB.Query(context.Background(),
 		`SELECT 
 			users.id,
-			COALESCE(profiles.image, '') AS image,
+			COALESCE(profiles.profile_photo, '') AS profile_photo,
 			COALESCE(users.full_name, '') AS full_name,
 			COALESCE(profiles.phone_number, '') AS phone_number,
 			COALESCE(profiles.address, '') AS address,

@@ -401,7 +401,7 @@ func CreateProduct(ctx *gin.Context) {
 
 		_, err = config.DB.Exec(
 			context.Background(),
-			`INSERT INTO product_images (image, product_id, created_by, updated_by)
+			`INSERT INTO product_images (product_image, product_id, created_by, updated_by)
 				 VALUES ($1, $2, $3, $4)`,
 			savedFilePath,
 			bodyCreate.Id,
@@ -418,7 +418,7 @@ func CreateProduct(ctx *gin.Context) {
 		}
 		savedImagePaths = append(savedImagePaths, savedFilePath)
 	}
-	bodyCreate.Images = savedImagePaths
+	bodyCreate.ProductImages = savedImagePaths
 
 	if strings.TrimSpace(bodyCreate.SizeProducts) != "" {
 		sizeProducts := strings.Split(bodyCreate.SizeProducts, ",")
@@ -687,7 +687,7 @@ func UpdateProduct(ctx *gin.Context) {
 
 			_, err = config.DB.Exec(
 				context.Background(),
-				`INSERT INTO product_images (image, product_id, created_by, updated_by)
+				`INSERT INTO product_images (product_image, product_id, created_by, updated_by)
 						 VALUES ($1, $2, $3, $4)`,
 				savedFilePath,
 				id,

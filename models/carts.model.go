@@ -48,7 +48,7 @@ func GetListCart(userId int) ([]Cart, string, error) {
 			c.id, 
 			c.user_id,
 			c.product_id, 
-			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS product_images, 
+			COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images, 
 			p.name AS product_name,
 			p.price AS product_price,
 			p.is_flash_sale,

@@ -64,7 +64,7 @@ func GetListHistories(userId int, page int, limit int, month int, statusId int) 
 				t.date_transaction,
 				s.name AS status,
 				t.total_transaction,
-				COALESCE(MAX(pi.image), '') AS image
+				COALESCE(MAX(pi.product_image), '') AS image
 			FROM transactions t
 			JOIN status s ON t.status_id = s.id
 			JOIN transaction_items ti ON t.id = ti.transaction_id

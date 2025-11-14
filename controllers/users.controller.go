@@ -88,7 +88,7 @@ func ListUsers(ctx *gin.Context) {
 		rows, err = config.DB.Query(context.Background(),
 			`SELECT 
 				users.id,
-				COALESCE(profiles.image, '') AS image,
+				COALESCE(profiles.profile_photo, '') AS profile_photo,
 				COALESCE(users.full_name, '') AS full_name,
 				COALESCE(profiles.phone_number, '') AS phone_number,
 				COALESCE(profiles.address, '') AS address,
@@ -107,7 +107,7 @@ func ListUsers(ctx *gin.Context) {
 			context.Background(),
 			`SELECT 
 				users.id,
-				COALESCE(profiles.image, '') AS image,
+				COALESCE(profiles.profile_photo, '') AS profile_photo,
 				COALESCE(users.full_name, '') AS full_name,
 				COALESCE(profiles.phone_number, '') AS phone_number,
 				COALESCE(profiles.address, '') AS address,
@@ -369,7 +369,7 @@ func CreateUser(ctx *gin.Context) {
 
 	_, err = config.DB.Exec(
 		context.Background(),
-		`INSERT INTO profiles (user_id, image, address, phone_number, created_by, updated_by)
+		`INSERT INTO profiles (user_id, photo_profile, address, phone_number, created_by, updated_by)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		bodyCreate.Id,
 		savedFilePath,
@@ -522,11 +522,11 @@ func UpdateUser(ctx *gin.Context) {
 	_, err = config.DB.Exec(
 		context.Background(),
 		`UPDATE profiles 
-		 SET image        = COALESCE(NULLIF($1, ''), image),
-		     address      = COALESCE(NULLIF($2, ''), address),
-		     phone_number = COALESCE(NULLIF($3, ''), phone_number),
-		     updated_by   = $4,
-		     updated_at   = NOW()
+		 SET profile_photo = COALESCE(NULLIF($1, ''), profile_photo),
+		     address       = COALESCE(NULLIF($2, ''), address),
+		     phone_number  = COALESCE(NULLIF($3, ''), phone_number),
+		     updated_by    = $4,
+		     updated_at    = NOW()
 		 WHERE user_id = $5`,
 		savedFilePath,
 		bodyUpdate.Address,

@@ -12,7 +12,7 @@ import (
 
 type AdminProductResponse struct {
 	Id                int      `db:"id" json:"id"`
-	Images            []string `db:"images" json:"images"`
+	ProductImages     []string `db:"product_images" json:"productImages"`
 	Name              string   `db:"name" json:"name"`
 	Description       string   `db:"description" json:"description"`
 	Price             float64  `db:"price" json:"price"`
@@ -33,7 +33,7 @@ type ProductRequest struct {
 	Image2            *multipart.FileHeader `form:"image2"`
 	Image3            *multipart.FileHeader `form:"image3"`
 	Image4            *multipart.FileHeader `form:"image4"`
-	Images            []string
+	ProductImages     []string
 	Name              string   `form:"name"`
 	Description       string   `form:"description"`
 	Price             *float64 `form:"price"`
@@ -50,7 +50,7 @@ type ProductRequest struct {
 
 type PublicProductResponse struct {
 	Id              int      `db:"id" json:"id"`
-	Images          []string `db:"images" json:"images"`
+	ProductImages   []string `db:"product_images" json:"productImages"`
 	Name            string   `db:"name" json:"name"`
 	Description     string   `db:"description" json:"description"`
 	Price           float64  `db:"price" json:"price"`
@@ -61,7 +61,7 @@ type PublicProductResponse struct {
 
 type PublicProductDetailResponse struct {
 	Id                int                     `db:"id" json:"id"`
-	Images            []string                `db:"images" json:"images"`
+	ProductImages     []string                `db:"product_images" json:"productImages"`
 	Name              string                  `db:"name" json:"name"`
 	Description       string                  `db:"description" json:"description"`
 	Price             float64                 `db:"price" json:"price"`
@@ -113,7 +113,7 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 				COALESCE(p.stock, 0) AS stock,
 				p.is_active,
 				p.is_favourite,
-				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+				COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
 				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
@@ -144,7 +144,7 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 				COALESCE(p.stock, 0) AS stock,
 				p.is_active,
 				p.is_favourite,
-				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+				COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
 				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
@@ -186,7 +186,7 @@ func GetDetailProductAdmin(id int) (AdminProductResponse, error) {
 				COALESCE(p.stock, 0) AS stock,
 				p.is_active,
 				p.is_favourite,
-				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+				COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
 				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
@@ -269,7 +269,7 @@ func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 			COALESCE(p.discount_percent, 0) AS discount_percent,
 			p.is_flash_sale,
 			p.is_favourite,
-			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images
+			COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images
 		FROM products p
 		LEFT JOIN product_images pi ON pi.product_id = p.id
 		WHERE p.is_favourite = true AND p.is_active = true
@@ -303,7 +303,7 @@ func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64
 			COALESCE(p.discount_percent, 0) AS discount_percent,
 			p.is_flash_sale,
 			p.is_favourite,
-			COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images
+			COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images
 		FROM products p
 		LEFT JOIN product_images pi ON pi.product_id = p.id
 		WHERE p.is_active = true`
@@ -388,7 +388,7 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, error) {
 				COALESCE(p.rating, 0) AS rating,
 				p.is_flash_sale,
 				COALESCE(p.stock, 0) AS stock,
-				COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images,
+				COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images,
 				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
 				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
@@ -426,7 +426,7 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, error) {
 							COALESCE(p.discount_percent, 0) AS discount_percent,
 							p.is_flash_sale,
 							p.is_favourite,
-							COALESCE(ARRAY_AGG(DISTINCT pi.image) FILTER (WHERE pi.image IS NOT NULL), '{}') AS images
+							COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images
 						FROM products p
 						LEFT JOIN product_images pi ON pi.product_id = p.id
 						WHERE p.is_active = true
