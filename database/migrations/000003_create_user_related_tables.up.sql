@@ -1,6 +1,7 @@
 CREATE TABLE "profiles" (
     "id" serial PRIMARY KEY,
     "user_id" int,
+    "full_name" varchar(255) NOT NULL,
     "image" text,
     "address" varchar(255),
     "phone_number" varchar(20),
