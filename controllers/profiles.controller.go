@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -58,8 +59,56 @@ func DetailProfile(ctx *gin.Context) {
 	})
 }
 
+// UpdateProfiles    godoc
+// @Summary          Update profile
+// @Description      Updating user profile based on Id
+// @Tags             profiles
+// @Accept           x-www-form-urlencoded
+// @Produce          json
+// @Security         BearerAuth
+// @Param            Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
+// @Param            full_name      formData  string  false "User fullname name"
+// @Param            email          formData  string  false "User email"
+// @Param            phone          formData  string  false "User phone"
+// @Param            address        formData  string  false "User address"
+// @Success          200  {object}  lib.ResponseSuccess "User updated successfully"
+// @Failure          400  {object}  lib.ResponseError  "Invalid request body"
+// @Failure          404  {object}  lib.ResponseError  "User not found"
+// @Failure          500  {object}  lib.ResponseError  "Internal server error while updating user data"
+// @Router           /profiles [patch]
 func UpdateProfile(ctx *gin.Context) {
+	userId, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User unathorized",
+		})
+	}
 
+	var bodyUpdate models.ProfileRequest
+	err := ctx.ShouldBindWith(&bodyUpdate, binding.Form)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid request body",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	isSuccess, message, err := models.UpdateDataProfile(userId.(int), bodyUpdate)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: isSuccess,
+			Message: message,
+			Error:   err.Error(),
+		})
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: isSuccess,
+		Message: message,
+	})
 }
 
 func UploadPhotoProfile(ctx *gin.Context) {

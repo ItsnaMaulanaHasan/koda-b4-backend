@@ -18,6 +18,13 @@ type UserProfile struct {
 	Password     string `db:"password" json:"-"`
 }
 
+type ProfileRequest struct {
+	FullName string `form:"fullName" json:"fullName"`
+	Email    string `form:"email" json:"email"`
+	Phone    string `form:"phone" json:"phone"`
+	Address  string `form:"address" json:"address"`
+}
+
 func GetDetailProfile(userId int) (UserProfile, string, error) {
 	user := UserProfile{}
 	message := ""
@@ -26,8 +33,8 @@ func GetDetailProfile(userId int) (UserProfile, string, error) {
 	rows, err := config.DB.Query(context.Background(),
 		`SELECT 
 			u.id,
-			COALESCE(p.image, '') AS profile_photo,
-			(u.first_name || ' ' || u.last_name) AS full_name,
+			COALESCE(p.profile_photo, '') AS profile_photo,
+			u.full_name,
 			u.email,
 			COALESCE(p.address, '') AS address,
 			COALESCE(p.phone_number, '') AS phone,
@@ -53,4 +60,49 @@ func GetDetailProfile(userId int) (UserProfile, string, error) {
 
 	message = "Success get profile user"
 	return user, message, nil
+}
+
+func UpdateDataProfile(userId int, bodyUpdate ProfileRequest) (bool, string, error) {
+	isSuccess := false
+	message := ""
+	_, err := config.DB.Exec(
+		context.Background(),
+		`UPDATE users 
+		 SET email      = COALESCE(NULLIF($3, ''), email),
+		     role       = COALESCE(NULLIF($4, ''), role),
+		     updated_by = $5,
+		     updated_at = NOW()
+		 WHERE id = $6`,
+		bodyUpdate.FullName,
+		bodyUpdate.Email,
+		userId,
+	)
+	if err != nil {
+		message = "Internal server error while updating user table"
+		return isSuccess, message, err
+	}
+
+	_, err = config.DB.Exec(
+		context.Background(),
+		`UPDATE profiles 
+		 SET full_name    = COALESCE(NULLIF($1, ''), full_name),
+		     address      = COALESCE(NULLIF($2, ''), address),
+		     phone_number = COALESCE(NULLIF($3, ''), phone_number),
+		     updated_by   = $4,
+		     updated_at   = NOW()
+		 WHERE user_id = $5`,
+		bodyUpdate.FullName,
+		bodyUpdate.Address,
+		bodyUpdate.Phone,
+		userId,
+		userId,
+	)
+	if err != nil {
+		message = "Internal server error while updating user profile"
+		return isSuccess, message, err
+	}
+
+	isSuccess = true
+	message = "User updated successfully"
+	return isSuccess, message, nil
 }
