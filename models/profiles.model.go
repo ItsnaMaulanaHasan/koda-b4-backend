@@ -3,7 +3,6 @@ package models
 import (
 	"backend-daily-greens/config"
 	"context"
-	"errors"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -50,10 +49,6 @@ func GetDetailProfile(userId int) (UserProfile, string, error) {
 
 	user, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[UserProfile])
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			message = "User not found"
-			return user, message, err
-		}
 		message = "Internal server error while process data profile"
 		return user, message, err
 	}
@@ -103,6 +98,29 @@ func UpdateDataProfile(userId int, bodyUpdate ProfileRequest) (bool, string, err
 	}
 
 	isSuccess = true
+	message = "User updated successfully"
+	return isSuccess, message, nil
+}
+
+func UploadProfilePhotoUser(userId int, savedFilePath string) (bool, string, error) {
+	isSuccess := false
+	message := ""
+	_, err := config.DB.Exec(
+		context.Background(),
+		`UPDATE profiles 
+		 SET profile_photo = COALESCE($1, profile_photo),
+		     updated_by    = $2,
+		     updated_at    = NOW()
+		 WHERE user_id = $3`,
+		savedFilePath,
+		userId,
+		userId,
+	)
+	if err != nil {
+		message = "Internal server error while updating user profile"
+		return isSuccess, message, err
+	}
+
 	message = "User updated successfully"
 	return isSuccess, message, nil
 }

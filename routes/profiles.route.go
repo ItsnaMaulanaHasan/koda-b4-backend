@@ -9,5 +9,5 @@ import (
 func profilesRoutes(r *gin.RouterGroup) {
 	r.GET("", controllers.DetailProfile)
 	r.PATCH("", controllers.UpdateProfile)
-	// r.PATCH("", controllers.UploadPhotoProfile)
+	r.PATCH("/photo", controllers.UploadProfilePhoto)
 }
