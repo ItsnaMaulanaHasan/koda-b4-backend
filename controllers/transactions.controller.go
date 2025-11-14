@@ -438,7 +438,7 @@ func Checkout(ctx *gin.Context) {
 
 	// cek payment info
 	if bodyCheckout.FullName == "" {
-		bodyCheckout.FullName = strings.TrimSpace(user.FirstName + " " + user.LastName)
+		bodyCheckout.FullName = user.FullName
 	}
 	if bodyCheckout.Email == "" {
 		bodyCheckout.Email = user.Email

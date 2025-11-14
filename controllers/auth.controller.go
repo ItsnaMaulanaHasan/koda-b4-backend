@@ -22,8 +22,7 @@ import (
 // @Tags         auth
 // @Accept       x-www-form-urlencoded
 // @Produce      json
-// @Param        firstName formData  string  true  "First name user"
-// @Param        lastName  formData  string  true  "Last name user"
+// @Param        fullName  formData  string  true  "Full name user"
 // @Param        email     formData  string  true  "Email user"
 // @Param        password  formData  string  true  "Password user" format(password)
 // @Param        role      formData  string  true  "Role user" default(customer)
@@ -84,10 +83,10 @@ func Register(ctx *gin.Context) {
 
 	err = config.DB.QueryRow(
 		context.Background(),
-		`INSERT INTO users (first_name, last_name, email, role, password)
-		 VALUES ($1, $2, $3, $4, $5)
+		`INSERT INTO users (email, role, password)
+		 VALUES ($1, $2, $3, $4)
 		 RETURNING id`,
-		bodyRegister.FirstName, bodyRegister.LastName, bodyRegister.Email, bodyRegister.Role, bodyRegister.Password,
+		bodyRegister.Email, bodyRegister.Role, bodyRegister.Password,
 	).Scan(&bodyRegister.Id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -98,15 +97,16 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
+	_, err = config.DB.Exec(context.Background(), `INSERT INTO profiles`)
+
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
 		Message: "User created successfully",
 		Data: models.Register{
-			Id:        bodyRegister.Id,
-			FirstName: bodyRegister.FirstName,
-			LastName:  bodyRegister.LastName,
-			Email:     bodyRegister.Email,
-			Role:      bodyRegister.Role,
+			Id:       bodyRegister.Id,
+			FullName: bodyRegister.FullName,
+			Email:    bodyRegister.Email,
+			Role:     bodyRegister.Role,
 		},
 	})
 }

@@ -65,8 +65,7 @@ func ListUsers(ctx *gin.Context) {
 		err = config.DB.QueryRow(context.Background(),
 			`SELECT COUNT(*) FROM users 
 			LEFT JOIN profiles ON users.id = profiles.user_id 
-			WHERE users.first_name ILIKE $1 
-			OR users.last_name ILIKE $1
+			WHERE users.full_name ILIKE $1
 			OR profiles.phone_number ILIKE $1
 			OR profiles.address ILIKE $1
 			OR users.email ILIKE $1`, "%"+search+"%").Scan(&totalData)
@@ -90,16 +89,14 @@ func ListUsers(ctx *gin.Context) {
 			`SELECT 
 				users.id,
 				COALESCE(profiles.image, '') AS image,
-				COALESCE(users.first_name, '') AS first_name,
-				COALESCE(users.last_name, '') AS last_name,
+				COALESCE(users.full_name, '') AS full_name,
 				COALESCE(profiles.phone_number, '') AS phone_number,
 				COALESCE(profiles.address, '') AS address,
 				users.email,
 				users.role
 			FROM users
 			LEFT JOIN profiles ON users.id = profiles.user_id
-			WHERE users.first_name ILIKE $3
-			   OR users.last_name ILIKE $3
+			WHERE users.full_name ILIKE $3
 			   OR profiles.phone_number ILIKE $3
 			   OR profiles.address ILIKE $3
 			   OR users.email ILIKE $3
@@ -111,8 +108,7 @@ func ListUsers(ctx *gin.Context) {
 			`SELECT 
 				users.id,
 				COALESCE(profiles.image, '') AS image,
-				COALESCE(users.first_name, '') AS first_name,
-				COALESCE(users.last_name, '') AS last_name,
+				COALESCE(users.full_name, '') AS full_name,
 				COALESCE(profiles.phone_number, '') AS phone_number,
 				COALESCE(profiles.address, '') AS address,
 				users.email,
@@ -318,11 +314,10 @@ func CreateUser(ctx *gin.Context) {
 
 	err = config.DB.QueryRow(
 		context.Background(),
-		`INSERT INTO users (first_name, last_name, email, role, password, created_by, updated_by)
+		`INSERT INTO users (full_name, email, role, password, created_by, updated_by)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)
 		 RETURNING id`,
-		bodyCreate.FirstName,
-		bodyCreate.LastName,
+		bodyCreate.FullName,
 		bodyCreate.Email,
 		bodyCreate.Role,
 		bodyCreate.Password,
@@ -402,8 +397,7 @@ func CreateUser(ctx *gin.Context) {
 		Data: models.User{
 			Id:           bodyCreate.Id,
 			ProfilePhoto: profilePhoto,
-			FirstName:    bodyCreate.FirstName,
-			LastName:     bodyCreate.LastName,
+			FullName:     bodyCreate.FullName,
 			Phone:        phone,
 			Address:      address,
 			Email:        bodyCreate.Email,
@@ -421,8 +415,7 @@ func CreateUser(ctx *gin.Context) {
 // @Security     BearerAuth
 // @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
 // @Param        id             path      int     true  "User Id"
-// @Param        first_name     formData  string  false "User first name"
-// @Param        last_name      formData  string  false "User last name"
+// @Param        fullName       formData  string  false "User full name"
 // @Param        email          formData  string  false "User email"
 // @Param        phone          formData  string  false "User phone"
 // @Param        address        formData  string  false "User address"
@@ -505,15 +498,13 @@ func UpdateUser(ctx *gin.Context) {
 	_, err = config.DB.Exec(
 		context.Background(),
 		`UPDATE users 
-		 SET first_name = COALESCE(NULLIF($1, ''), first_name),
-		     last_name  = COALESCE(NULLIF($2, ''), last_name),
+		 SET full_name = COALESCE(NULLIF($1, ''), full_name),
 		     email      = COALESCE(NULLIF($3, ''), email),
 		     role       = COALESCE(NULLIF($4, ''), role),
 		     updated_by = $5,
 		     updated_at = NOW()
 		 WHERE id = $6`,
-		bodyUpdate.FirstName,
-		bodyUpdate.LastName,
+		bodyUpdate.FullName,
 		bodyUpdate.Email,
 		bodyUpdate.Role,
 		userIdFromToken,

@@ -11,8 +11,7 @@ import (
 type User struct {
 	Id           int    `json:"id" db:"id"`
 	ProfilePhoto string `form:"profilePhoto" db:"image"`
-	FirstName    string `form:"firstName" db:"first_name"`
-	LastName     string `form:"lastName" db:"last_name"`
+	FullName     string `form:"firstName" db:"full_name"`
 	Phone        string `form:"phoneNumber" db:"phone_number"`
 	Address      string `form:"address" db:"address"`
 	Email        string `form:"email" db:"email"`
@@ -27,8 +26,7 @@ func GetDetailUser(id int) (User, string, error) {
 		`SELECT 
 			users.id,
 			COALESCE(profiles.image, '') AS image,
-			COALESCE(users.first_name, '') AS first_name,
-			COALESCE(users.last_name, '') AS last_name,
+			COALESCE(users.full_name, '') AS full_name,
 			COALESCE(profiles.phone_number, '') AS phone_number,
 			COALESCE(profiles.address, '') AS address,
 			users.email,
