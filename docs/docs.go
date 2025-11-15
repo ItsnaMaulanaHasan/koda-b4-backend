@@ -22,14 +22,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieving all category data with pagination support",
+                "description": "Retrieving list categories data with pagination support",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "admin/categories"
                 ],
-                "summary": "Get all categories",
+                "summary": "Get list categories",
                 "parameters": [
                     {
                         "type": "string",
@@ -202,7 +202,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieving category data based on Id",
+                "description": "Retrieving detail category data based on Id",
                 "consumes": [
                     "application/x-www-form-urlencoded"
                 ],
@@ -212,7 +212,7 @@ const docTemplate = `{
                 "tags": [
                     "admin/categories"
                 ],
-                "summary": "Get category by Id",
+                "summary": "Get detail category",
                 "parameters": [
                     {
                         "type": "string",
@@ -563,14 +563,16 @@ const docTemplate = `{
                         "default": 0,
                         "description": "Discount percentage",
                         "name": "discountPercent",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "number",
                         "default": 5,
                         "description": "Product rating",
                         "name": "rating",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "integer",
@@ -584,63 +586,73 @@ const docTemplate = `{
                         "default": false,
                         "description": "Is flash sale",
                         "name": "isFlashSale",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "boolean",
                         "default": true,
                         "description": "Is active",
                         "name": "isActive",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "boolean",
                         "default": false,
                         "description": "Is active",
                         "name": "isFavourite",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
                         "description": "Product image 1 (JPEG/PNG, max 1MB)",
                         "name": "image1",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
                         "description": "Product image 2 (JPEG/PNG, max 1MB)",
                         "name": "image2",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
                         "description": "Product image 3 (JPEG/PNG, max 1MB)",
                         "name": "image3",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
                         "description": "Product image 4 (JPEG/PNG, max 1MB)",
                         "name": "image4",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Size Id (comma-separated, e.g., 1,2,3)",
                         "name": "sizeProducts",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Category Id (comma-separated, e.g., 1,2,3)",
                         "name": "productCategories",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "Variant Id (comma-separated, e.g., 1,2,3)",
                         "name": "productVariants",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -3541,6 +3553,9 @@ const docTemplate = `{
                 },
                 "subtotal": {
                     "type": "number"
+                },
+                "transactionId": {
+                    "type": "integer"
                 },
                 "variant": {
                     "type": "string"
