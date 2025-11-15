@@ -1,6 +1,12 @@
 package models
 
-import "time"
+import (
+	"backend-daily-greens/config"
+	"context"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+)
 
 type Category struct {
 	Id        int       `json:"id" db:"id"`
@@ -9,4 +15,58 @@ type Category struct {
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 	CreatedBy int       `json:"created_by,omitempty" db:"-"`
 	UpdatedBy int       `json:"updated_by,omitempty" db:"-"`
+}
+
+func GetTotalDataCategories(search string) (int, error) {
+	totalData := 0
+	var err error
+	if search != "" {
+		err = config.DB.QueryRow(context.Background(),
+			`SELECT COUNT(*) FROM categories WHERE name ILIKE $1`, "%"+search+"%").Scan(&totalData)
+	} else {
+		err = config.DB.QueryRow(context.Background(), `SELECT COUNT(*) FROM categories`).Scan(&totalData)
+	}
+	if err != nil {
+		return totalData, err
+	}
+
+	return totalData, nil
+}
+
+func GetListAllCategories(page int, limit int, search string) ([]Category, string, error) {
+	offset := (page - 1) * limit
+	var rows pgx.Rows
+	var err error
+	message := ""
+	categories := []Category{}
+
+	if search != "" {
+		rows, err = config.DB.Query(context.Background(),
+			`SELECT id, name, created_at, updated_at
+			FROM categories
+			WHERE name ILIKE $3
+			ORDER BY id ASC
+			LIMIT $1 OFFSET $2`, limit, offset, "%"+search+"%")
+	} else {
+		rows, err = config.DB.Query(context.Background(),
+			`SELECT id, name, created_at, updated_at
+			FROM categories
+			ORDER BY id ASC
+			LIMIT $1 OFFSET $2`, limit, offset)
+	}
+
+	if err != nil {
+		message = "Failed to fetch categories from database"
+		return categories, message, err
+	}
+	defer rows.Close()
+
+	categories, err = pgx.CollectRows(rows, pgx.RowToStructByName[Category])
+	if err != nil {
+		message = "Failed to process category data from database"
+		return categories, message, err
+	}
+
+	message = "Success get all categories"
+	return categories, message, nil
 }

@@ -58,15 +58,8 @@ func GetAllCategory(ctx *gin.Context) {
 		return
 	}
 
-	var totalData int
-	var err error
-	if search != "" {
-		err = config.DB.QueryRow(context.Background(),
-			`SELECT COUNT(*) FROM categories WHERE name ILIKE $1`, "%"+search+"%").Scan(&totalData)
-	} else {
-		err = config.DB.QueryRow(context.Background(), `SELECT COUNT(*) FROM categories`).Scan(&totalData)
-	}
-
+	// get total data categories
+	totalData, err := models.GetTotalDataCategories(search)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -76,43 +69,18 @@ func GetAllCategory(ctx *gin.Context) {
 		return
 	}
 
-	offset := (page - 1) * limit
-	var rows pgx.Rows
-	if search != "" {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT id, name, created_at, updated_at
-			FROM categories
-			WHERE name ILIKE $3
-			ORDER BY id ASC
-			LIMIT $1 OFFSET $2`, limit, offset, "%"+search+"%")
-	} else {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT id, name, created_at, updated_at
-			FROM categories
-			ORDER BY id ASC
-			LIMIT $1 OFFSET $2`, limit, offset)
-	}
-
+	// get list all categories
+	categories, message, err := models.GetListAllCategories(page, limit, search)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to fetch categories from database",
-			Error:   err.Error(),
-		})
-		return
-	}
-	defer rows.Close()
-
-	categories, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.Category])
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to process category data from database",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
+	// get total page
 	totalPage := (totalData + limit - 1) / limit
 	if page > totalPage && totalData > 0 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -122,6 +90,7 @@ func GetAllCategory(ctx *gin.Context) {
 		return
 	}
 
+	// hateoas
 	host := ctx.Request.Host
 	scheme := "http"
 	if ctx.Request.TLS != nil {
@@ -152,7 +121,7 @@ func GetAllCategory(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Success get all categories",
+		"message": message,
 		"data":    categories,
 		"meta": gin.H{
 			"currentPage": page,
