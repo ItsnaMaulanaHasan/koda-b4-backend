@@ -1,10 +1,8 @@
 package controllers
 
 import (
-	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -370,7 +368,7 @@ func DeleteCategory(ctx *gin.Context) {
 		return
 	}
 
-	commandTag, err := config.DB.Exec(context.Background(), `DELETE FROM categories WHERE id = $1`, id)
+	commandTag, err := models.DeleteDataCategory(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,

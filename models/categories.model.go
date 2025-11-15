@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Category struct {
@@ -178,4 +179,13 @@ func UpdateDataCategory(categoryId int, userId int, name string) (bool, string, 
 	isSuccess = true
 	message = "Category updated successfully"
 	return isSuccess, message, nil
+}
+
+func DeleteDataCategory(categoryId int) (pgconn.CommandTag, error) {
+	commandTag, err := config.DB.Exec(context.Background(), `DELETE FROM categories WHERE id = $1`, categoryId)
+	if err != nil {
+		return commandTag, err
+	}
+
+	return commandTag, nil
 }
