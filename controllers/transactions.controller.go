@@ -60,20 +60,8 @@ func ListTransactions(ctx *gin.Context) {
 		return
 	}
 
-	var totalData int
-	var err error
-	searchParam := "%" + search + "%"
-
-	if search != "" {
-		err = config.DB.QueryRow(context.Background(),
-			`SELECT COUNT(*) 
-			 FROM transactions
-			 WHERE no_invoice ILIKE $1`, searchParam).Scan(&totalData)
-	} else {
-		err = config.DB.QueryRow(context.Background(),
-			`SELECT COUNT(*) FROM transactions`).Scan(&totalData)
-	}
-
+	// get total data transactions
+	totalData, err := models.GetTotalDataTransactions(search)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -83,54 +71,18 @@ func ListTransactions(ctx *gin.Context) {
 		return
 	}
 
-	offset := (page - 1) * limit
-	var rows pgx.Rows
-
-	if search != "" {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT 
-				id,
-				no_invoice,
-				date_transaction,
-				status,
-				total_transaction
-			FROM transactions
-			WHERE no_invoice ILIKE $3
-			ORDER BY date_transaction DESC, id DESC
-			LIMIT $1 OFFSET $2`, limit, offset, searchParam)
-	} else {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT 
-				id,
-				no_invoice,
-				date_transaction,
-				status,
-				total_transaction
-			FROM transactions
-			ORDER BY date_transaction DESC, id DESC
-			LIMIT $1 OFFSET $2`, limit, offset)
-	}
-
+	// get list all transactions
+	transactions, message, err := models.GetListAllTransactions(page, limit, search)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to fetch transactions from database",
-			Error:   err.Error(),
-		})
-		return
-	}
-	defer rows.Close()
-
-	transactions, err := pgx.CollectRows(rows, pgx.RowToStructByName[models.Transaction])
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to process transaction data from database",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
+	// get total page
 	totalPage := (totalData + limit - 1) / limit
 	if page > totalPage && totalData > 0 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -140,6 +92,7 @@ func ListTransactions(ctx *gin.Context) {
 		return
 	}
 
+	// hateoas
 	host := ctx.Request.Host
 	scheme := "http"
 	if ctx.Request.TLS != nil {
@@ -170,7 +123,7 @@ func ListTransactions(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Success get all transaction",
+		"message": message,
 		"data":    transactions,
 		"meta": gin.H{
 			"currentPage": page,
@@ -218,13 +171,21 @@ func DetailTransactions(ctx *gin.Context) {
 			t.email,
 			t.address,
 			t.phone,
-			COALESCE(t.payment_method, '') AS payment_method,
-			t.shipping,
-			t.status,
-			t.total_transaction,
-			COALESCE(t.delivery_fee, 0) AS delivery_fee,
-			COALESCE(t.tax, 0) AS tax
-		FROM transactions t
+			pm.name AS payment_method,
+			om.name AS order_method,
+			s.name AS status,
+			t.delivery_fee,
+			t.admin_fee,
+			t.tax,
+			t.total_transaction
+		FROM 
+			transactions t
+		JOIN 
+			payment_methods pm ON t.payment_method_id = pm.id
+		JOIN
+			order_methods om ON t.order_method_id = pm.id
+		JOIN 
+			status s ON t.status_id = s.id
 		WHERE t.id = $1`, id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -257,13 +218,18 @@ func DetailTransactions(ctx *gin.Context) {
 	productRows, err := config.DB.Query(context.Background(),
 		`SELECT 
 			id,
+			transaction_id,
 			product_id,
 			product_name,
 			product_price,
-			COALESCE(discount_percent, 0) AS discount_percent,
+			discount_percent,
+			discount_price,
+			size,
+			size_cost,
+			variant,
+			variant_cost,
 			amount,
-			subtotal,
-			size
+			subtotal
 		FROM transaction_items
 		WHERE transaction_id = $1
 		ORDER BY id ASC`, id)
@@ -322,8 +288,8 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 		return
 	}
 
-	status := ctx.PostForm("status")
-	if status == "" {
+	statusId := ctx.PostForm("status_id")
+	if statusId == "" {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
 			Message: "Status is required",
@@ -355,7 +321,7 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 		return
 	}
 
-	if !exists {
+	if !isExists {
 		ctx.JSON(http.StatusNotFound, lib.ResponseError{
 			Success: false,
 			Message: "Transaction not found",
@@ -366,11 +332,11 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 	_, err = config.DB.Exec(
 		context.Background(),
 		`UPDATE transactions 
-		 SET status     = $1,
+		 SET status_id  = $1,
 		     updated_by = $2,
 		     updated_at = NOW()
 		 WHERE id = $3`,
-		status,
+		statusId,
 		userIdFromToken,
 		id,
 	)

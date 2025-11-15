@@ -4,6 +4,8 @@ import (
 	"backend-daily-greens/config"
 	"context"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Transaction struct {
@@ -35,6 +37,7 @@ type TransactionDetail struct {
 
 type TransactionItems struct {
 	Id              int     `json:"id" db:"id"`
+	TransactionId   int     `json:"transactionId" db:"transaction_id"`
 	ProductId       int     `json:"product_id" db:"product_id"`
 	ProductName     string  `json:"product_name" db:"product_name"`
 	ProductPrice    float64 `json:"product_price" db:"product_price"`
@@ -61,6 +64,73 @@ type TransactionRequest struct {
 	AdminFee         float64   `json:"-" swaggerignore:"true"`
 	Tax              float64   `json:"-" swaggerignore:"true"`
 	TotalTransaction float64   `json:"-" swaggerignore:"true"`
+}
+
+func GetTotalDataTransactions(search string) (int, error) {
+	totalData := 0
+	var err error
+	if search != "" {
+		err = config.DB.QueryRow(context.Background(),
+			`SELECT COUNT(*) 
+			 FROM transactions
+			 WHERE no_invoice ILIKE $1`, "%"+search+"%").Scan(&totalData)
+	} else {
+		err = config.DB.QueryRow(context.Background(),
+			`SELECT COUNT(*) FROM transactions`).Scan(&totalData)
+	}
+	if err != nil {
+		return totalData, err
+	}
+
+	return totalData, nil
+}
+
+func GetListAllTransactions(page int, limit int, search string) ([]Transaction, string, error) {
+	offset := (page - 1) * limit
+	var rows pgx.Rows
+	var err error
+	message := ""
+	transactions := []Transaction{}
+
+	if search != "" {
+		rows, err = config.DB.Query(context.Background(),
+			`SELECT 
+				id,
+				no_invoice,
+				date_transaction,
+				status,
+				total_transaction
+			FROM transactions
+			WHERE no_invoice ILIKE $3
+			ORDER BY date_transaction DESC, id DESC
+			LIMIT $1 OFFSET $2`, limit, offset, "%"+search+"%")
+	} else {
+		rows, err = config.DB.Query(context.Background(),
+			`SELECT 
+				id,
+				no_invoice,
+				date_transaction,
+				status,
+				total_transaction
+			FROM transactions
+			ORDER BY date_transaction DESC, id DESC
+			LIMIT $1 OFFSET $2`, limit, offset)
+	}
+
+	if err != nil {
+		message = "Failed to fetch transactions from database"
+		return transactions, message, err
+	}
+	defer rows.Close()
+
+	transactions, err = pgx.CollectRows(rows, pgx.RowToStructByName[Transaction])
+	if err != nil {
+		message = "Failed to process transaction data from database"
+		return transactions, message, err
+	}
+
+	message = "Success get all transaction"
+	return transactions, message, nil
 }
 
 func GetDeliveryFeeAndAdminFee(orderMethodId int, paymentMethodId int) (float64, float64, string, error) {
