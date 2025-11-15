@@ -326,7 +326,7 @@ func CreateUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
-		Success: true,
+		Success: isSuccess,
 		Message: "User created successfully",
 		Data:    bodyCreate,
 	})
@@ -454,7 +454,7 @@ func UpdateUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
-		Success: true,
+		Success: isSuccess,
 		Message: "User updated successfully",
 	})
 }
