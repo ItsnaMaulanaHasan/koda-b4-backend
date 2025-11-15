@@ -30,10 +30,6 @@ definitions:
         type: number
       id:
         type: integer
-      images:
-        items:
-          type: string
-        type: array
       isActive:
         type: boolean
       isFavourite:
@@ -45,6 +41,10 @@ definitions:
       price:
         type: number
       productCategories:
+        items:
+          type: string
+        type: array
+      productImages:
         items:
           type: string
         type: array
@@ -215,10 +215,6 @@ definitions:
         type: number
       id:
         type: integer
-      images:
-        items:
-          type: string
-        type: array
       isFlashSale:
         type: boolean
       name:
@@ -226,6 +222,10 @@ definitions:
       price:
         type: number
       productCategories:
+        items:
+          type: string
+        type: array
+      productImages:
         items:
           type: string
         type: array
@@ -250,10 +250,6 @@ definitions:
         type: number
       id:
         type: integer
-      images:
-        items:
-          type: string
-        type: array
       isFavourite:
         type: boolean
       isFlashSale:
@@ -262,17 +258,19 @@ definitions:
         type: string
       price:
         type: number
+      productImages:
+        items:
+          type: string
+        type: array
     type: object
   models.Register:
     properties:
       email:
         type: string
-      firstName:
+      fullName:
         type: string
       id:
         type: integer
-      lastName:
-        type: string
       role:
         type: string
     type: object
@@ -381,8 +379,6 @@ definitions:
         type: string
       id:
         type: integer
-      lastName:
-        type: string
       phoneNumber:
         type: string
       profilePhoto:
@@ -1186,7 +1182,7 @@ paths:
       - admin/transactions
   /admin/users:
     get:
-      description: Retrieving list users with pagination support
+      description: Retrieving list users with pagination support and searching
       parameters:
       - default: Bearer <token>
         description: Bearer token
@@ -1266,14 +1262,9 @@ paths:
         name: Authorization
         required: true
         type: string
-      - description: User first name
+      - description: User full name
         in: formData
-        name: firstName
-        required: true
-        type: string
-      - description: User last name
-        in: formData
-        name: lastName
+        name: fullName
         required: true
         type: string
       - description: User email
@@ -1290,17 +1281,20 @@ paths:
       - description: User phone
         in: formData
         name: phone
+        required: true
         type: string
       - description: User address
         in: formData
         name: address
+        required: true
         type: string
       - default: customer
         description: User role
         in: formData
         name: role
+        required: true
         type: string
-      - description: Profile photo (JPEG/PNG, max 1MB)
+      - description: Profile photo (JPEG/PNG, max 3MB)
         in: formData
         name: profilePhoto
         type: file
@@ -1318,6 +1312,10 @@ paths:
               type: object
         "400":
           description: Invalid request body or failed to hash password
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "401":
+          description: User unauthorized
           schema:
             $ref: '#/definitions/lib.ResponseError'
         "409":
@@ -1435,13 +1433,9 @@ paths:
         name: id
         required: true
         type: integer
-      - description: User first name
+      - description: User full name
         in: formData
-        name: first_name
-        type: string
-      - description: User last name
-        in: formData
-        name: last_name
+        name: fullName
         type: string
       - description: User email
         in: formData
@@ -1459,9 +1453,9 @@ paths:
         in: formData
         name: role
         type: string
-      - description: Profile photo (JPEG/PNG, max 1MB)
+      - description: Profile photo (JPEG/PNG, max 3MB)
         in: formData
-        name: profilephoto
+        name: profilePhoto
         type: file
       produces:
       - application/json
@@ -1472,6 +1466,10 @@ paths:
             $ref: '#/definitions/lib.ResponseSuccess'
         "400":
           description: Invalid Id format or invalid request body
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "401":
+          description: User unauthorized
           schema:
             $ref: '#/definitions/lib.ResponseError'
         "404":
@@ -1573,14 +1571,9 @@ paths:
       - application/x-www-form-urlencoded
       description: Create a new user with a unique email
       parameters:
-      - description: First name user
+      - description: Full name user
         in: formData
-        name: firstName
-        required: true
-        type: string
-      - description: Last name user
-        in: formData
-        name: lastName
+        name: fullName
         required: true
         type: string
       - description: Email user
@@ -1941,7 +1934,7 @@ paths:
           schema:
             $ref: '#/definitions/lib.ResponseError'
         "401":
-          description: User unathorized
+          description: User Id not found in token
           schema:
             $ref: '#/definitions/lib.ResponseError'
         "500":
@@ -2153,7 +2146,7 @@ paths:
                   $ref: '#/definitions/models.User'
               type: object
         "401":
-          description: User unathorized
+          description: User Id not found in token
           schema:
             $ref: '#/definitions/lib.ResponseError'
         "404":
@@ -2172,7 +2165,7 @@ paths:
     patch:
       consumes:
       - application/x-www-form-urlencoded
-      description: Updating user profile based on Id
+      description: Updating user profile based on Id from token
       parameters:
       - default: Bearer <token>
         description: Bearer token
@@ -2180,13 +2173,9 @@ paths:
         name: Authorization
         required: true
         type: string
-      - description: User first name
+      - description: User fullname name
         in: formData
-        name: first_name
-        type: string
-      - description: User last name
-        in: formData
-        name: last_name
+        name: full_name
         type: string
       - description: User email
         in: formData
@@ -2208,7 +2197,7 @@ paths:
           schema:
             $ref: '#/definitions/lib.ResponseSuccess'
         "400":
-          description: Invalid Id format or invalid request body
+          description: Invalid request body
           schema:
             $ref: '#/definitions/lib.ResponseError'
         "404":
@@ -2222,6 +2211,50 @@ paths:
       security:
       - BearerAuth: []
       summary: Update profile
+      tags:
+      - profiles
+  /profiles/photo:
+    patch:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Upload photo profie user data based on Id from token
+      parameters:
+      - default: Bearer <token>
+        description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Profile photo (JPEG/PNG, max 3MB)
+        in: formData
+        name: profilePhoto
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User updated successfully
+          schema:
+            $ref: '#/definitions/lib.ResponseSuccess'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "401":
+          description: User Id not found in token
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "500":
+          description: Internal server error while upload profile photo
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Upload photo profile user
       tags:
       - profiles
   /transactions:
@@ -2259,7 +2292,7 @@ paths:
           schema:
             $ref: '#/definitions/lib.ResponseError'
         "401":
-          description: User unathorized
+          description: User Id not found in token
           schema:
             $ref: '#/definitions/lib.ResponseError'
         "500":

@@ -1227,7 +1227,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieving list users with pagination support",
+                "description": "Retrieving list users with pagination support and searching",
                 "produces": [
                     "application/json"
                 ],
@@ -1354,15 +1354,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "User first name",
-                        "name": "firstName",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "User last name",
-                        "name": "lastName",
+                        "description": "User full name",
+                        "name": "fullName",
                         "in": "formData",
                         "required": true
                     },
@@ -1385,24 +1378,27 @@ const docTemplate = `{
                         "type": "string",
                         "description": "User phone",
                         "name": "phone",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "description": "User address",
                         "name": "address",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "string",
                         "default": "customer",
                         "description": "User role",
                         "name": "role",
-                        "in": "formData"
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
-                        "description": "Profile photo (JPEG/PNG, max 1MB)",
+                        "description": "Profile photo (JPEG/PNG, max 3MB)",
                         "name": "profilePhoto",
                         "in": "formData"
                     }
@@ -1428,6 +1424,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request body or failed to hash password",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseError"
+                        }
+                    },
+                    "401": {
+                        "description": "User unauthorized",
                         "schema": {
                             "$ref": "#/definitions/lib.ResponseError"
                         }
@@ -1617,14 +1619,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "User first name",
-                        "name": "first_name",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "User last name",
-                        "name": "last_name",
+                        "description": "User full name",
+                        "name": "fullName",
                         "in": "formData"
                     },
                     {
@@ -1653,8 +1649,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Profile photo (JPEG/PNG, max 1MB)",
-                        "name": "profilephoto",
+                        "description": "Profile photo (JPEG/PNG, max 3MB)",
+                        "name": "profilePhoto",
                         "in": "formData"
                     }
                 ],
@@ -1667,6 +1663,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid Id format or invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseError"
+                        }
+                    },
+                    "401": {
+                        "description": "User unauthorized",
                         "schema": {
                             "$ref": "#/definitions/lib.ResponseError"
                         }
@@ -1827,15 +1829,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "First name user",
-                        "name": "firstName",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Last name user",
-                        "name": "lastName",
+                        "description": "Full name user",
+                        "name": "fullName",
                         "in": "formData",
                         "required": true
                     },
@@ -2388,7 +2383,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "User unathorized",
+                        "description": "User Id not found in token",
                         "schema": {
                             "$ref": "#/definitions/lib.ResponseError"
                         }
@@ -2717,7 +2712,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "User unathorized",
+                        "description": "User Id not found in token",
                         "schema": {
                             "$ref": "#/definitions/lib.ResponseError"
                         }
@@ -2742,7 +2737,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updating user profile based on Id",
+                "description": "Updating user profile based on Id from token",
                 "consumes": [
                     "application/x-www-form-urlencoded"
                 ],
@@ -2764,14 +2759,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "User first name",
-                        "name": "first_name",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "User last name",
-                        "name": "last_name",
+                        "description": "User fullname name",
+                        "name": "full_name",
                         "in": "formData"
                     },
                     {
@@ -2801,7 +2790,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid Id format or invalid request body",
+                        "description": "Invalid request body",
                         "schema": {
                             "$ref": "#/definitions/lib.ResponseError"
                         }
@@ -2814,6 +2803,74 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error while updating user data",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseError"
+                        }
+                    }
+                }
+            }
+        },
+        "/profiles/photo": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload photo profie user data based on Id from token",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "Upload photo profile user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Profile photo (JPEG/PNG, max 3MB)",
+                        "name": "profilePhoto",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseSuccess"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseError"
+                        }
+                    },
+                    "401": {
+                        "description": "User Id not found in token",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseError"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/lib.ResponseError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error while upload profile photo",
                         "schema": {
                             "$ref": "#/definitions/lib.ResponseError"
                         }
@@ -2884,7 +2941,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "User unathorized",
+                        "description": "User Id not found in token",
                         "schema": {
                             "$ref": "#/definitions/lib.ResponseError"
                         }
@@ -2943,12 +3000,6 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "images": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "isActive": {
                     "type": "boolean"
                 },
@@ -2965,6 +3016,12 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "productCategories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "productImages": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3224,12 +3281,6 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "images": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "isFlashSale": {
                     "type": "boolean"
                 },
@@ -3240,6 +3291,12 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "productCategories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "productImages": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3277,12 +3334,6 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "images": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "isFavourite": {
                     "type": "boolean"
                 },
@@ -3294,6 +3345,12 @@ const docTemplate = `{
                 },
                 "price": {
                     "type": "number"
+                },
+                "productImages": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -3303,14 +3360,11 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
-                "firstName": {
+                "fullName": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
-                },
-                "lastName": {
-                    "type": "string"
                 },
                 "role": {
                     "type": "string"
@@ -3475,9 +3529,6 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "integer"
-                },
-                "lastName": {
-                    "type": "string"
                 },
                 "phoneNumber": {
                     "type": "string"
