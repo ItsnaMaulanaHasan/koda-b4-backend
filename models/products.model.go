@@ -460,7 +460,7 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 	}
 	defer rowsRec.Close()
 
-	product.Recomendations, err = pgx.CollectRows(rowsRec, pgx.RowToStructByName[PublicProductResponse])
+	product.Recomendations, _ = pgx.CollectRows(rowsRec, pgx.RowToStructByName[PublicProductResponse])
 
 	return product, message, nil
 
