@@ -113,41 +113,24 @@ func VerifyResetToken(ctx *gin.Context) {
 		return
 	}
 
-	var userId int
-	var expiredAt time.Time
-	err = config.DB.QueryRow(
-		context.Background(),
-		`SELECT pr.user_id, pr.expired_at
-		 FROM password_resets pr
-		 JOIN users u ON pr.user_id = u.id
-		 WHERE u.email = $1 AND pr.token_reset = $2`,
-		bodyRequest.Email,
-		bodyRequest.Token,
-	).Scan(&userId, &expiredAt)
-
+	// verify token
+	userId, expiredAt, message, err := models.VerifyPasswordResetToken(bodyRequest.Email, bodyRequest.Token)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, lib.ResponseError{
-				Success: false,
-				Message: "Invalid token",
-			})
-			return
+		statusCode := http.StatusInternalServerError
+		if message == "Invalid token" {
+			statusCode = http.StatusNotFound
 		}
-
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+		ctx.JSON(statusCode, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while verifying token",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
+	// check if token expired
 	if time.Now().After(expiredAt) {
-		config.DB.Exec(
-			context.Background(),
-			"DELETE FROM password_resets WHERE user_id = $1",
-			userId,
-		)
+		models.DeleteOldPasswordResetTokens(userId)
 
 		ctx.JSON(http.StatusNotFound, lib.ResponseError{
 			Success: false,

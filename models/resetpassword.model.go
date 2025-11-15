@@ -86,3 +86,31 @@ func InsertPasswordResetToken(userId int, token string) (int, string, error) {
 	message = "Reset token created successfully"
 	return resetId, message, nil
 }
+
+func VerifyPasswordResetToken(email string, token string) (int, time.Time, string, error) {
+	var userId int
+	var expiredAt time.Time
+	message := ""
+
+	err := config.DB.QueryRow(
+		context.Background(),
+		`SELECT pr.user_id, pr.expired_at
+		 FROM password_resets pr
+		 JOIN users u ON pr.user_id = u.id
+		 WHERE u.email = $1 AND pr.token_reset = $2`,
+		email,
+		token,
+	).Scan(&userId, &expiredAt)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			message = "Invalid token"
+			return userId, expiredAt, message, err
+		}
+		message = "Internal server error while verifying token"
+		return userId, expiredAt, message, err
+	}
+
+	message = "Token verified"
+	return userId, expiredAt, message, nil
+}
