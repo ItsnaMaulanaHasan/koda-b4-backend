@@ -98,3 +98,40 @@ func GetCategoryById(id int) (Category, string, error) {
 	message = "Success get category"
 	return category, message, nil
 }
+
+func CheckCategoryName(name string) (bool, error) {
+	var exists bool
+	err := config.DB.QueryRow(
+		context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1)", name,
+	).Scan(&exists)
+
+	if err != nil {
+		return exists, err
+	}
+
+	return exists, nil
+}
+
+func InsertDataCategory(userId int, bodyCreate *Category) (bool, string, error) {
+	isSuccess := false
+	message := ""
+
+	err := config.DB.QueryRow(
+		context.Background(),
+		`INSERT INTO categories (name, created_by, updated_by)
+		 VALUES ($1, $2, $3)
+		 RETURNING id`,
+		bodyCreate.Name,
+		userId,
+		userId,
+	).Scan(&bodyCreate.Id)
+	if err != nil {
+		message = "Internal server error while inserting new category"
+		return isSuccess, message, err
+	}
+
+	isSuccess = true
+	message = "Category created successfully"
+	return isSuccess, message, nil
+}

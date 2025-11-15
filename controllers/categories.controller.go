@@ -205,12 +205,8 @@ func CreateCategory(ctx *gin.Context) {
 		return
 	}
 
-	var exists bool
-	err = config.DB.QueryRow(
-		context.Background(),
-		"SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1)", bodyCreateCategory.Name,
-	).Scan(&exists)
-
+	// check category name
+	exists, err := models.CheckCategoryName(bodyCreateCategory.Name)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -228,7 +224,8 @@ func CreateCategory(ctx *gin.Context) {
 		return
 	}
 
-	userIdFromToken, exists := ctx.Get("userId")
+	// get user id from token
+	userId, exists := ctx.Get("userId")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
@@ -237,19 +234,12 @@ func CreateCategory(ctx *gin.Context) {
 		return
 	}
 
-	err = config.DB.QueryRow(
-		context.Background(),
-		`INSERT INTO categories (name, created_by, updated_by)
-		 VALUES ($1, $2, $3)
-		 RETURNING id`,
-		bodyCreateCategory.Name,
-		userIdFromToken,
-		userIdFromToken,
-	).Scan(&bodyCreateCategory.Id)
+	// insert data category
+	isSuccess, message, err := models.InsertDataCategory(userId.(int), &bodyCreateCategory)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while inserting new category",
+			Success: isSuccess,
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
@@ -257,7 +247,7 @@ func CreateCategory(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
-		Message: "Category created successfully",
+		Message: message,
 		Data: models.Category{
 			Id:   bodyCreateCategory.Id,
 			Name: bodyCreateCategory.Name,
