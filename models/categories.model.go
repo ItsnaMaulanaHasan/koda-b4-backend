@@ -135,3 +135,47 @@ func InsertDataCategory(userId int, bodyCreate *Category) (bool, string, error) 
 	message = "Category created successfully"
 	return isSuccess, message, nil
 }
+
+func CheckCategoryNameExcludingId(name string, id int) (bool, error) {
+	var exists bool
+	err := config.DB.QueryRow(
+		context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND id != $2)", name, id,
+	).Scan(&exists)
+
+	if err != nil {
+		return exists, err
+	}
+
+	return exists, nil
+}
+
+func UpdateDataCategory(categoryId int, userId int, name string) (bool, string, error) {
+	isSuccess := false
+	message := ""
+
+	commandTag, err := config.DB.Exec(
+		context.Background(),
+		`UPDATE categories 
+		 SET name = COALESCE(NULLIF($1, ''), name),
+		     updated_by = $2,
+		     updated_at = NOW()
+		 WHERE id = $3`,
+		name,
+		userId,
+		categoryId,
+	)
+	if err != nil {
+		message = "Internal server error while updating category"
+		return isSuccess, message, err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		message = "Category not found"
+		return isSuccess, message, nil
+	}
+
+	isSuccess = true
+	message = "Category updated successfully"
+	return isSuccess, message, nil
+}

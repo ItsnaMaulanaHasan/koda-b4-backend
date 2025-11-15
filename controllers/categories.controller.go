@@ -286,17 +286,13 @@ func UpdateCategory(ctx *gin.Context) {
 	if bodyUpdate == "" {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Status is required",
+			Message: "Name is required",
 		})
 		return
 	}
 
-	var exists bool
-	err = config.DB.QueryRow(
-		context.Background(),
-		"SELECT EXISTS(SELECT 1 FROM categories WHERE name = $1 AND id != $2)", bodyUpdate, id,
-	).Scan(&exists)
-
+	// check category name
+	exists, err := models.CheckCategoryNameExcludingId(bodyUpdate, id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -314,7 +310,8 @@ func UpdateCategory(ctx *gin.Context) {
 		return
 	}
 
-	userIdFromToken, exists := ctx.Get("userId")
+	// get user id from token
+	userId, exists := ctx.Get("userId")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
@@ -323,37 +320,28 @@ func UpdateCategory(ctx *gin.Context) {
 		return
 	}
 
-	commandTag, err := config.DB.Exec(
-		context.Background(),
-		`UPDATE categories 
-		 SET name = COALESCE(NULLIF($1, ''), name),
-		     updated_by = $2,
-		     updated_at = NOW()
-		 WHERE id = $3`,
-		bodyUpdate,
-		userIdFromToken,
-		id,
-	)
+	// update data category
+	isSuccess, message, err := models.UpdateDataCategory(id, userId.(int), bodyUpdate)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while updating category",
+			Success: isSuccess,
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	if commandTag.RowsAffected() == 0 {
+	if !isSuccess {
 		ctx.JSON(http.StatusNotFound, lib.ResponseError{
 			Success: false,
-			Message: "Category not found",
+			Message: message,
 		})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
-		Message: "Category updated successfully",
+		Message: message,
 	})
 }
 
