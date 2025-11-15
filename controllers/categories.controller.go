@@ -5,17 +5,15 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/jackc/pgx/v5"
 )
 
-// ListCategores      godoc
+// ListCategores     godoc
 // @Summary      	 Get list categories
 // @Description  	 Retrieving list categories data with pagination support
 // @Tags         	 admin/categories
@@ -134,21 +132,21 @@ func ListCategories(ctx *gin.Context) {
 	})
 }
 
-// GetCategoryById   godoc
-// @Summary      Get category by Id
-// @Description  Retrieving category data based on Id
-// @Tags         admin/categories
-// @Accept       x-www-form-urlencoded
-// @Produce      json
-// @Security     BearerAuth
-// @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
-// @Param        id             path    int     true  "Category Id"
-// @Success      200  {object}  lib.ResponseSuccess{data=models.Category}  "Successfully retrieved category"
-// @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
-// @Failure      404  {object}  lib.ResponseError  "Category not found"
-// @Failure      500  {object}  lib.ResponseError  "Internal server error while fetching category from database"
-// @Router       /admin/categories/{id} [get]
-func GetCategoryById(ctx *gin.Context) {
+// DetailCategory    godoc
+// @Summary          Get detail category
+// @Description      Retrieving detail category data based on Id
+// @Tags             admin/categories
+// @Accept           x-www-form-urlencoded
+// @Produce          json
+// @Security         BearerAuth
+// @Param            Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param            id             path    int     true  "Category Id"
+// @Success          200  {object}  lib.ResponseSuccess{data=models.Category}  "Successfully retrieved category"
+// @Failure          400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure          404  {object}  lib.ResponseError  "Category not found"
+// @Failure          500  {object}  lib.ResponseError  "Internal server error while fetching category from database"
+// @Router           /admin/categories/{id} [get]
+func DetailCategory(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -159,33 +157,16 @@ func GetCategoryById(ctx *gin.Context) {
 		return
 	}
 
-	rows, err := config.DB.Query(context.Background(),
-		`SELECT id, name, created_at, updated_at
-		FROM categories
-		WHERE id = $1`, id)
+	// get detail category
+	category, message, err := models.GetCategoryById(id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to fetch category from database",
-			Error:   err.Error(),
-		})
-		return
-	}
-	defer rows.Close()
-
-	category, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.Category])
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, lib.ResponseError{
-				Success: false,
-				Message: "Category not found",
-			})
-			return
+		statusCode := http.StatusInternalServerError
+		if message == "Category not found" {
+			statusCode = http.StatusNotFound
 		}
-
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+		ctx.JSON(statusCode, lib.ResponseError{
 			Success: false,
-			Message: "Failed to process category data",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
@@ -193,7 +174,7 @@ func GetCategoryById(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
-		Message: "Success get category",
+		Message: message,
 		Data:    category,
 	})
 }

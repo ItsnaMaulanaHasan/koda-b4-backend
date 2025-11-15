@@ -3,6 +3,7 @@ package models
 import (
 	"backend-daily-greens/config"
 	"context"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -69,4 +70,31 @@ func GetListAllCategories(page int, limit int, search string) ([]Category, strin
 
 	message = "Success get all categories"
 	return categories, message, nil
+}
+
+func GetCategoryById(id int) (Category, string, error) {
+	category := Category{}
+	message := ""
+	rows, err := config.DB.Query(context.Background(),
+		`SELECT id, name, created_at, updated_at
+		FROM categories
+		WHERE id = $1`, id)
+	if err != nil {
+		message = "Failed to fetch category from database"
+		return category, message, err
+	}
+	defer rows.Close()
+
+	category, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[Category])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			message = "Category not found"
+			return category, message, err
+		}
+		message = "Failed to process category data"
+		return category, message, err
+	}
+
+	message = "Success get category"
+	return category, message, nil
 }
