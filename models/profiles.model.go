@@ -3,6 +3,7 @@ package models
 import (
 	"backend-daily-greens/config"
 	"context"
+	"errors"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -49,6 +50,10 @@ func GetDetailProfile(userId int) (UserProfile, string, error) {
 
 	user, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[UserProfile])
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			message = "User not found"
+			return user, message, err
+		}
 		message = "Internal server error while process data profile"
 		return user, message, err
 	}
@@ -60,8 +65,19 @@ func GetDetailProfile(userId int) (UserProfile, string, error) {
 func UpdateDataProfile(userId int, bodyUpdate ProfileRequest) (bool, string, error) {
 	isSuccess := false
 	message := ""
-	_, err := config.DB.Exec(
-		context.Background(),
+
+	// start transaction database
+	ctx := context.Background()
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		message = "Failed to start database transaction"
+		return isSuccess, message, err
+	}
+	defer tx.Rollback(ctx)
+
+	// update data user
+	commandTag, err := tx.Exec(
+		ctx,
 		`UPDATE users 
 		 SET email      = COALESCE(NULLIF($3, ''), email),
 		     role       = COALESCE(NULLIF($4, ''), role),
@@ -77,8 +93,14 @@ func UpdateDataProfile(userId int, bodyUpdate ProfileRequest) (bool, string, err
 		return isSuccess, message, err
 	}
 
-	_, err = config.DB.Exec(
-		context.Background(),
+	if commandTag.RowsAffected() == 0 {
+		message = "User not found"
+		return isSuccess, message, nil
+	}
+
+	// update data user profile
+	commandTag, err = tx.Exec(
+		ctx,
 		`UPDATE profiles 
 		 SET full_name    = COALESCE(NULLIF($1, ''), full_name),
 		     address      = COALESCE(NULLIF($2, ''), address),
@@ -94,6 +116,18 @@ func UpdateDataProfile(userId int, bodyUpdate ProfileRequest) (bool, string, err
 	)
 	if err != nil {
 		message = "Internal server error while updating user profile"
+		return isSuccess, message, err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		message = "Profile not found"
+		return isSuccess, message, nil
+	}
+
+	// commit transaction
+	err = tx.Commit(ctx)
+	if err != nil {
+		message = "Failed to commit transaction"
 		return isSuccess, message, err
 	}
 
