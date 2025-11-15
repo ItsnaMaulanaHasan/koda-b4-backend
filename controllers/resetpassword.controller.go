@@ -1,11 +1,8 @@
 package controllers
 
 import (
-	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -13,7 +10,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/jackc/pgx/v5"
 )
 
 // GetTokenReset  godoc
@@ -174,41 +170,24 @@ func ResetPassword(ctx *gin.Context) {
 		return
 	}
 
-	var userId int
-	var expiredAt time.Time
-	err = config.DB.QueryRow(
-		context.Background(),
-		`SELECT pr.user_id, pr.expired_at
-		 FROM password_resets pr
-		 JOIN users u ON pr.user_id = u.id
-		 WHERE u.email = $1 AND pr.token_reset = $2`,
-		bodyRequest.Email,
-		bodyRequest.Token,
-	).Scan(&userId, &expiredAt)
-
+	// verify token
+	userId, expiredAt, message, err := models.VerifyPasswordResetToken(bodyRequest.Email, bodyRequest.Token)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, lib.ResponseError{
-				Success: false,
-				Message: "Invalid token",
-			})
-			return
+		statusCode := http.StatusInternalServerError
+		if message == "Invalid token" {
+			statusCode = http.StatusNotFound
 		}
-
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+		ctx.JSON(statusCode, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while verifying token",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
+	// check if token expired
 	if time.Now().After(expiredAt) {
-		config.DB.Exec(
-			context.Background(),
-			"DELETE FROM password_resets WHERE user_id = $1",
-			userId,
-		)
+		models.DeleteOldPasswordResetTokens(userId)
 
 		ctx.JSON(http.StatusNotFound, lib.ResponseError{
 			Success: false,
@@ -217,6 +196,7 @@ func ResetPassword(ctx *gin.Context) {
 		return
 	}
 
+	// hash new password
 	hashedPassword, err := lib.HashPassword(bodyRequest.NewPassword)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -227,33 +207,19 @@ func ResetPassword(ctx *gin.Context) {
 		return
 	}
 
-	_, err = config.DB.Exec(
-		context.Background(),
-		`UPDATE users 
-		 SET password = $1, 
-		     updated_by = $2,
-		     updated_at = NOW()
-		 WHERE id = $3`,
-		hashedPassword,
-		userId,
-		userId,
-	)
-
+	// update user password
+	isSuccess, message, err := models.UpdateUserPassword(userId, string(hashedPassword))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while updating password",
+			Success: isSuccess,
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	_, err = config.DB.Exec(
-		context.Background(),
-		"DELETE FROM password_resets WHERE user_id = $1",
-		userId,
-	)
-
+	// delete used token
+	err = models.DeleteOldPasswordResetTokens(userId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -263,16 +229,12 @@ func ResetPassword(ctx *gin.Context) {
 		return
 	}
 
-	_, err = config.DB.Exec(
-		context.Background(),
-		"UPDATE sessions SET is_active = false WHERE user_id = $1",
-		userId,
-	)
-
+	// deactivate all user sessions (force logout from all devices)
+	err = models.DeactivateAllUserSessions(userId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while non-active session user",
+			Message: "Internal server error while deactivating user sessions",
 			Error:   err.Error(),
 		})
 		return

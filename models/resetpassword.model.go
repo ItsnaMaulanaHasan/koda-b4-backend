@@ -114,3 +114,43 @@ func VerifyPasswordResetToken(email string, token string) (int, time.Time, strin
 	message = "Token verified"
 	return userId, expiredAt, message, nil
 }
+
+func UpdateUserPassword(userId int, hashedPassword string) (bool, string, error) {
+	isSuccess := false
+	message := ""
+
+	_, err := config.DB.Exec(
+		context.Background(),
+		`UPDATE users 
+		 SET password = $1, 
+		     updated_by = $2,
+		     updated_at = NOW()
+		 WHERE id = $3`,
+		hashedPassword,
+		userId,
+		userId,
+	)
+
+	if err != nil {
+		message = "Internal server error while updating password"
+		return isSuccess, message, err
+	}
+
+	isSuccess = true
+	message = "Password updated successfully"
+	return isSuccess, message, nil
+}
+
+func DeactivateAllUserSessions(userId int) error {
+	_, err := config.DB.Exec(
+		context.Background(),
+		`UPDATE sessions 
+		 SET is_active = false,
+		     logout_time = NOW(),
+		     updated_by = $1,
+		     updated_at = NOW()
+		 WHERE user_id = $1 AND is_active = true`,
+		userId,
+	)
+	return err
+}
