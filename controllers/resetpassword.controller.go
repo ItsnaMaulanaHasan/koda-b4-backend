@@ -16,52 +16,48 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// ForgotPassword  godoc
-// @Summary      Request password reset
-// @Description  Send a 6-digit reset token to user's email
-// @Tags         auth
-// @Accept       x-www-form-urlencoded
-// @Produce      json
-// @Param        email  formData  string  true  "User email"
-// @Success      200  {object}  lib.ResponseSuccess  "Reset token sent successfully"
-// @Failure      400  {object}  lib.ResponseError  "Invalid request body"
-// @Failure      404  {object}  lib.ResponseError  "Email not found"
-// @Failure      500  {object}  lib.ResponseError  "Internal server error"
-// @Router       /auth/forgot-password [post]
+// GetTokenReset  godoc
+// @Summary       Request password reset
+// @Description   Send a 6-digit reset token to user's email
+// @Tags          auth
+// @Accept        x-www-form-urlencoded
+// @Produce       json
+// @Param         email  formData  string  true  "User email"
+// @Success       200  {object}  lib.ResponseSuccess  "Reset token sent successfully"
+// @Failure       400  {object}  lib.ResponseError  "Invalid request body"
+// @Failure       404  {object}  lib.ResponseError  "Email not found"
+// @Failure       500  {object}  lib.ResponseError  "Internal server error"
+// @Router        /auth/forgot-password [post]
 func GetTokenReset(ctx *gin.Context) {
 	bodyRequest := ctx.PostForm("email")
-
-	var userId int
-	err := config.DB.QueryRow(
-		context.Background(),
-		"SELECT id FROM users WHERE email = $1",
-		bodyRequest,
-	).Scan(&userId)
-
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, lib.ResponseError{
-				Success: false,
-				Message: "Email not found",
-			})
-			return
-		}
-
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+	if bodyRequest == "" {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while checking email",
+			Message: "Email is required",
+		})
+		return
+	}
+
+	// get user id by email
+	userId, message, err := models.GetUserIdByEmail(bodyRequest)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if message == "Email not found" {
+			statusCode = http.StatusNotFound
+		}
+		ctx.JSON(statusCode, lib.ResponseError{
+			Success: false,
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
+	// generate random 6-digit token
 	token := fmt.Sprintf("%06d", rand.Intn(1000000))
 
-	_, err = config.DB.Exec(
-		context.Background(),
-		"DELETE FROM password_resets WHERE user_id = $1",
-		userId,
-	)
+	// delete old tokens
+	err = models.DeleteOldPasswordResetTokens(userId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -71,22 +67,12 @@ func GetTokenReset(ctx *gin.Context) {
 		return
 	}
 
-	var resetId int
-	err = config.DB.QueryRow(
-		context.Background(),
-		`INSERT INTO password_resets (user_id, token_reset, created_by, updated_by)
-		 VALUES ($1, $2, $3, $4)
-		 RETURNING id`,
-		userId,
-		token,
-		userId,
-		userId,
-	).Scan(&resetId)
-
+	// insert new reset token
+	_, message, err = models.InsertPasswordResetToken(userId, token)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while creating reset token",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
