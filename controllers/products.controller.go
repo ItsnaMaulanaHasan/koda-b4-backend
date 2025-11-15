@@ -6,7 +6,6 @@ import (
 	"backend-daily-greens/models"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/jackc/pgx/v5"
 )
 
 // ListProductsAdmin  godoc
@@ -222,19 +220,15 @@ func DetailProductAdmin(ctx *gin.Context) {
 	var product models.AdminProductResponse
 	cache, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
 	if cache == "" {
-		product, err = models.GetDetailProductAdmin(id)
+		product, message, err := models.GetDetailProductAdmin(id)
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				ctx.JSON(http.StatusNotFound, lib.ResponseError{
-					Success: false,
-					Message: "Product not found",
-					Error:   err.Error(),
-				})
-				return
+			statusCode := http.StatusInternalServerError
+			if message == "Product not found" {
+				statusCode = http.StatusNotFound
 			}
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			ctx.JSON(statusCode, lib.ResponseError{
 				Success: false,
-				Message: "Failed in data process product from database",
+				Message: message,
 				Error:   err.Error(),
 			})
 			return
@@ -1210,19 +1204,15 @@ func DetailProductPublic(ctx *gin.Context) {
 	var product models.PublicProductDetailResponse
 	cache, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
 	if cache == "" {
-		product, err = models.GetDetailProductPublic(id)
+		product, message, err := models.GetDetailProductPublic(id)
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				ctx.JSON(http.StatusNotFound, lib.ResponseError{
-					Success: false,
-					Message: "Product not found",
-					Error:   err.Error(),
-				})
-				return
+			statusCode := http.StatusInternalServerError
+			if message == "Product not found" {
+				statusCode = http.StatusNotFound
 			}
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			ctx.JSON(statusCode, lib.ResponseError{
 				Success: false,
-				Message: "Failed in data process product from database",
+				Message: message,
 				Error:   err.Error(),
 			})
 			return

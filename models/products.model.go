@@ -173,8 +173,9 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 	return products, nil
 }
 
-func GetDetailProductAdmin(id int) (AdminProductResponse, error) {
+func GetDetailProductAdmin(id int) (AdminProductResponse, string, error) {
 	product := AdminProductResponse{}
+	message := ""
 	query := `SELECT 
 				p.id,
 				p.name,
@@ -203,19 +204,22 @@ func GetDetailProductAdmin(id int) (AdminProductResponse, error) {
 
 	rows, err := config.DB.Query(context.Background(), query, id)
 	if err != nil {
-		return product, err
+		message = "Failed to fetch detail product from database"
+		return product, message, err
 	}
 	defer rows.Close()
 
 	product, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[AdminProductResponse])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return product, err
+			message = "Product not found"
+			return product, message, err
 		}
-		return product, err
+		message = "Failed to process detail product"
+		return product, message, err
 	}
 
-	return product, nil
+	return product, message, nil
 }
 
 func CheckProductName(name string) (bool, error) {
@@ -377,8 +381,9 @@ func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64
 	return products, nil
 }
 
-func GetDetailProductPublic(id int) (PublicProductDetailResponse, error) {
+func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error) {
 	product := PublicProductDetailResponse{}
+	message := ""
 	query := `SELECT 
 				p.id,
 				p.name,
@@ -405,16 +410,19 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, error) {
 
 	rows, err := config.DB.Query(context.Background(), query, id)
 	if err != nil {
-		return product, err
+		message = "Failed to fetch detail product from database"
+		return product, message, err
 	}
 	defer rows.Close()
 
 	product, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[PublicProductDetailResponse])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return product, err
+			message = "Product not found"
+			return product, message, err
 		}
-		return product, err
+		message = "Failed tp process detail product"
+		return product, message, err
 	}
 
 	queryRecomendation := `
@@ -447,15 +455,13 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, error) {
 
 	rowsRec, err := config.DB.Query(context.Background(), queryRecomendation, id)
 	if err != nil {
-		return product, err
+		message = "Failed to get recomendation product from database"
+		return product, message, err
 	}
 	defer rowsRec.Close()
 
 	product.Recomendations, err = pgx.CollectRows(rowsRec, pgx.RowToStructByName[PublicProductResponse])
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return product, err
-	}
 
-	return product, nil
+	return product, message, nil
 
 }

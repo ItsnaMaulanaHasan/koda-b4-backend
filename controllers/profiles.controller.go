@@ -3,7 +3,6 @@ package controllers
 import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/jackc/pgx/v5"
 )
 
 // DetailProfile    godoc
@@ -42,14 +40,11 @@ func DetailProfile(ctx *gin.Context) {
 	// get detail profile
 	user, message, err := models.GetDetailProfile(userId.(int))
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, lib.ResponseError{
-				Success: false,
-				Message: "User not found",
-			})
-			return
+		statusCode := http.StatusInternalServerError
+		if message == "User not found" {
+			statusCode = http.StatusNotFound
 		}
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+		ctx.JSON(statusCode, lib.ResponseError{
 			Success: false,
 			Message: message,
 			Error:   err.Error(),
@@ -104,14 +99,11 @@ func UpdateProfile(ctx *gin.Context) {
 
 	isSuccess, message, err := models.UpdateDataProfile(userId.(int), bodyUpdate)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, lib.ResponseError{
-				Success: false,
-				Message: "User not found",
-			})
-			return
+		statusCode := http.StatusInternalServerError
+		if message == "User not found" || message == "Profile not found" {
+			statusCode = http.StatusNotFound
 		}
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+		ctx.JSON(statusCode, lib.ResponseError{
 			Success: isSuccess,
 			Message: message,
 			Error:   err.Error(),

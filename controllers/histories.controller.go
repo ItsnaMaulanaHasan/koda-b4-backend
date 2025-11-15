@@ -3,13 +3,11 @@ package controllers
 import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 )
 
 // ListHistories   godoc
@@ -159,15 +157,11 @@ func DetailHistory(ctx *gin.Context) {
 
 	historyDetail, message, err := models.GetDetailHistory(id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, lib.ResponseError{
-				Success: false,
-				Message: message,
-				Error:   err.Error(),
-			})
-			return
+		statusCode := http.StatusInternalServerError
+		if message == "History not found" {
+			statusCode = http.StatusNotFound
 		}
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+		ctx.JSON(statusCode, lib.ResponseError{
 			Success: false,
 			Message: message,
 			Error:   err.Error(),

@@ -3,13 +3,11 @@ package controllers
 import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/jackc/pgx/v5"
 	"github.com/matthewhartstonge/argon2"
 )
 
@@ -124,15 +122,11 @@ func Login(ctx *gin.Context) {
 
 	user, message, err := models.GetUserByEmail(&bodyLogin)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, lib.ResponseError{
-				Success: false,
-				Message: message,
-			})
-			return
+		statusCode := http.StatusInternalServerError
+		if message == "User not found" {
+			statusCode = http.StatusNotFound
 		}
-
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+		ctx.JSON(statusCode, lib.ResponseError{
 			Success: false,
 			Message: message,
 			Error:   err.Error(),
