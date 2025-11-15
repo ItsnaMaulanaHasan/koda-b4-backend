@@ -1,24 +1,17 @@
 -- insert users
 INSERT INTO
-    users (
-        full_name email,
-        role,
-        password
-    )
+    users (email, role, password)
 VALUES (
-        'Admin',
         'admin@dailydrinks.com',
         'admin',
         '$2a$12$lJ2euHwJ1FgA3QRN59Zfze0RQ6uRRE2fVxq4QQbCkqpVcnwdvw43S'
     ),
     (
-        'Itsna',
         'itsna@gmail.com',
         'customer',
         '$2a$12$lJ2euHwJ1FgA3QRN59Zfze0RQ6uRRE2fVxq4QQbCkqpVcnwdvw43S'
     ),
     (
-        'Hasan',
         'hasan@gmail.com',
         'customer',
         '$2a$12$lJ2euHwJ1FgA3QRN59Zfze0RQ6uRRE2fVxq4QQbCkqpVcnwdvw43S'
@@ -28,6 +21,7 @@ VALUES (
 INSERT INTO
     profiles (
         user_id,
+        full_name,
         photo_profile,
         address,
         phone_number,
@@ -36,6 +30,7 @@ INSERT INTO
     )
 VALUES (
         1,
+        'admin',
         '/uploads/profiles/image-test.jpg',
         'Jl. Kebon Raya No. 10, Jakarta',
         '081234567890',
@@ -44,6 +39,7 @@ VALUES (
     ),
     (
         2,
+        'itsna',
         '/uploads/profiles/image-test.jpg',
         'Jl. Melati No. 45, Bandung',
         '082134567891',
@@ -52,6 +48,7 @@ VALUES (
     ),
     (
         3,
+        'hasan',
         '/uploads/profiles/image-test.jpg',
         'Jl. Mawar No. 12, Surabaya',
         '083134567892',

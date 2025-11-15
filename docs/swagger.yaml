@@ -1565,6 +1565,46 @@ paths:
       summary: Login user
       tags:
       - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Logout user by deactivating the session
+      parameters:
+      - default: Bearer <token>
+        description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User logged out successfully
+          schema:
+            $ref: '#/definitions/lib.ResponseSuccess'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "401":
+          description: User unauthorized
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "404":
+          description: Session not found
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Logout user
+      tags:
+      - auth
   /auth/register:
     post:
       consumes:

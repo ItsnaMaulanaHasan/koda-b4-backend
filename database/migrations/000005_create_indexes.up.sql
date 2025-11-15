@@ -18,8 +18,6 @@ CREATE INDEX idx_product_images_product ON product_images (product_id);
 
 CREATE INDEX idx_transaction_items_transactions ON transaction_items (transaction_id);
 
-CREATE INDEX idx_sessions_token ON sessions (session_token);
-
 CREATE INDEX idx_sessions_user_expired ON sessions (user_id, expired_at);
 
 CREATE INDEX idx_sessions_active ON sessions (user_id, is_active)
