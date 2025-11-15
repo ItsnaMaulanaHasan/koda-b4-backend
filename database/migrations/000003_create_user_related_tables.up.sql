@@ -14,8 +14,8 @@ CREATE TABLE "profiles" (
 CREATE TABLE "sessions" (
     "id" serial PRIMARY KEY,
     "user_id" int,
-    "session_token" text UNIQUE NOT NULL,
     "login_time" timestamp DEFAULT (CURRENT_TIMESTAMP),
+    "logout_time" timestamp,
     "expired_at" timestamp,
     "ip_address" varchar(30),
     "device" varchar(255),
