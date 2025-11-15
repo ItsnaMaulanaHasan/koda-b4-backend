@@ -235,11 +235,11 @@ func CheckProductName(name string) (bool, error) {
 	return exists, nil
 }
 
-func InsertDataProduct(bodyCreate *ProductRequest, userIdFromToken any) error {
-	err := config.DB.QueryRow(
+func InsertDataProduct(tx pgx.Tx, bodyCreate *ProductRequest, userIdFromToken any) error {
+	err := tx.QueryRow(
 		context.Background(),
 		`INSERT INTO products (name, description, price, discount_percent, rating, is_flash_sale, stock, is_active, is_favourite, created_by, updated_by)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		 RETURNING id`,
 		bodyCreate.Name,
 		bodyCreate.Description,
@@ -257,6 +257,78 @@ func InsertDataProduct(bodyCreate *ProductRequest, userIdFromToken any) error {
 		return err
 	}
 
+	return nil
+}
+
+func InsertProductImages(tx pgx.Tx, productId int, imagePaths []string, userId int) error {
+	for _, imagePath := range imagePaths {
+		_, err := tx.Exec(
+			context.Background(),
+			`INSERT INTO product_images (product_image, product_id, created_by, updated_by)
+			 VALUES ($1, $2, $3, $4)`,
+			imagePath,
+			productId,
+			userId,
+			userId,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func InsertProductSizes(tx pgx.Tx, productId int, sizeIds []int, userId int) error {
+	for _, sizeId := range sizeIds {
+		_, err := tx.Exec(
+			context.Background(),
+			`INSERT INTO product_sizes (product_id, size_id, created_by, updated_by)
+			 VALUES ($1, $2, $3, $4)`,
+			productId,
+			sizeId,
+			userId,
+			userId,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func InsertProductCategories(tx pgx.Tx, productId int, categoryIds []int, userId int) error {
+	for _, categoryId := range categoryIds {
+		_, err := tx.Exec(
+			context.Background(),
+			`INSERT INTO product_categories (product_id, category_id, created_by, updated_by)
+			 VALUES ($1, $2, $3, $4)`,
+			productId,
+			categoryId,
+			userId,
+			userId,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func InsertProductVariants(tx pgx.Tx, productId int, variantIds []int, userId int) error {
+	for _, variantId := range variantIds {
+		_, err := tx.Exec(
+			context.Background(),
+			`INSERT INTO product_variants (product_id, variant_id, created_by, updated_by)
+			 VALUES ($1, $2, $3, $4)`,
+			productId,
+			variantId,
+			userId,
+			userId,
+		)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -310,6 +382,8 @@ func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64
 			COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images
 		FROM products p
 		LEFT JOIN product_images pi ON pi.product_id = p.id
+		LEFT JOIN product_categories pc ON pc.product_id = p.id
+		LEFT JOIN categories c ON c.id = pc.category_id
 		WHERE p.is_active = true`
 
 	// Dynamic parameters

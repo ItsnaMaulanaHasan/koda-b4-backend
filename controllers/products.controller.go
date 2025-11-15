@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -339,7 +340,20 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
-	err = models.InsertDataProduct(&bodyCreate, userIdFromToken)
+	// Start transaction
+	tx, err := config.DB.Begin(context.Background())
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to start database transaction",
+			Error:   err.Error(),
+		})
+		return
+	}
+	defer tx.Rollback(context.Background())
+
+	// Insert product
+	err = models.InsertDataProduct(tx, &bodyCreate, userIdFromToken.(int))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -349,6 +363,7 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
+	// Process and save images
 	fileImages := map[string]*multipart.FileHeader{
 		"image1": bodyCreate.Image1,
 		"image2": bodyCreate.Image2,
@@ -372,19 +387,41 @@ func CreateProduct(ctx *gin.Context) {
 		}
 
 		contentType := file.Header.Get("Content-Type")
-		if contentType != "image/jpeg" && contentType != "image/png" {
+		allowedTypes := map[string]bool{
+			"image/jpeg": true,
+			"image/png":  true,
+		}
+
+		if !allowedTypes[contentType] {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 				Success: false,
-				Message: "Only JPEG and PNG files are allowed",
+				Message: "Invalid file type. Only JPEG and PNG are allowed",
 			})
 			return
 		}
 
-		ext := filepath.Ext(file.Filename)
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		allowedExt := map[string]bool{
+			".jpg":  true,
+			".jpeg": true,
+			".png":  true,
+		}
+
+		if !allowedExt[ext] {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "Invalid file extension. Only JPG and PNG are allowed",
+			})
+			return
+		}
+
 		fileName := fmt.Sprintf("product_%d_%d%s", bodyCreate.Id, time.Now().UnixNano(), ext)
 		savedFilePath := "uploads/products/" + fileName
 
-		if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
+		os.MkdirAll("uploads/products", 0755)
+
+		err := ctx.SaveUploadedFile(file, savedFilePath)
+		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
 				Message: "Failed to save uploaded file",
@@ -393,49 +430,41 @@ func CreateProduct(ctx *gin.Context) {
 			return
 		}
 
-		_, err = config.DB.Exec(
-			context.Background(),
-			`INSERT INTO product_images (product_image, product_id, created_by, updated_by)
-				 VALUES ($1, $2, $3, $4)`,
-			savedFilePath,
-			bodyCreate.Id,
-			userIdFromToken,
-			userIdFromToken,
-		)
+		savedImagePaths = append(savedImagePaths, savedFilePath)
+	}
+
+	// Insert images
+	if len(savedImagePaths) > 0 {
+		err = models.InsertProductImages(tx, bodyCreate.Id, savedImagePaths, userIdFromToken.(int))
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
-				Message: "Internal server error while inserting product image",
+				Message: "Internal server error while inserting product images",
 				Error:   err.Error(),
 			})
 			return
 		}
-		savedImagePaths = append(savedImagePaths, savedFilePath)
 	}
 	bodyCreate.ProductImages = savedImagePaths
 
+	// Insert sizes
 	if strings.TrimSpace(bodyCreate.SizeProducts) != "" {
 		sizeProducts := strings.Split(bodyCreate.SizeProducts, ",")
+		var sizeIds []int
 		for _, sizeIdStr := range sizeProducts {
 			sizeIdStr = strings.TrimSpace(sizeIdStr)
 			if sizeIdStr == "" {
 				continue
 			}
-
 			sizeId, err := strconv.Atoi(sizeIdStr)
 			if err != nil {
 				continue
 			}
+			sizeIds = append(sizeIds, sizeId)
+		}
 
-			_, err = config.DB.Exec(
-				context.Background(),
-				`INSERT INTO product_sizes (product_id, size_id, created_by, updated_by)
-				 VALUES ($1, $2, $3, $4)`,
-				bodyCreate.Id,
-				sizeId,
-				userIdFromToken,
-				userIdFromToken,
-			)
+		if len(sizeIds) > 0 {
+			err = models.InsertProductSizes(tx, bodyCreate.Id, sizeIds, userIdFromToken.(int))
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
@@ -447,29 +476,24 @@ func CreateProduct(ctx *gin.Context) {
 		}
 	}
 
+	// Insert categories
 	if strings.TrimSpace(bodyCreate.ProductCategories) != "" {
-		productCategories := strings.SplitSeq(bodyCreate.ProductCategories, ",")
-
-		for categoryIdStr := range productCategories {
+		productCategories := strings.Split(bodyCreate.ProductCategories, ",") // ✅ Perbaiki dari SplitSeq
+		var categoryIds []int
+		for _, categoryIdStr := range productCategories {
 			categoryIdStr = strings.TrimSpace(categoryIdStr)
 			if categoryIdStr == "" {
 				continue
 			}
-
 			categoryId, err := strconv.Atoi(categoryIdStr)
 			if err != nil {
 				continue
 			}
+			categoryIds = append(categoryIds, categoryId)
+		}
 
-			_, err = config.DB.Exec(
-				context.Background(),
-				`INSERT INTO product_categories (product_id, category_id, created_by, updated_by)
-				 VALUES ($1, $2, $3, $4)`,
-				bodyCreate.Id,
-				categoryId,
-				userIdFromToken,
-				userIdFromToken,
-			)
+		if len(categoryIds) > 0 {
+			err = models.InsertProductCategories(tx, bodyCreate.Id, categoryIds, userIdFromToken.(int))
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
@@ -481,29 +505,24 @@ func CreateProduct(ctx *gin.Context) {
 		}
 	}
 
+	// Insert variants
 	if strings.TrimSpace(bodyCreate.ProductVariants) != "" {
-		productVariants := strings.SplitSeq(bodyCreate.ProductVariants, ",")
-
-		for variantIdStr := range productVariants {
+		productVariants := strings.Split(bodyCreate.ProductVariants, ",")
+		var variantIds []int
+		for _, variantIdStr := range productVariants {
 			variantIdStr = strings.TrimSpace(variantIdStr)
 			if variantIdStr == "" {
 				continue
 			}
-
 			variantId, err := strconv.Atoi(variantIdStr)
 			if err != nil {
 				continue
 			}
+			variantIds = append(variantIds, variantId)
+		}
 
-			_, err = config.DB.Exec(
-				context.Background(),
-				`INSERT INTO product_variants (product_id, variant_id, created_by, updated_by)
-				 VALUES ($1, $2, $3, $4)`,
-				bodyCreate.Id,
-				variantId,
-				userIdFromToken,
-				userIdFromToken,
-			)
+		if len(variantIds) > 0 {
+			err = models.InsertProductVariants(tx, bodyCreate.Id, variantIds, userIdFromToken.(int))
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
@@ -513,6 +532,17 @@ func CreateProduct(ctx *gin.Context) {
 				return
 			}
 		}
+	}
+
+	// Commit transaction
+	err = tx.Commit(context.Background())
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to commit transaction",
+			Error:   err.Error(),
+		})
+		return
 	}
 
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
