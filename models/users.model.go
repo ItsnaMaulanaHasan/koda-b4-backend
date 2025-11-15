@@ -204,6 +204,70 @@ func InsertDataUser(userId int, bodyCreate *User, filePatch string) (bool, strin
 	return isSuccess, message, nil
 }
 
+func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, savedFilePath string) (bool, string, error) {
+	ctx := context.Background()
+	isSuccess := false
+	message := ""
+
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		message = "Failed to start database transaction"
+		return isSuccess, message, err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(
+		context.Background(),
+		`UPDATE users 
+		 SET full_name = COALESCE(NULLIF($1, ''), full_name),
+		     email      = COALESCE(NULLIF($2, ''), email),
+		     role       = COALESCE(NULLIF($3, ''), role),
+		     updated_by = $4,
+		     updated_at = NOW()
+		 WHERE id = $5`,
+		bodyUpdate.FullName,
+		bodyUpdate.Email,
+		bodyUpdate.Role,
+		userIdFromToken,
+		userId,
+	)
+	if err != nil {
+		message = "Internal server error while updating user table"
+		return isSuccess, message, err
+	}
+
+	_, err = tx.Exec(
+		context.Background(),
+		`UPDATE profiles 
+		 SET profile_photo = COALESCE(NULLIF($1, ''), profile_photo),
+		     address       = COALESCE(NULLIF($2, ''), address),
+		     phone_number  = COALESCE(NULLIF($3, ''), phone_number),
+		     updated_by    = $4,
+		     updated_at    = NOW()
+		 WHERE user_id = $5`,
+		savedFilePath,
+		bodyUpdate.Address,
+		bodyUpdate.Phone,
+		userIdFromToken,
+		userId,
+	)
+	if err != nil {
+		message = "Internal server error while updating user profile"
+		return isSuccess, message, err
+	}
+
+	// commit transaction
+	err = tx.Commit(ctx)
+	if err != nil {
+		message = "Failed to commit transaction"
+		return isSuccess, message, err
+	}
+
+	isSuccess = true
+	message = "User updated successfully"
+	return isSuccess, message, nil
+}
+
 func DeleteDataUser(userId int) (pgconn.CommandTag, error) {
 	commandTag, err := config.DB.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, userId)
 	if err != nil {

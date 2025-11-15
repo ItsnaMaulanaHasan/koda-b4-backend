@@ -1,10 +1,8 @@
 package controllers
 
 import (
-	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -79,6 +77,7 @@ func ListUsers(ctx *gin.Context) {
 			Message: message,
 			Error:   err.Error(),
 		})
+		return
 	}
 
 	// get total page
@@ -168,6 +167,7 @@ func DetailUser(ctx *gin.Context) {
 			Message: message,
 			Error:   err.Error(),
 		})
+		return
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
@@ -191,7 +191,7 @@ func DetailUser(ctx *gin.Context) {
 // @Param        phone          formData  string  true  "User phone"
 // @Param        address        formData  string  true  "User address"
 // @Param        role           formData  string  true  "User role"  default(customer)
-// @Param        profilePhoto   formData  file    true  "Profile photo (JPEG/PNG, max 3MB)"
+// @Param        profilePhoto   formData  file    false  "Profile photo (JPEG/PNG, max 3MB)"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.User}  "User created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password"
 // @Failure      401  {object}  lib.ResponseError  "User unauthorized"
@@ -200,7 +200,7 @@ func DetailUser(ctx *gin.Context) {
 // @Router       /admin/users [post]
 func CreateUser(ctx *gin.Context) {
 	var bodyCreate models.User
-	err := ctx.ShouldBindWith(&bodyCreate, binding.Form)
+	err := ctx.ShouldBindWith(&bodyCreate, binding.FormMultipart)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
@@ -256,55 +256,63 @@ func CreateUser(ctx *gin.Context) {
 	}
 
 	// get file from body request
+	savedFilePath := ""
 	file, err := ctx.FormFile("profilePhoto")
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: false,
-			Message: "File is required",
-			Error:   err.Error(),
-		})
-		return
-	}
+	if err == nil {
 
-	if file.Size > 3<<20 {
-		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: false,
-			Message: "File size must be less than 3MB",
-		})
-		return
-	}
+		if file.Size > 3<<20 {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "File size must be less than 3MB",
+			})
+			return
+		}
 
-	contentType := file.Header.Get("Content-Type")
-	allowedTypes := map[string]bool{
-		"image/jpeg": true,
-		"image/png":  true,
-	}
+		contentType := file.Header.Get("Content-Type")
+		allowedTypes := map[string]bool{
+			"image/jpeg": true,
+			"image/png":  true,
+		}
 
-	if !allowedTypes[contentType] {
-		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: false,
-			Message: "Invalid file type. Only JPEG and PNG are allowed",
-		})
-		return
-	}
+		if !allowedTypes[contentType] {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "Invalid file type. Only JPEG and PNG are allowed",
+			})
+			return
+		}
 
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	allowedExt := map[string]bool{
-		".jpg":  true,
-		".jpeg": true,
-		".png":  true,
-	}
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		allowedExt := map[string]bool{
+			".jpg":  true,
+			".jpeg": true,
+			".png":  true,
+		}
 
-	if !allowedExt[ext] {
-		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: false,
-			Message: "Invalid file extension. Only JPG and PNG are allowed",
-		})
-		return
-	}
+		if !allowedExt[ext] {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "Invalid file extension. Only JPG and PNG are allowed",
+			})
+			return
+		}
 
-	fileName := fmt.Sprintf("user_%d_%d%s", userId, time.Now().Unix(), ext)
-	savedFilePath := "uploads/profiles/" + fileName
+		fileName := fmt.Sprintf("user_%d_%d%s", userId, time.Now().Unix(), ext)
+		savedFilePath = "uploads/profiles/" + fileName
+
+		os.MkdirAll("uploads/profiles", 0755)
+
+		err = ctx.SaveUploadedFile(file, savedFilePath)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to save profile photo",
+				Error:   err.Error(),
+			})
+			return
+		}
+		bodyCreate.ProfilePhoto = savedFilePath
+	}
 
 	// insert data user
 	isSuccess, message, err := models.InsertDataUser(userId.(int), &bodyCreate, savedFilePath)
@@ -316,19 +324,6 @@ func CreateUser(ctx *gin.Context) {
 		})
 		return
 	}
-
-	os.MkdirAll("uploads/profiles", 0755)
-
-	err = ctx.SaveUploadedFile(file, savedFilePath)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "User created but failed to save profile photo",
-			Error:   err.Error(),
-		})
-		return
-	}
-	bodyCreate.ProfilePhoto = savedFilePath
 
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
@@ -351,11 +346,12 @@ func CreateUser(ctx *gin.Context) {
 // @Param        phone          formData  string  false "User phone"
 // @Param        address        formData  string  false "User address"
 // @Param        role           formData  string  false "User role"
-// @Param        profilePhoto   formData  file    false "Profile photo (JPEG/PNG, max 1MB)"
+// @Param        profilePhoto   formData  file    false "Profile photo (JPEG/PNG, max 3MB)"
 // @Success      200  {object}  lib.ResponseSuccess "User updated successfully"
-// @Failure      400  {object}  lib.ResponseError  "Invalid Id format or invalid request body"
-// @Failure      404  {object}  lib.ResponseError  "User not found"
-// @Failure      500  {object}  lib.ResponseError  "Internal server error while updating user data"
+// @Failure      400  {object}  lib.ResponseError   "Invalid Id format or invalid request body"
+// @Failure      401  {object}  lib.ResponseError  "User unauthorized"
+// @Failure      404  {object}  lib.ResponseError   "User not found"
+// @Failure      500  {object}  lib.ResponseError   "Internal server error while updating user data"
 // @Router       /admin/users/{id} [patch]
 func UpdateUser(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
@@ -379,11 +375,8 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	if bodyUpdate.Role == "" {
-		bodyUpdate.Role = "customer"
-	}
-
-	userIdFromToken, exists := ctx.Get("userId")
+	// get user id from token
+	userId, exists := ctx.Get("userId")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
@@ -392,83 +385,69 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	var savedFilePath string
+	savedFilePath := ""
 	file, err := ctx.FormFile("profilePhoto")
 	if err == nil {
-		if file.Size > 1<<20 {
+		if file.Size > 3<<20 {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 				Success: false,
-				Message: "File size must be less than 1MB",
+				Message: "File size must be less than 3MB",
 			})
 			return
 		}
 
 		contentType := file.Header.Get("Content-Type")
-		if contentType != "image/jpeg" && contentType != "image/png" {
+		allowedTypes := map[string]bool{
+			"image/jpeg": true,
+			"image/png":  true,
+		}
+
+		if !allowedTypes[contentType] {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 				Success: false,
-				Message: "Only JPEG and PNG files are allowed",
+				Message: "Invalid file type. Only JPEG and PNG are allowed",
 			})
 			return
 		}
 
-		ext := filepath.Ext(file.Filename)
-		fileName := fmt.Sprintf("user_%d_%d%s", id, time.Now().Unix(), ext)
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		allowedExt := map[string]bool{
+			".jpg":  true,
+			".jpeg": true,
+			".png":  true,
+		}
+
+		if !allowedExt[ext] {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "Invalid file extension. Only JPG and PNG are allowed",
+			})
+			return
+		}
+
+		fileName := fmt.Sprintf("user_%d_%d%s", userId, time.Now().Unix(), ext)
 		savedFilePath = "uploads/profiles/" + fileName
 
-		if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
+		os.MkdirAll("uploads/profiles", 0755)
+
+		err = ctx.SaveUploadedFile(file, savedFilePath)
+		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
-				Message: "Failed to save uploaded file",
+				Message: "User updated but failed to save profile photo",
 				Error:   err.Error(),
 			})
 			return
 		}
+		bodyUpdate.ProfilePhoto = savedFilePath
 	}
 
-	_, err = config.DB.Exec(
-		context.Background(),
-		`UPDATE users 
-		 SET full_name = COALESCE(NULLIF($1, ''), full_name),
-		     email      = COALESCE(NULLIF($3, ''), email),
-		     role       = COALESCE(NULLIF($4, ''), role),
-		     updated_by = $5,
-		     updated_at = NOW()
-		 WHERE id = $6`,
-		bodyUpdate.FullName,
-		bodyUpdate.Email,
-		bodyUpdate.Role,
-		userIdFromToken,
-		id,
-	)
+	// insert data user
+	isSuccess, message, err := models.UpdateDataUser(id, userId.(int), &bodyUpdate, savedFilePath)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while updating user table",
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	_, err = config.DB.Exec(
-		context.Background(),
-		`UPDATE profiles 
-		 SET profile_photo = COALESCE(NULLIF($1, ''), profile_photo),
-		     address       = COALESCE(NULLIF($2, ''), address),
-		     phone_number  = COALESCE(NULLIF($3, ''), phone_number),
-		     updated_by    = $4,
-		     updated_at    = NOW()
-		 WHERE user_id = $5`,
-		savedFilePath,
-		bodyUpdate.Address,
-		bodyUpdate.Phone,
-		userIdFromToken,
-		id,
-	)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while updating user profile",
+			Success: isSuccess,
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
