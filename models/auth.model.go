@@ -164,3 +164,22 @@ func LogoutSession(userId int, sessionId int) (bool, string, error) {
 	message = "User logged out successfully"
 	return isSuccess, message, nil
 }
+
+func IsSessionActive(sessionId int) (bool, error) {
+	var isActive bool
+	err := config.DB.QueryRow(
+		context.Background(),
+		`SELECT is_active FROM sessions 
+         WHERE id = $1 AND expired_at > NOW()`,
+		sessionId,
+	).Scan(&isActive)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return isActive, nil
+}
