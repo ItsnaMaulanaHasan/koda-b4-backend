@@ -9,7 +9,7 @@ import (
 func categoriesRoutes(r *gin.RouterGroup) {
 	categories := r.Group("/categories")
 	{
-		categories.GET("", controllers.GetAllCategory)
+		categories.GET("", controllers.ListCategories)
 		categories.GET("/:id", controllers.GetCategoryById)
 		categories.POST("", controllers.CreateCategory)
 		categories.PATCH("/:id", controllers.UpdateCategory)

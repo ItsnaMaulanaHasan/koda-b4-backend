@@ -15,9 +15,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// GetAllCategory    godoc
-// @Summary      	 Get all categories
-// @Description  	 Retrieving all category data with pagination support
+// ListCategores      godoc
+// @Summary      	 Get list categories
+// @Description  	 Retrieving list categories data with pagination support
 // @Tags         	 admin/categories
 // @Produce      	 json
 // @Security     	 BearerAuth
@@ -29,7 +29,7 @@ import (
 // @Failure      	 400  {object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
 // @Failure      	 500  {object}  lib.ResponseError  "Internal server error while fetching or processing category data"
 // @Router       	 /admin/categories [get]
-func GetAllCategory(ctx *gin.Context) {
+func ListCategories(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 	search := ctx.Query("search")
