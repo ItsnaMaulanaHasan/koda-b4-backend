@@ -222,6 +222,45 @@ func GetTransactionItems(transactionId int) ([]TransactionItems, string, error) 
 	return transactionItems, message, nil
 }
 
+func CheckTransactionExists(id int) (bool, error) {
+	var exists bool
+	err := config.DB.QueryRow(
+		context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM transactions WHERE id = $1)", id,
+	).Scan(&exists)
+
+	if err != nil {
+		return exists, err
+	}
+
+	return exists, nil
+}
+
+func UpdateTransactionStatusById(transactionId int, statusId string, userId int) (bool, string, error) {
+	isSuccess := false
+	message := ""
+
+	_, err := config.DB.Exec(
+		context.Background(),
+		`UPDATE transactions 
+		 SET status_id  = $1,
+		     updated_by = $2,
+		     updated_at = NOW()
+		 WHERE id = $3`,
+		statusId,
+		userId,
+		transactionId,
+	)
+	if err != nil {
+		message = "Internal server error while updating transaction status"
+		return isSuccess, message, err
+	}
+
+	isSuccess = true
+	message = "Transaction status updated successfully"
+	return isSuccess, message, nil
+}
+
 func GetDeliveryFeeAndAdminFee(orderMethodId int, paymentMethodId int) (float64, float64, string, error) {
 	var deliveryFee, adminFee float64 = 0, 0
 	message := ""

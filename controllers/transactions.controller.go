@@ -1,10 +1,8 @@
 package controllers
 
 import (
-	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"context"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -229,7 +227,8 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 		return
 	}
 
-	userIdFromToken, exists := ctx.Get("userId")
+	// get user id from token
+	userId, exists := ctx.Get("userId")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
@@ -238,12 +237,8 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 		return
 	}
 
-	var isExists bool
-	err = config.DB.QueryRow(
-		context.Background(),
-		"SELECT EXISTS(SELECT 1 FROM transactions WHERE id = $1)", id,
-	).Scan(&isExists)
-
+	// check transaction exists
+	isExists, err := models.CheckTransactionExists(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -261,21 +256,12 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 		return
 	}
 
-	_, err = config.DB.Exec(
-		context.Background(),
-		`UPDATE transactions 
-		 SET status_id  = $1,
-		     updated_by = $2,
-		     updated_at = NOW()
-		 WHERE id = $3`,
-		statusId,
-		userIdFromToken,
-		id,
-	)
+	// update transaction status
+	isSuccess, message, err := models.UpdateTransactionStatusById(id, statusId, userId.(int))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while updating transaction status",
+			Success: isSuccess,
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
@@ -283,7 +269,7 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
-		Message: "Transaction status updated successfully",
+		Message: message,
 	})
 }
 
