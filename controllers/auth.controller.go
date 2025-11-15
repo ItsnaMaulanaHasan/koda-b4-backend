@@ -5,11 +5,10 @@ import (
 	"backend-daily-greens/models"
 	"errors"
 	"net/http"
-	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/matthewhartstonge/argon2"
 )
@@ -162,42 +161,10 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
-	jwtToken, err := lib.GenerateToken(user.Id, user.Role)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to generate token",
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	token, err := jwt.ParseWithClaims(jwtToken, &lib.UserPayload{}, func(token *jwt.Token) (any, error) {
-		return []byte(os.Getenv("APP_SECRET")), nil
-	})
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to parse token",
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	claims, ok := token.Claims.(*lib.UserPayload)
-	if !ok {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to extract token claims",
-		})
-		return
-	}
-
 	var session = models.Session{
 		UserId:    user.Id,
-		Token:     jwtToken,
-		LoginTime: claims.IssuedAt.Time,
-		ExpiredAt: claims.ExpiresAt.Time,
+		LoginTime: time.Now(),
+		ExpiredAt: time.Now().Add(24 * time.Hour),
 		IpAddress: ctx.ClientIP(),
 		UserAgent: ctx.GetHeader("User-Agent"),
 	}
@@ -212,14 +179,82 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
+	jwtToken, err := lib.GenerateToken(user.Id, user.Role, session.Id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to generate token",
+			Error:   err.Error(),
+		})
+		return
+	}
+
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
 		Message: "User login successfully",
 		Data: gin.H{
-			"token":     session.Token,
+			"token":     jwtToken,
 			"sessionId": session.Id,
 			"loginTime": session.LoginTime,
 			"expiresAt": session.ExpiredAt,
 		},
+	})
+}
+
+// Logout        godoc
+// @Summary      Logout user
+// @Description  Logout user by deactivating the session
+// @Tags         auth
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
+// @Success      200  {object}  lib.ResponseSuccess  "User logged out successfully"
+// @Failure      400  {object}  lib.ResponseError    "Invalid request body"
+// @Failure      401  {object}  lib.ResponseError    "User unauthorized"
+// @Failure      404  {object}  lib.ResponseError    "Session not found"
+// @Failure      500  {object}  lib.ResponseError    "Internal server error"
+// @Router       /auth/logout [post]
+func Logout(ctx *gin.Context) {
+	// get user id from token
+	userId, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User Id not found in token",
+		})
+		return
+	}
+
+	sessionId, exists := ctx.Get("sessionId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "Session Id not found in token",
+		})
+		return
+	}
+
+	isSuccess, message, err := models.LogoutSession(userId.(int), sessionId.(int))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: isSuccess,
+			Message: message,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if !isSuccess {
+		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+			Success: false,
+			Message: message,
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: message,
 	})
 }

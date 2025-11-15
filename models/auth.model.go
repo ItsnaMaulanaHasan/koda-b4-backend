@@ -29,13 +29,14 @@ type QueryLogin struct {
 }
 
 type Session struct {
-	Id        int `json:"sessionId"`
-	UserId    int
-	Token     string    `json:"token"`
-	LoginTime time.Time `json:"loginTime"`
-	ExpiredAt time.Time `json:"expiredAt"`
-	IpAddress string
-	UserAgent string
+	Id         int `json:"sessionId"`
+	UserId     int
+	LoginTime  time.Time  `json:"loginTime"`
+	LogoutTime *time.Time `json:"logoutTime,omitempty"`
+	ExpiredAt  time.Time  `json:"expiredAt"`
+	IpAddress  string
+	UserAgent  string
+	IsActive   bool
 }
 
 func RegisterUser(bodyRegister *Register) (bool, string, error) {
@@ -114,11 +115,10 @@ func CreateSession(session *Session) error {
 	err := config.DB.QueryRow(
 		context.Background(),
 		`INSERT INTO sessions 
-		(user_id, session_token, login_time, expired_at, ip_address, device, is_active, created_by, updated_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		(user_id, login_time, expired_at, ip_address, device, is_active, created_by, updated_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id`,
 		session.UserId,
-		session.Token,
 		session.LoginTime,
 		session.ExpiredAt,
 		session.IpAddress,
@@ -133,4 +133,34 @@ func CreateSession(session *Session) error {
 	}
 
 	return nil
+}
+
+func LogoutSession(userId int, sessionId int) (bool, string, error) {
+	isSuccess := false
+	message := ""
+
+	commandTag, err := config.DB.Exec(
+		context.Background(),
+		`UPDATE sessions 
+		 SET is_active = false,
+		 	 logout_time = NOW(),
+		     updated_by = $1, 
+		     updated_at = NOW() 
+		 WHERE id = $2 AND user_id = $1 AND is_active = true`,
+		userId,
+		sessionId,
+	)
+	if err != nil {
+		message = "Internal server error while updating session"
+		return isSuccess, message, err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		message = "Session not found or already logged out"
+		return isSuccess, message, nil
+	}
+
+	isSuccess = true
+	message = "User logged out successfully"
+	return isSuccess, message, nil
 }
