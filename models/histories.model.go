@@ -122,7 +122,16 @@ func GetListHistories(userId int, page int, limit int, month int, statusId int) 
 func GetDetailHistory(userId int) (HistoryDetail, string, error) {
 	historyDetail := HistoryDetail{}
 	message := ""
-	rows, err := config.DB.Query(context.Background(),
+
+	ctx := context.Background()
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		message = "Failed to start database transaction"
+		return historyDetail, message, err
+	}
+	defer tx.Rollback(ctx)
+
+	rows, err := tx.Query(ctx,
 		`SELECT 
 			t.id,
 			t.user_id,
@@ -144,7 +153,7 @@ func GetDetailHistory(userId int) (HistoryDetail, string, error) {
 		JOIN 
 			payment_methods pm ON t.payment_method_id = pm.id
 		JOIN
-			order_methods om ON t.order_method_id = pm.id
+			order_methods om ON t.order_method_id = om.id
 		JOIN 
 			status s ON t.status_id = s.id
 		WHERE t.id = $1`, userId)
@@ -165,7 +174,7 @@ func GetDetailHistory(userId int) (HistoryDetail, string, error) {
 		return historyDetail, message, err
 	}
 
-	itemRows, err := config.DB.Query(context.Background(),
+	itemRows, err := tx.Query(ctx,
 		`SELECT 
 			id,
 			transaction_id,
@@ -192,6 +201,13 @@ func GetDetailHistory(userId int) (HistoryDetail, string, error) {
 	historyItems, err := pgx.CollectRows(itemRows, pgx.RowToStructByName[HistoryItems])
 	if err != nil {
 		message = "Failed to process history items"
+		return historyDetail, message, err
+	}
+
+	// commit transaction
+	err = tx.Commit(ctx)
+	if err != nil {
+		message = "Failed to commit transaction"
 		return historyDetail, message, err
 	}
 
