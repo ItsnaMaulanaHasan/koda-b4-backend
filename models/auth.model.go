@@ -1,9 +1,136 @@
 package models
 
+import (
+	"backend-daily-greens/config"
+	"context"
+	"errors"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+)
+
 type Register struct {
 	Id       int    `json:"id"`
 	FullName string `form:"fullName" json:"fullName"`
 	Email    string `form:"email" json:"email"`
 	Password string `form:"password" json:"-"`
 	Role     string `form:"role" json:"role"`
+}
+
+type Login struct {
+	Email    string `form:"email"`
+	Password string `form:"password"`
+}
+
+type QueryLogin struct {
+	Id       int    `db:"id"`
+	Password string `db:"password"`
+	Role     string `db:"role"`
+}
+
+type Session struct {
+	Id        int `json:"sessionId"`
+	UserId    int
+	Token     string    `json:"token"`
+	LoginTime time.Time `json:"loginTime"`
+	ExpiredAt time.Time `json:"expiredAt"`
+	IpAddress string
+	UserAgent string
+}
+
+func RegisterUser(bodyRegister *Register) (bool, string, error) {
+	isSuccess := false
+	message := ""
+
+	ctx := context.Background()
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		message = "Failed to start database transaction"
+		return isSuccess, message, err
+	}
+	defer tx.Rollback(ctx)
+
+	// insert data to users
+	err = tx.QueryRow(
+		ctx,
+		`INSERT INTO users (email, role, password)
+		 VALUES ($1, $2, $3)
+		 RETURNING id`,
+		bodyRegister.Email, bodyRegister.Role, bodyRegister.Password,
+	).Scan(&bodyRegister.Id)
+	if err != nil {
+		message = "Internal server error while inserting new user"
+		return isSuccess, message, err
+	}
+
+	// insert data to profiles
+	_, err = tx.Exec(ctx, `INSERT INTO profiles (user_id, full_name, created_by, updated_by) VALUES ($1, $2, $3, $4)`,
+		bodyRegister.Id, bodyRegister.FullName, bodyRegister.Id, bodyRegister.Id,
+	)
+	if err != nil {
+		message = "Internal server error while inserting new profile"
+		return isSuccess, message, err
+	}
+
+	// commit transaction
+	err = tx.Commit(ctx)
+	if err != nil {
+		message = "Failed to commit transaction"
+		return isSuccess, message, err
+	}
+
+	isSuccess = true
+	message = "User registered successfully"
+	return isSuccess, message, nil
+}
+
+func GetUserByEmail(bodyLogin *Login) (QueryLogin, string, error) {
+	message := ""
+	user := QueryLogin{}
+	rows, err := config.DB.Query(context.Background(),
+		"SELECT id, password, role FROM users WHERE email = $1",
+		bodyLogin.Email,
+	)
+	if err != nil {
+		message = "Failed to fetch user from database"
+		return user, message, err
+	}
+
+	user, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[QueryLogin])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			message = "User not found"
+			return user, message, err
+		}
+
+		message = "Failed to process user data"
+		return user, message, err
+	}
+
+	return user, message, nil
+}
+
+func CreateSession(session *Session) error {
+	err := config.DB.QueryRow(
+		context.Background(),
+		`INSERT INTO sessions 
+		(user_id, session_token, login_time, expired_at, ip_address, device, is_active, created_by, updated_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id`,
+		session.UserId,
+		session.Token,
+		session.LoginTime,
+		session.ExpiredAt,
+		session.IpAddress,
+		session.UserAgent,
+		true,
+		session.UserId,
+		session.UserId,
+	).Scan(&session.Id)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

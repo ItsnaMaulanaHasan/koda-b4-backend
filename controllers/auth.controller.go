@@ -1,10 +1,8 @@
 package controllers
 
 import (
-	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"context"
 	"errors"
 	"net/http"
 	"os"
@@ -36,7 +34,7 @@ func Register(ctx *gin.Context) {
 	err := ctx.ShouldBindWith(&bodyRegister, binding.Form)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: true,
+			Success: false,
 			Message: "Invalid form data",
 			Error:   err.Error(),
 		})
@@ -47,12 +45,8 @@ func Register(ctx *gin.Context) {
 		bodyRegister.Role = "customer"
 	}
 
-	var exists bool
-	err = config.DB.QueryRow(
-		context.Background(),
-		"SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", bodyRegister.Email,
-	).Scan(&exists)
-
+	// check user email
+	exists, err := models.CheckUserEmail(bodyRegister.Email)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -70,6 +64,7 @@ func Register(ctx *gin.Context) {
 		return
 	}
 
+	// hash password
 	hashedPassword, err := lib.HashPassword(bodyRegister.Password)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -81,27 +76,19 @@ func Register(ctx *gin.Context) {
 	}
 	bodyRegister.Password = string(hashedPassword)
 
-	err = config.DB.QueryRow(
-		context.Background(),
-		`INSERT INTO users (email, role, password)
-		 VALUES ($1, $2, $3, $4)
-		 RETURNING id`,
-		bodyRegister.Email, bodyRegister.Role, bodyRegister.Password,
-	).Scan(&bodyRegister.Id)
+	isSuccess, message, err := models.RegisterUser(&bodyRegister)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while inserting new user",
+			Success: isSuccess,
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	_, err = config.DB.Exec(context.Background(), `INSERT INTO profiles`)
-
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
-		Success: true,
-		Message: "User created successfully",
+		Success: isSuccess,
+		Message: message,
 		Data: models.Register{
 			Id:       bodyRegister.Id,
 			FullName: bodyRegister.FullName,
@@ -125,11 +112,7 @@ func Register(ctx *gin.Context) {
 // @Failure      500  {object}  lib.ResponseError  "Internal server error"
 // @Router       /auth/login [post]
 func Login(ctx *gin.Context) {
-	var bodyLogin struct {
-		Email    string `form:"email" binding:"required,email"`
-		Password string `form:"password" binding:"required,min=6"`
-	}
-
+	var bodyLogin models.Login
 	err := ctx.ShouldBindWith(&bodyLogin, binding.Form)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -140,38 +123,19 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
-	type queryLogin struct {
-		Id       int    `db:"id"`
-		Password string `db:"password"`
-		Role     string `db:"role"`
-	}
-
-	rows, err := config.DB.Query(context.Background(),
-		"SELECT id, password, role FROM users WHERE email = $1",
-		bodyLogin.Email,
-	)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to fetch user from database.",
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	user, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[queryLogin])
+	user, message, err := models.GetUserByEmail(&bodyLogin)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, lib.ResponseError{
 				Success: false,
-				Message: "User not found",
+				Message: message,
 			})
 			return
 		}
 
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to process user data",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
@@ -229,29 +193,16 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
-	loginTime := claims.IssuedAt.Time
-	expiredAt := claims.ExpiresAt.Time
-	ipAddress := ctx.ClientIP()
-	userAgent := ctx.GetHeader("User-Agent")
+	var session = models.Session{
+		UserId:    user.Id,
+		Token:     jwtToken,
+		LoginTime: claims.IssuedAt.Time,
+		ExpiredAt: claims.ExpiresAt.Time,
+		IpAddress: ctx.ClientIP(),
+		UserAgent: ctx.GetHeader("User-Agent"),
+	}
 
-	var sessionId int
-	err = config.DB.QueryRow(
-		context.Background(),
-		`INSERT INTO sessions 
-		(user_id, session_token, login_time, expired_at, ip_address, device, is_active, created_by, updated_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id`,
-		user.Id,
-		jwtToken,
-		loginTime,
-		expiredAt,
-		ipAddress,
-		userAgent,
-		true,
-		user.Id,
-		user.Id,
-	).Scan(&sessionId)
-
+	err = models.CreateSession(&session)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -265,9 +216,10 @@ func Login(ctx *gin.Context) {
 		Success: true,
 		Message: "User login successfully",
 		Data: gin.H{
-			"token":      jwtToken,
-			"session_id": sessionId,
-			"expires_at": expiredAt,
+			"token":     session.Token,
+			"sessionId": session.Id,
+			"loginTime": session.LoginTime,
+			"expiresAt": session.ExpiredAt,
 		},
 	})
 }
