@@ -3,6 +3,7 @@ package models
 import (
 	"backend-daily-greens/config"
 	"context"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -131,6 +132,94 @@ func GetListAllTransactions(page int, limit int, search string) ([]Transaction, 
 
 	message = "Success get all transaction"
 	return transactions, message, nil
+}
+
+func GetDetailTransaction(id int) (TransactionDetail, string, error) {
+	transaction := TransactionDetail{}
+	message := ""
+
+	rows, err := config.DB.Query(context.Background(),
+		`SELECT 
+			t.id,
+			t.user_id,
+			t.no_invoice,
+			t.date_transaction,
+			t.full_name,
+			t.email,
+			t.address,
+			t.phone,
+			pm.name AS payment_method,
+			om.name AS order_method,
+			s.name AS status,
+			t.delivery_fee,
+			t.admin_fee,
+			t.tax,
+			t.total_transaction
+		FROM 
+			transactions t
+		JOIN 
+			payment_methods pm ON t.payment_method_id = pm.id
+		JOIN
+			order_methods om ON t.order_method_id = om.id
+		JOIN 
+			status s ON t.status_id = s.id
+		WHERE t.id = $1`, id)
+	if err != nil {
+		message = "Failed to fetch transaction from database"
+		return transaction, message, err
+	}
+	defer rows.Close()
+
+	transaction, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[TransactionDetail])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			message = "Transaction not found"
+			return transaction, message, err
+		}
+		message = "Failed to process transaction data"
+		return transaction, message, err
+	}
+
+	message = "Success get transaction detail"
+	return transaction, message, nil
+}
+
+func GetTransactionItems(transactionId int) ([]TransactionItems, string, error) {
+	transactionItems := []TransactionItems{}
+	message := ""
+
+	productRows, err := config.DB.Query(context.Background(),
+		`SELECT 
+			id,
+			transaction_id,
+			product_id,
+			product_name,
+			product_price,
+			discount_percent,
+			discount_price,
+			size,
+			size_cost,
+			variant,
+			variant_cost,
+			amount,
+			subtotal
+		FROM transaction_items
+		WHERE transaction_id = $1
+		ORDER BY id ASC`, transactionId)
+	if err != nil {
+		message = "Failed to fetch ordered products from database"
+		return transactionItems, message, err
+	}
+	defer productRows.Close()
+
+	transactionItems, err = pgx.CollectRows(productRows, pgx.RowToStructByName[TransactionItems])
+	if err != nil {
+		message = "Failed to process ordered products data"
+		return transactionItems, message, err
+	}
+
+	message = "Success get transaction items"
+	return transactionItems, message, nil
 }
 
 func GetDeliveryFeeAndAdminFee(orderMethodId int, paymentMethodId int) (float64, float64, string, error) {

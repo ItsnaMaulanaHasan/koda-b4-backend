@@ -5,7 +5,6 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 )
 
 // ListTransactions  godoc
@@ -161,93 +159,27 @@ func DetailTransactions(ctx *gin.Context) {
 		return
 	}
 
-	rows, err := config.DB.Query(context.Background(),
-		`SELECT 
-			t.id,
-			t.user_id,
-			t.no_invoice,
-			t.date_transaction,
-			t.full_name,
-			t.email,
-			t.address,
-			t.phone,
-			pm.name AS payment_method,
-			om.name AS order_method,
-			s.name AS status,
-			t.delivery_fee,
-			t.admin_fee,
-			t.tax,
-			t.total_transaction
-		FROM 
-			transactions t
-		JOIN 
-			payment_methods pm ON t.payment_method_id = pm.id
-		JOIN
-			order_methods om ON t.order_method_id = pm.id
-		JOIN 
-			status s ON t.status_id = s.id
-		WHERE t.id = $1`, id)
+	// get transaction detail
+	transaction, message, err := models.GetDetailTransaction(id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to fetch transaction from database",
-			Error:   err.Error(),
-		})
-		return
-	}
-	defer rows.Close()
-
-	transaction, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.TransactionDetail])
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			ctx.JSON(http.StatusNotFound, lib.ResponseError{
-				Success: false,
-				Message: "Transaction not found",
-			})
-			return
+		statusCode := http.StatusInternalServerError
+		if message == "Transaction not found" {
+			statusCode = http.StatusNotFound
 		}
-
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+		ctx.JSON(statusCode, lib.ResponseError{
 			Success: false,
-			Message: "Failed to process transaction data",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	productRows, err := config.DB.Query(context.Background(),
-		`SELECT 
-			id,
-			transaction_id,
-			product_id,
-			product_name,
-			product_price,
-			discount_percent,
-			discount_price,
-			size,
-			size_cost,
-			variant,
-			variant_cost,
-			amount,
-			subtotal
-		FROM transaction_items
-		WHERE transaction_id = $1
-		ORDER BY id ASC`, id)
+	// get transaction items
+	transactionItems, message, err := models.GetTransactionItems(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to fetch ordered products from database",
-			Error:   err.Error(),
-		})
-		return
-	}
-	defer productRows.Close()
-
-	transactionItems, err := pgx.CollectRows(productRows, pgx.RowToStructByName[models.TransactionItems])
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to process ordered products data",
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
