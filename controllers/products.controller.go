@@ -284,19 +284,19 @@ func DetailProductAdmin(ctx *gin.Context) {
 // @Param        name               formData  string    true   "Product name"
 // @Param        description        formData  string    true   "Product description"
 // @Param        price              formData  number    true   "Product price"
-// @Param        discountPercent    formData  number    false  "Discount percentage" default(0.00)
-// @Param        rating			    formData  number    false  "Product rating" default(5)
+// @Param        discountPercent    formData  number    true   "Discount percentage" default(0.00)
+// @Param        rating			    formData  number    true   "Product rating" default(5)
 // @Param        stock              formData  int       true   "Product stock"
-// @Param        isFlashSale        formData  bool      false  "Is flash sale"  default(false)
-// @Param        isActive           formData  bool      false  "Is active"  default(true)
-// @Param        isFavourite        formData  bool      false  "Is active"  default(false)
-// @Param        image1             formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
-// @Param        image2             formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
-// @Param        image3             formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
-// @Param        image4             formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
-// @Param        sizeProducts       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
-// @Param        productCategories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
-// @Param        productVariants  	formData  string    false  "Variant Id (comma-separated, e.g., 1,2,3)"
+// @Param        isFlashSale        formData  bool      true   "Is flash sale"  default(false)
+// @Param        isActive           formData  bool      true   "Is active"  default(true)
+// @Param        isFavourite        formData  bool      true   "Is active"  default(false)
+// @Param        image1             formData  file      true   "Product image 1 (JPEG/PNG, max 1MB)"
+// @Param        image2             formData  file      true   "Product image 2 (JPEG/PNG, max 1MB)"
+// @Param        image3             formData  file      true   "Product image 3 (JPEG/PNG, max 1MB)"
+// @Param        image4             formData  file      true   "Product image 4 (JPEG/PNG, max 1MB)"
+// @Param        sizeProducts       formData  string    true   "Size Id (comma-separated, e.g., 1,2,3)"
+// @Param        productCategories  formData  string    true   "Category Id (comma-separated, e.g., 1,2,3)"
+// @Param        productVariants  	formData  string    true   "Variant Id (comma-separated, e.g., 1,2,3)"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.AdminProductResponse}  "Product created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body"
 // @Failure      409  {object}  lib.ResponseError  "Product name already exists"
@@ -612,29 +612,20 @@ func UpdateProduct(ctx *gin.Context) {
 		return
 	}
 
-	_, err = config.DB.Exec(
-		context.Background(),
-		`UPDATE products 
-		 SET name             = COALESCE(NULLIF($1, ''), name),
-		     description      = COALESCE(NULLIF($2, ''), description),
-		     price            = COALESCE($3, price),
-		     discount_percent = COALESCE($4, discount_percent),
-		     stock            = COALESCE($5, stock),
-		     is_flash_sale    = COALESCE($6, is_flash_sale),
-		     is_active        = COALESCE($7, is_active),
-		     updated_by       = $8,
-		     updated_at       = NOW()
-		 WHERE id = $9`,
-		bodyUpdate.Name,
-		bodyUpdate.Description,
-		bodyUpdate.Price,
-		bodyUpdate.DiscountPercent,
-		bodyUpdate.Stock,
-		bodyUpdate.IsFlashSale,
-		bodyUpdate.IsActive,
-		userIdFromToken,
-		id,
-	)
+	// Start transaction
+	tx, err := config.DB.Begin(context.Background())
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to start database transaction",
+			Error:   err.Error(),
+		})
+		return
+	}
+	defer tx.Rollback(context.Background())
+
+	// Update product
+	err = models.UpdateDataProduct(tx, id, &bodyUpdate, userIdFromToken.(int))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -644,6 +635,7 @@ func UpdateProduct(ctx *gin.Context) {
 		return
 	}
 
+	// Process images if any
 	fileImages := map[string]*multipart.FileHeader{
 		"image1": bodyUpdate.Image1,
 		"image2": bodyUpdate.Image2,
@@ -660,11 +652,8 @@ func UpdateProduct(ctx *gin.Context) {
 	}
 
 	if hasFile {
-		_, err = config.DB.Exec(
-			context.Background(),
-			`DELETE FROM product_images WHERE product_id = $1`,
-			id,
-		)
+		// Delete old images
+		err = models.DeleteProductImages(tx, id)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -674,6 +663,7 @@ func UpdateProduct(ctx *gin.Context) {
 			return
 		}
 
+		var savedImagePaths []string
 		for _, file := range fileImages {
 			if file == nil {
 				continue
@@ -688,17 +678,38 @@ func UpdateProduct(ctx *gin.Context) {
 			}
 
 			contentType := file.Header.Get("Content-Type")
-			if contentType != "image/jpeg" && contentType != "image/png" {
+			allowedTypes := map[string]bool{
+				"image/jpeg": true,
+				"image/png":  true,
+			}
+
+			if !allowedTypes[contentType] {
 				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 					Success: false,
-					Message: "Only JPEG and PNG files are allowed",
+					Message: "Invalid file type. Only JPEG and PNG are allowed",
 				})
 				return
 			}
 
-			ext := filepath.Ext(file.Filename)
+			ext := strings.ToLower(filepath.Ext(file.Filename))
+			allowedExt := map[string]bool{
+				".jpg":  true,
+				".jpeg": true,
+				".png":  true,
+			}
+
+			if !allowedExt[ext] {
+				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+					Success: false,
+					Message: "Invalid file extension. Only JPG and PNG are allowed",
+				})
+				return
+			}
+
 			fileName := fmt.Sprintf("product_%d_%d%s", id, time.Now().UnixNano(), ext)
 			savedFilePath := "uploads/products/" + fileName
+
+			os.MkdirAll("uploads/products", 0755)
 
 			if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -709,19 +720,16 @@ func UpdateProduct(ctx *gin.Context) {
 				return
 			}
 
-			_, err = config.DB.Exec(
-				context.Background(),
-				`INSERT INTO product_images (product_image, product_id, created_by, updated_by)
-						 VALUES ($1, $2, $3, $4)`,
-				savedFilePath,
-				id,
-				userIdFromToken,
-				userIdFromToken,
-			)
+			savedImagePaths = append(savedImagePaths, savedFilePath)
+		}
+
+		// Insert new images
+		if len(savedImagePaths) > 0 {
+			err = models.InsertProductImages(tx, id, savedImagePaths, userIdFromToken.(int))
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
-					Message: "Internal server error while inserting product image",
+					Message: "Internal server error while inserting product images",
 					Error:   err.Error(),
 				})
 				return
@@ -729,13 +737,9 @@ func UpdateProduct(ctx *gin.Context) {
 		}
 	}
 
+	// Update sizes
 	if strings.TrimSpace(bodyUpdate.SizeProducts) != "" {
-		sizeProducts := strings.Split(bodyUpdate.SizeProducts, ",")
-		_, err = config.DB.Exec(
-			context.Background(),
-			`DELETE FROM product_sizes WHERE product_id = $1`,
-			id,
-		)
+		err = models.DeleteProductSizes(tx, id)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -745,26 +749,22 @@ func UpdateProduct(ctx *gin.Context) {
 			return
 		}
 
+		sizeProducts := strings.Split(bodyUpdate.SizeProducts, ",")
+		var sizeIds []int
 		for _, sizeIdStr := range sizeProducts {
 			sizeIdStr = strings.TrimSpace(sizeIdStr)
 			if sizeIdStr == "" {
 				continue
 			}
-
 			sizeId, err := strconv.Atoi(sizeIdStr)
 			if err != nil {
 				continue
 			}
+			sizeIds = append(sizeIds, sizeId)
+		}
 
-			_, err = config.DB.Exec(
-				context.Background(),
-				`INSERT INTO product_sizes (product_id, size_id, created_by, updated_by)
-				 VALUES ($1, $2, $3, $4)`,
-				id,
-				sizeId,
-				userIdFromToken,
-				userIdFromToken,
-			)
+		if len(sizeIds) > 0 {
+			err = models.InsertProductSizes(tx, id, sizeIds, userIdFromToken.(int))
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
@@ -776,13 +776,9 @@ func UpdateProduct(ctx *gin.Context) {
 		}
 	}
 
+	// Update categories
 	if strings.TrimSpace(bodyUpdate.ProductCategories) != "" {
-		productCategories := strings.Split(bodyUpdate.ProductCategories, ",")
-		_, err = config.DB.Exec(
-			context.Background(),
-			`DELETE FROM product_categories WHERE product_id = $1`,
-			id,
-		)
+		err = models.DeleteProductCategories(tx, id)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -792,26 +788,22 @@ func UpdateProduct(ctx *gin.Context) {
 			return
 		}
 
+		productCategories := strings.Split(bodyUpdate.ProductCategories, ",")
+		var categoryIds []int
 		for _, categoryIdStr := range productCategories {
 			categoryIdStr = strings.TrimSpace(categoryIdStr)
 			if categoryIdStr == "" {
 				continue
 			}
-
 			categoryId, err := strconv.Atoi(categoryIdStr)
 			if err != nil {
 				continue
 			}
+			categoryIds = append(categoryIds, categoryId)
+		}
 
-			_, err = config.DB.Exec(
-				context.Background(),
-				`INSERT INTO product_categories (product_id, category_id, created_by, updated_by)
-				 VALUES ($1, $2, $3, $4)`,
-				id,
-				categoryId,
-				userIdFromToken,
-				userIdFromToken,
-			)
+		if len(categoryIds) > 0 {
+			err = models.InsertProductCategories(tx, id, categoryIds, userIdFromToken.(int))
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
@@ -823,13 +815,9 @@ func UpdateProduct(ctx *gin.Context) {
 		}
 	}
 
+	// Update variants
 	if strings.TrimSpace(bodyUpdate.ProductVariants) != "" {
-		productVariants := strings.Split(bodyUpdate.ProductVariants, ",")
-		_, err = config.DB.Exec(
-			context.Background(),
-			`DELETE FROM product_variants WHERE product_id = $1`,
-			id,
-		)
+		err = models.DeleteProductVariants(tx, id)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -839,35 +827,42 @@ func UpdateProduct(ctx *gin.Context) {
 			return
 		}
 
-		for _, variantsIdStr := range productVariants {
-			variantsIdStr = strings.TrimSpace(variantsIdStr)
-			if variantsIdStr == "" {
+		productVariants := strings.Split(bodyUpdate.ProductVariants, ",")
+		var variantIds []int
+		for _, variantIdStr := range productVariants {
+			variantIdStr = strings.TrimSpace(variantIdStr)
+			if variantIdStr == "" {
 				continue
 			}
-
-			variantId, err := strconv.Atoi(variantsIdStr)
+			variantId, err := strconv.Atoi(variantIdStr)
 			if err != nil {
 				continue
 			}
+			variantIds = append(variantIds, variantId)
+		}
 
-			_, err = config.DB.Exec(
-				context.Background(),
-				`INSERT INTO product_variants (product_id, variant_id, created_by, updated_by)
-				 VALUES ($1, $2, $3, $4)`,
-				id,
-				variantId,
-				userIdFromToken,
-				userIdFromToken,
-			)
+		if len(variantIds) > 0 {
+			err = models.InsertProductVariants(tx, id, variantIds, userIdFromToken.(int))
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
-					Message: "Internal server error while inserting product category",
+					Message: "Internal server error while inserting product variants",
 					Error:   err.Error(),
 				})
 				return
 			}
 		}
+	}
+
+	// Commit transaction
+	err = tx.Commit(context.Background())
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to commit transaction",
+			Error:   err.Error(),
+		})
+		return
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{

@@ -332,6 +332,71 @@ func InsertProductVariants(tx pgx.Tx, productId int, variantIds []int, userId in
 	return nil
 }
 
+func DeleteProductImages(tx pgx.Tx, productId int) error {
+	_, err := tx.Exec(
+		context.Background(),
+		`DELETE FROM product_images WHERE product_id = $1`,
+		productId,
+	)
+	return err
+}
+
+func DeleteProductSizes(tx pgx.Tx, productId int) error {
+	_, err := tx.Exec(
+		context.Background(),
+		`DELETE FROM product_sizes WHERE product_id = $1`,
+		productId,
+	)
+	return err
+}
+
+func DeleteProductCategories(tx pgx.Tx, productId int) error {
+	_, err := tx.Exec(
+		context.Background(),
+		`DELETE FROM product_categories WHERE product_id = $1`,
+		productId,
+	)
+	return err
+}
+
+func DeleteProductVariants(tx pgx.Tx, productId int) error {
+	_, err := tx.Exec(
+		context.Background(),
+		`DELETE FROM product_variants WHERE product_id = $1`,
+		productId,
+	)
+	return err
+}
+
+func UpdateDataProduct(tx pgx.Tx, productId int, bodyUpdate *ProductRequest, userId int) error {
+	_, err := tx.Exec(
+		context.Background(),
+		`UPDATE products 
+		 SET name             = COALESCE(NULLIF($1, ''), name),
+		     description      = COALESCE(NULLIF($2, ''), description),
+		     price            = COALESCE($3, price),
+		     discount_percent = COALESCE($4, discount_percent),
+		     stock            = COALESCE($5, stock),
+		     is_flash_sale    = COALESCE($6, is_flash_sale),
+		     is_active        = COALESCE($7, is_active),
+		     is_favourite     = COALESCE($8, is_favourite),
+		     updated_by       = $9,
+		     updated_at       = NOW()
+		 WHERE id = $10`,
+		bodyUpdate.Name,
+		bodyUpdate.Description,
+		bodyUpdate.Price,
+		bodyUpdate.DiscountPercent,
+		bodyUpdate.Stock,
+		bodyUpdate.IsFlashSale,
+		bodyUpdate.IsActive,
+		bodyUpdate.IsFavourite,
+		userId,
+		productId,
+	)
+	return err
+}
+
 func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 	var rows pgx.Rows
 	var err error
