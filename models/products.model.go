@@ -397,6 +397,55 @@ func UpdateDataProduct(tx pgx.Tx, productId int, bodyUpdate *ProductRequest, use
 	return err
 }
 
+func DeleteDataProduct(productId int) (bool, string, error) {
+	isSuccess := false
+	message := ""
+
+	ctx := context.Background()
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		message = "Failed to start database transaction"
+		return isSuccess, message, err
+	}
+	defer tx.Rollback(ctx)
+
+	// check if product exists
+	var exists bool
+	err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM products WHERE id = $1)", productId).Scan(&exists)
+	if err != nil {
+		message = "Internal server error while checking product existence"
+		return isSuccess, message, err
+	}
+
+	if !exists {
+		message = "Product not found"
+		return isSuccess, message, nil
+	}
+
+	// delete product (CASCADE will auto delete related data)
+	commandTag, err := tx.Exec(ctx, `DELETE FROM products WHERE id = $1`, productId)
+	if err != nil {
+		message = "Internal server error while deleting product data"
+		return isSuccess, message, err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		message = "Product not found"
+		return isSuccess, message, nil
+	}
+
+	// commit transaction
+	err = tx.Commit(ctx)
+	if err != nil {
+		message = "Failed to commit transaction"
+		return isSuccess, message, err
+	}
+
+	isSuccess = true
+	message = "Product deleted successfully"
+	return isSuccess, message, nil
+}
+
 func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 	var rows pgx.Rows
 	var err error

@@ -896,27 +896,27 @@ func DeleteProduct(ctx *gin.Context) {
 		return
 	}
 
-	commandTag, err := config.DB.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id)
+	isSuccess, message, err := models.DeleteDataProduct(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while deleting product data",
+			Success: isSuccess,
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	if commandTag.RowsAffected() == 0 {
+	if !isSuccess {
 		ctx.JSON(http.StatusNotFound, lib.ResponseError{
 			Success: false,
-			Message: "Product not found",
+			Message: message,
 		})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
-		Message: "Product deleted successfully",
+		Message: message,
 	})
 }
 
