@@ -221,12 +221,11 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, savedFile
 	_, err = tx.Exec(
 		context.Background(),
 		`UPDATE users 
-		 SET email      = COALESCE(NULLIF($2, ''), email),
-		     role       = COALESCE(NULLIF($3, ''), role),
-		     updated_by = $4,
+		 SET email      = COALESCE(NULLIF($1, ''), email),
+		     role       = COALESCE(NULLIF($2, ''), role),
+		     updated_by = $3,
 		     updated_at = NOW()
-		 WHERE id = $5`,
-		bodyUpdate.FullName,
+		 WHERE id = $4`,
 		bodyUpdate.Email,
 		bodyUpdate.Role,
 		userIdFromToken,
