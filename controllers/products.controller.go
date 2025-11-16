@@ -209,7 +209,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 // @Produce        		json
 // @Security       		BearerAuth
 // @Param          		Authorization    header  string  true  "Bearer token"  default(Bearer <token>)
-// @Param          		id   			path    int     true  "product Id"
+// @Param          		id   			 path    int     true  "product Id"
 // @Success        		200  {object}  lib.ResponseSuccess{data=models.AdminProductResponse}  "Successfully retrieved product"
 // @Failure        		400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure        		404  {object}  lib.ResponseError  "Product not found"
