@@ -33,15 +33,15 @@ type ProductRequest struct {
 	Id                int
 	FileImages        []*multipart.FileHeader `form:"fileImages"`
 	ProductImages     []string
-	Name              string   `form:"name"`
-	Description       string   `form:"description"`
+	Name              *string  `form:"name"`
+	Description       *string  `form:"description"`
 	Price             *float64 `form:"price"`
 	DiscountPercent   *float64 `form:"discountPercent"`
 	Rating            *float64 `form:"rating"`
-	IsFlashSale       bool     `form:"isFlashSale"`
+	IsFlashSale       *bool    `form:"isFlashSale"`
 	Stock             *int     `form:"stock"`
-	IsActive          bool     `form:"isActive"`
-	IsFavourite       bool     `form:"isFavourite"`
+	IsActive          *bool    `form:"isActive"`
+	IsFavourite       *bool    `form:"isFavourite"`
 	SizeProducts      string   `form:"sizeProducts"`
 	ProductCategories string   `form:"productCategories"`
 	ProductVariants   string   `form:"productVariants"`
@@ -373,14 +373,14 @@ func UpdateDataProduct(tx pgx.Tx, productId int, bodyUpdate *ProductRequest, use
 	_, err := tx.Exec(
 		context.Background(),
 		`UPDATE products 
-		 SET name             = COALESCE(NULLIF($1, ''), name),
-		     description      = COALESCE(NULLIF($2, ''), description),
-		     price            = COALESCE(NULLIF($3, ''), price),
-		     discount_percent = COALESCE(NULLIF($4, ''), discount_percent),
-		     stock            = COALESCE(NULLIF($5, ''), stock),
-		     is_flash_sale    = COALESCE(NULLIF($6, ''), is_flash_sale),
-		     is_active        = COALESCE(NULLIF($7, ''), is_active),
-		     is_favourite     = COALESCE(NULLIF($8, ''), is_favourite),
+		 SET name             = COALESCE($1, name),
+		     description      = COALESCE($2, description),
+		     price            = COALESCE($3, price),
+		     discount_percent = COALESCE($4, discount_percent),
+		     stock            = COALESCE($5, stock),
+		     is_flash_sale    = COALESCE($6, is_flash_sale),
+		     is_active        = COALESCE($7, is_active),
+		     is_favourite     = COALESCE($8, is_favourite),
 		     updated_by       = $9,
 		     updated_at       = NOW()
 		 WHERE id = $10`,
