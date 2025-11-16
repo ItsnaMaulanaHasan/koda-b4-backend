@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"mime/multipart"
 
 	"github.com/jackc/pgx/v5"
@@ -660,25 +661,25 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 func InvalidateProductCache(ctx context.Context) error {
 	rdb := lib.Redis()
 
-	err := rdb.Del(ctx, "totalDataProducts").Err()
-	if err != nil {
-		fmt.Printf("Failed to delete totalDataProducts: %v\n", err)
+	patterns := []string{
+		"products:total:*",
+		"products:list:*",
+		"products:detail:*",
 	}
 
-	patterns := []string{"/admin/products*", "/products*", "/favourite-products*"}
 	for _, pattern := range patterns {
 		keys, err := rdb.Keys(ctx, pattern).Result()
 		if err != nil {
-			fmt.Printf("Failed to get keys for pattern %s: %v\n", pattern, err)
+			log.Printf("Failed to get keys for pattern %s: %v", pattern, err)
 			continue
 		}
 
 		if len(keys) > 0 {
 			err := rdb.Del(ctx, keys...).Err()
 			if err != nil {
-				fmt.Printf("Failed to delete keys for pattern %s: %v\n", pattern, err)
+				log.Printf("Failed to delete keys for pattern %s: %v", pattern, err)
 			} else {
-				fmt.Printf("Invalidated %d cache keys for pattern %s\n", len(keys), pattern)
+				log.Printf("Invalidated %d cache keys for pattern %s", len(keys), pattern)
 			}
 		}
 	}
