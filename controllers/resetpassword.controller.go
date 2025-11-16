@@ -152,7 +152,7 @@ func VerifyResetToken(ctx *gin.Context) {
 // @Produce      json
 // @Param        email        formData  string  true  "User email"
 // @Param        token        formData  string  true  "6-digit reset token"
-// @Param        new_password formData  string  true  "New password"  format(password)
+// @Param        newPassword formData  string  true  "New password"  format(password)
 // @Success      200  {object}  lib.ResponseSuccess  "Password reset successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password"
 // @Failure      404  {object}  lib.ResponseError  "Invalid or expired token"

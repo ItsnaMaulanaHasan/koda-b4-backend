@@ -28,7 +28,7 @@ type VerifyResetTokenRequest struct {
 type ResetPasswordRequest struct {
 	Email       string `form:"email" json:"email" binding:"required,email"`
 	Token       string `form:"token" json:"token" binding:"required,len=6"`
-	NewPassword string `form:"new_password" json:"newPassword" binding:"required,min=6"`
+	NewPassword string `form:"newPassword" json:"newPassword" binding:"required,min=6"`
 }
 
 func GetUserIdByEmail(email string) (int, string, error) {
