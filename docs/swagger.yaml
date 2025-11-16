@@ -48,16 +48,16 @@ definitions:
         items:
           type: string
         type: array
+      productSizes:
+        items:
+          type: string
+        type: array
       productVariants:
         items:
           type: string
         type: array
       rating:
         type: number
-      sizeProducts:
-        items:
-          type: string
-        type: array
       stock:
         type: integer
     type: object
@@ -262,16 +262,16 @@ definitions:
         items:
           type: string
         type: array
+      productSizes:
+        items:
+          type: string
+        type: array
       productVariants:
         items:
           type: string
         type: array
       rating:
         type: number
-      sizeProducts:
-        items:
-          type: string
-        type: array
       stock:
         type: integer
     type: object
@@ -410,11 +410,11 @@ definitions:
         type: string
       email:
         type: string
-      firstName:
+      fullName:
         type: string
       id:
         type: integer
-      phoneNumber:
+      phone:
         type: string
       profilePhoto:
         type: string
@@ -813,25 +813,9 @@ paths:
         name: isFavourite
         required: true
         type: boolean
-      - description: Product image 1 (JPEG/PNG, max 1MB)
+      - description: Product images (4 files required, JPEG/PNG, max 1MB each)
         in: formData
-        name: image1
-        required: true
-        type: file
-      - description: Product image 2 (JPEG/PNG, max 1MB)
-        in: formData
-        name: image2
-        required: true
-        type: file
-      - description: Product image 3 (JPEG/PNG, max 1MB)
-        in: formData
-        name: image3
-        required: true
-        type: file
-      - description: Product image 4 (JPEG/PNG, max 1MB)
-        in: formData
-        name: image4
-        required: true
+        name: fileImages
         type: file
       - description: Size Id (comma-separated, e.g., 1,2,3)
         in: formData
@@ -1011,21 +995,9 @@ paths:
         in: formData
         name: isFavourite
         type: boolean
-      - description: Product image 1 (JPEG/PNG, max 1MB)
+      - description: Product images (up to 4 files, JPEG/PNG, max 1MB each)
         in: formData
-        name: image1
-        type: file
-      - description: Product image 2 (JPEG/PNG, max 1MB)
-        in: formData
-        name: image2
-        type: file
-      - description: Product image 3 (JPEG/PNG, max 1MB)
-        in: formData
-        name: image3
-        type: file
-      - description: Product image 4 (JPEG/PNG, max 1MB)
-        in: formData
-        name: image4
+        name: fileImages
         type: file
       - description: Size Id (comma-separated, e.g., 1,2,3)
         in: formData
@@ -1593,7 +1565,7 @@ paths:
         type: string
       - description: Profile photo (JPEG/PNG, max 3MB)
         in: formData
-        name: profilePhoto
+        name: filePhoto
         type: file
       produces:
       - application/json
@@ -1752,7 +1724,7 @@ paths:
         type: string
       - description: Profile photo (JPEG/PNG, max 3MB)
         in: formData
-        name: profilePhoto
+        name: filePhoto
         type: file
       produces:
       - application/json

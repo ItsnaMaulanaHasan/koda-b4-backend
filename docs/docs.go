@@ -607,31 +607,9 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Product image 1 (JPEG/PNG, max 1MB)",
-                        "name": "image1",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "file",
-                        "description": "Product image 2 (JPEG/PNG, max 1MB)",
-                        "name": "image2",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "file",
-                        "description": "Product image 3 (JPEG/PNG, max 1MB)",
-                        "name": "image3",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "file",
-                        "description": "Product image 4 (JPEG/PNG, max 1MB)",
-                        "name": "image4",
-                        "in": "formData",
-                        "required": true
+                        "description": "Product images (4 files required, JPEG/PNG, max 1MB each)",
+                        "name": "fileImages",
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -913,26 +891,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "Product image 1 (JPEG/PNG, max 1MB)",
-                        "name": "image1",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Product image 2 (JPEG/PNG, max 1MB)",
-                        "name": "image2",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Product image 3 (JPEG/PNG, max 1MB)",
-                        "name": "image3",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Product image 4 (JPEG/PNG, max 1MB)",
-                        "name": "image4",
+                        "description": "Product images (up to 4 files, JPEG/PNG, max 1MB each)",
+                        "name": "fileImages",
                         "in": "formData"
                     },
                     {
@@ -1803,7 +1763,7 @@ const docTemplate = `{
                     {
                         "type": "file",
                         "description": "Profile photo (JPEG/PNG, max 3MB)",
-                        "name": "profilePhoto",
+                        "name": "filePhoto",
                         "in": "formData"
                     }
                 ],
@@ -2054,7 +2014,7 @@ const docTemplate = `{
                     {
                         "type": "file",
                         "description": "Profile photo (JPEG/PNG, max 3MB)",
-                        "name": "profilePhoto",
+                        "name": "filePhoto",
                         "in": "formData"
                     }
                 ],
@@ -3605,6 +3565,12 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "productSizes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "productVariants": {
                     "type": "array",
                     "items": {
@@ -3613,12 +3579,6 @@ const docTemplate = `{
                 },
                 "rating": {
                     "type": "number"
-                },
-                "sizeProducts": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 },
                 "stock": {
                     "type": "integer"
@@ -3931,6 +3891,12 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "productSizes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "productVariants": {
                     "type": "array",
                     "items": {
@@ -3939,12 +3905,6 @@ const docTemplate = `{
                 },
                 "rating": {
                     "type": "number"
-                },
-                "sizeProducts": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 },
                 "stock": {
                     "type": "integer"
@@ -4156,13 +4116,13 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
-                "firstName": {
+                "fullName": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
-                "phoneNumber": {
+                "phone": {
                     "type": "string"
                 },
                 "profilePhoto": {
