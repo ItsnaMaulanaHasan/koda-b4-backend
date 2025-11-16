@@ -80,7 +80,7 @@ func ListTransactions(ctx *gin.Context) {
 
 	// get total page
 	totalPage := (totalData + limit - 1) / limit
-	if page > totalPage && totalData > 0 {
+	if page > totalPage {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
 			Message: "Page is out of range",
@@ -201,7 +201,7 @@ func DetailTransactions(ctx *gin.Context) {
 // @Security     BearerAuth
 // @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
 // @Param        id             path      int     true  "Transaction Id"
-// @Param        status         formData  string  true  "Transaction status (On Progress, Sending, Finished, Cancelled)"
+// @Param        statusId       formData  string  true  "Transaction status (1(On Progess), 2(Sending Goods), 3(Finish Order))"
 // @Success      200  {object}  lib.ResponseSuccess  "Transaction status updated successfully"
 // @Failure      400  {object}  lib.ResponseError   "Invalid Id format or invalid request body"
 // @Failure      404  {object}  lib.ResponseError   "Transaction not found"
@@ -218,7 +218,7 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 		return
 	}
 
-	statusId := ctx.PostForm("status_id")
+	statusId := ctx.PostForm("statusId")
 	if statusId == "" {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
