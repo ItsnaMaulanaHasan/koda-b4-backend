@@ -64,8 +64,10 @@ func ListProductsAdmin(ctx *gin.Context) {
 
 	var totalData int
 	var err error
+	rdb := lib.Redis()
 
-	cacheTotalDataProducts, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
+	// redis for total products
+	cacheTotalDataProducts, _ := rdb.Get(context.Background(), "totalDataProducts").Result()
 	if cacheTotalDataProducts == "" {
 		totalData, err = models.TotalDataProducts(search)
 		if err != nil {
@@ -76,7 +78,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 			})
 			return
 		}
-		err = lib.Redis().Set(context.Background(), "totalDataProducts", totalData, 15*time.Minute).Err()
+		err = rdb.Set(context.Background(), "totalDataProducts", totalData, 15*time.Minute).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -97,8 +99,9 @@ func ListProductsAdmin(ctx *gin.Context) {
 		}
 	}
 
+	// redis for list products
 	var products []models.AdminProductResponse
-	cacheListAllProducts, _ := lib.Redis().Get(context.Background(), ctx.Request.RequestURI).Result()
+	cacheListAllProducts, _ := rdb.Get(context.Background(), ctx.Request.RequestURI).Result()
 	if cacheListAllProducts == "" {
 		products, err = models.GetListProductsAdmin(search, page, limit)
 		if err != nil {
@@ -120,7 +123,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 			return
 		}
 
-		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, productsStr, 15*time.Minute).Err()
+		err = rdb.Set(context.Background(), ctx.Request.RequestURI, productsStr, 15*time.Minute).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -150,6 +153,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 		return
 	}
 
+	// hateoas
 	host := ctx.Request.Host
 	scheme := "http"
 	if ctx.Request.TLS != nil {
@@ -218,8 +222,11 @@ func DetailProductAdmin(ctx *gin.Context) {
 		return
 	}
 
+	rdb := lib.Redis()
+
+	// redis for detail product
 	var product models.AdminProductResponse
-	cache, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
+	cache, _ := rdb.Get(context.Background(), ctx.Request.RequestURI).Result()
 	if cache == "" {
 		product, message, err := models.GetDetailProductAdmin(id)
 		if err != nil {
@@ -245,7 +252,7 @@ func DetailProductAdmin(ctx *gin.Context) {
 			return
 		}
 
-		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, productStr, 60*time.Second).Err()
+		err = rdb.Set(context.Background(), ctx.Request.RequestURI, productStr, 60*time.Second).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -314,6 +321,7 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
+	// check product with name from body is already exist
 	exists, err := models.CheckProductName(bodyCreate.Name)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -331,6 +339,7 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
+	// get user id from token
 	userIdFromToken, exists := ctx.Get("userId")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
@@ -478,7 +487,7 @@ func CreateProduct(ctx *gin.Context) {
 
 	// Insert categories
 	if strings.TrimSpace(bodyCreate.ProductCategories) != "" {
-		productCategories := strings.Split(bodyCreate.ProductCategories, ",") // ✅ Perbaiki dari SplitSeq
+		productCategories := strings.Split(bodyCreate.ProductCategories, ",")
 		var categoryIds []int
 		for _, categoryIdStr := range productCategories {
 			categoryIdStr = strings.TrimSpace(categoryIdStr)
@@ -545,6 +554,10 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
+	if err := models.InvalidateProductCache(context.Background()); err != nil {
+		fmt.Printf("Warning: Failed to invalidate cache: %v\n", err)
+	}
+
 	ctx.JSON(http.StatusCreated, lib.ResponseSuccess{
 		Success: true,
 		Message: "Product created successfully",
@@ -603,6 +616,7 @@ func UpdateProduct(ctx *gin.Context) {
 		return
 	}
 
+	// get user id from token
 	userIdFromToken, exists := ctx.Get("userId")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
@@ -865,6 +879,10 @@ func UpdateProduct(ctx *gin.Context) {
 		return
 	}
 
+	if err := models.InvalidateProductCache(context.Background()); err != nil {
+		fmt.Printf("Warning: Failed to invalidate cache: %v\n", err)
+	}
+
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
 		Message: "Product updated successfully",
@@ -896,6 +914,7 @@ func DeleteProduct(ctx *gin.Context) {
 		return
 	}
 
+	// delete data product by id
 	isSuccess, message, err := models.DeleteDataProduct(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -912,6 +931,11 @@ func DeleteProduct(ctx *gin.Context) {
 			Message: message,
 		})
 		return
+	}
+
+	err = models.InvalidateProductCache(context.Background())
+	if err != nil {
+		fmt.Printf("Warning: Failed to invalidate cache: %v\n", err)
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
@@ -951,7 +975,10 @@ func ListFavouriteProducts(ctx *gin.Context) {
 
 	var err error
 	var products []models.PublicProductResponse
-	cacheListFavouriteProducts, _ := lib.Redis().Get(context.Background(), ctx.Request.RequestURI).Result()
+	rdb := lib.Redis()
+
+	// redis for list favourite products
+	cacheListFavouriteProducts, _ := rdb.Get(context.Background(), ctx.Request.RequestURI).Result()
 	if cacheListFavouriteProducts == "" {
 		products, err = models.GetListFavouriteProducts(limit)
 		if err != nil {
@@ -973,7 +1000,7 @@ func ListFavouriteProducts(ctx *gin.Context) {
 			return
 		}
 
-		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, productsStr, 15*time.Minute).Err()
+		err = rdb.Set(context.Background(), ctx.Request.RequestURI, productsStr, 15*time.Minute).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -1074,8 +1101,10 @@ func ListProductsPublic(ctx *gin.Context) {
 
 	var totalData int
 	var err error
+	rdb := lib.Redis()
 
-	cacheTotalDataProducts, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
+	// redis for total data products
+	cacheTotalDataProducts, _ := rdb.Get(context.Background(), "totalDataProducts").Result()
 	if cacheTotalDataProducts == "" {
 		totalData, err = models.TotalDataProducts(search)
 		if err != nil {
@@ -1086,7 +1115,7 @@ func ListProductsPublic(ctx *gin.Context) {
 			})
 			return
 		}
-		err = lib.Redis().Set(context.Background(), "totalDataProducts", totalData, 15*time.Minute).Err()
+		err = rdb.Set(context.Background(), "totalDataProducts", totalData, 15*time.Minute).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -1107,8 +1136,9 @@ func ListProductsPublic(ctx *gin.Context) {
 		}
 	}
 
+	// redis for list products
 	var products []models.PublicProductResponse
-	cacheListAllProducts, _ := lib.Redis().Get(context.Background(), ctx.Request.RequestURI).Result()
+	cacheListAllProducts, _ := rdb.Get(context.Background(), ctx.Request.RequestURI).Result()
 	if cacheListAllProducts == "" {
 		products, err = models.GetListProductsPublic(search, cat, sortField, maxPrice, minPrice, limit, page)
 		if err != nil {
@@ -1130,7 +1160,7 @@ func ListProductsPublic(ctx *gin.Context) {
 			return
 		}
 
-		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, productsStr, 15*time.Minute).Err()
+		err = rdb.Set(context.Background(), ctx.Request.RequestURI, productsStr, 15*time.Minute).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -1226,8 +1256,11 @@ func DetailProductPublic(ctx *gin.Context) {
 		return
 	}
 
+	rdb := lib.Redis()
+
+	// redis for detail product
 	var product models.PublicProductDetailResponse
-	cache, _ := lib.Redis().Get(context.Background(), "totalDataProduct").Result()
+	cache, _ := rdb.Get(context.Background(), ctx.Request.RequestURI).Result()
 	if cache == "" {
 		product, message, err := models.GetDetailProductPublic(id)
 		if err != nil {
@@ -1253,7 +1286,7 @@ func DetailProductPublic(ctx *gin.Context) {
 			return
 		}
 
-		err = lib.Redis().Set(context.Background(), ctx.Request.RequestURI, productStr, 60*time.Second).Err()
+		err = rdb.Set(context.Background(), ctx.Request.RequestURI, productStr, 60*time.Second).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
