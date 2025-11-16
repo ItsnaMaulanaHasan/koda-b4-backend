@@ -92,3 +92,56 @@ func GetProductImageById(imageId int) (ProductImage, string, error) {
 	message = "Success get product image"
 	return image, message, nil
 }
+
+func InsertProductImage(productId int, imagePath string, isPrimary bool, userId int) (int, string, error) {
+	var imageId int
+	message := ""
+
+	ctx := context.Background()
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		message = "Failed to start database transaction"
+		return imageId, message, err
+	}
+	defer tx.Rollback(ctx)
+
+	// If this image is primary, set all other images to non-primary
+	if isPrimary {
+		_, err = tx.Exec(
+			ctx,
+			`UPDATE product_images 
+			 SET is_primary = false 
+			 WHERE product_id = $1`,
+			productId,
+		)
+		if err != nil {
+			message = "Internal server error while updating other images"
+			return imageId, message, err
+		}
+	}
+
+	err = tx.QueryRow(
+		ctx,
+		`INSERT INTO product_images (product_image, product_id, is_primary, created_by, updated_by)
+		 VALUES ($1, $2, $3, $4, $5)
+		 RETURNING id`,
+		imagePath,
+		productId,
+		isPrimary,
+		userId,
+		userId,
+	).Scan(&imageId)
+	if err != nil {
+		message = "Internal server error while inserting product image"
+		return imageId, message, err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		message = "Failed to commit transaction"
+		return imageId, message, err
+	}
+
+	message = "Product image created successfully"
+	return imageId, message, nil
+}
