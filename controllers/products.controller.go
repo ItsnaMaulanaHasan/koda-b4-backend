@@ -66,8 +66,10 @@ func ListProductsAdmin(ctx *gin.Context) {
 	var err error
 	rdb := lib.Redis()
 
+	totalCacheKey := fmt.Sprintf("products:total:search:%s", search)
+
 	// redis for total products
-	cacheTotalDataProducts, _ := rdb.Get(context.Background(), "totalDataProducts").Result()
+	cacheTotalDataProducts, _ := rdb.Get(context.Background(), totalCacheKey).Result()
 	if cacheTotalDataProducts == "" {
 		totalData, err = models.TotalDataProducts(search)
 		if err != nil {
@@ -99,9 +101,11 @@ func ListProductsAdmin(ctx *gin.Context) {
 		}
 	}
 
+	listCacheKey := fmt.Sprintf("products:list:page:%d:limit:%d:search:%s", page, limit, search)
+
 	// redis for list products
 	var products []models.AdminProductResponse
-	cacheListAllProducts, _ := rdb.Get(context.Background(), ctx.Request.RequestURI).Result()
+	cacheListAllProducts, _ := rdb.Get(context.Background(), listCacheKey).Result()
 	if cacheListAllProducts == "" {
 		products, err = models.GetListProductsAdmin(search, page, limit)
 		if err != nil {
