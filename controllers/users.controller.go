@@ -445,7 +445,11 @@ func UpdateUser(ctx *gin.Context) {
 	// insert data user
 	isSuccess, message, err := models.UpdateDataUser(id, userId.(int), &bodyUpdate, savedFilePath)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+		statusHttp := http.StatusInternalServerError
+		if message == "user not found" {
+			statusHttp = http.StatusNotFound
+		}
+		ctx.JSON(statusHttp, lib.ResponseError{
 			Success: isSuccess,
 			Message: message,
 			Error:   err.Error(),

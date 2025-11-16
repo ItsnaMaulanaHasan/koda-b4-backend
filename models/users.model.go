@@ -218,7 +218,7 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, savedFile
 	}
 	defer tx.Rollback(ctx)
 
-	_, err = tx.Exec(
+	commandTag, err := tx.Exec(
 		context.Background(),
 		`UPDATE users 
 		 SET email      = COALESCE(NULLIF($1, ''), email),
@@ -234,6 +234,11 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, savedFile
 	if err != nil {
 		message = "Internal server error while updating user table"
 		return isSuccess, message, err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		message = "user not found"
+		return isSuccess, message, errors.New(message)
 	}
 
 	_, err = tx.Exec(
