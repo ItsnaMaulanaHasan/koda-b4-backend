@@ -33,7 +33,7 @@ type TransactionDetail struct {
 	AdminFee         float64            `json:"adminFee" db:"admin_fee"`
 	Tax              float64            `json:"tax" db:"tax"`
 	TotalTransaction float64            `json:"totalTransaction" db:"total_transaction"`
-	TransactionItems []TransactionItems `json:"transactionItems"`
+	TransactionItems []TransactionItems `json:"transactionItems" db:"-"`
 }
 
 type TransactionItems struct {
