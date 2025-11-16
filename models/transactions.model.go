@@ -96,24 +96,26 @@ func GetListAllTransactions(page int, limit int, search string) ([]Transaction, 
 	if search != "" {
 		rows, err = config.DB.Query(context.Background(),
 			`SELECT 
-				id,
-				no_invoice,
-				date_transaction,
-				status,
-				total_transaction
-			FROM transactions
-			WHERE no_invoice ILIKE $3
+				t.id,
+				t.no_invoice,
+				t.date_transaction,
+				s.name AS status,
+				t.total_transaction
+			FROM transactions t
+			JOIN status s ON t.status_id = s.id
+ 			WHERE t.no_invoice ILIKE $3
 			ORDER BY date_transaction DESC, id DESC
 			LIMIT $1 OFFSET $2`, limit, offset, "%"+search+"%")
 	} else {
 		rows, err = config.DB.Query(context.Background(),
 			`SELECT 
-				id,
-				no_invoice,
-				date_transaction,
-				status,
-				total_transaction
-			FROM transactions
+				t.id,
+				t.no_invoice,
+				t.date_transaction,
+				s.name AS status,
+				t.total_transaction
+			FROM transactions t
+			JOIN status s ON t.status_id = s.id
 			ORDER BY date_transaction DESC, id DESC
 			LIMIT $1 OFFSET $2`, limit, offset)
 	}
