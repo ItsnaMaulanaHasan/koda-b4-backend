@@ -357,10 +357,7 @@ func DetailProductAdmin(ctx *gin.Context) {
 // @Param        isFlashSale        formData  bool      true   "Is flash sale"  default(false)
 // @Param        isActive           formData  bool      true   "Is active"  default(true)
 // @Param        isFavourite        formData  bool      true   "Is active"  default(false)
-// @Param        image1             formData  file      true   "Product image 1 (JPEG/PNG, max 1MB)"
-// @Param        image2             formData  file      true   "Product image 2 (JPEG/PNG, max 1MB)"
-// @Param        image3             formData  file      true   "Product image 3 (JPEG/PNG, max 1MB)"
-// @Param        image4             formData  file      true   "Product image 4 (JPEG/PNG, max 1MB)"
+// @Param        fileImages         formData  file      true   "Product images (4 files required, JPEG/PNG, max 1MB each)"
 // @Param        sizeProducts       formData  string    true   "Size Id (comma-separated, e.g., 1,2,3)"
 // @Param        productCategories  formData  string    true   "Category Id (comma-separated, e.g., 1,2,3)"
 // @Param        productVariants  	formData  string    true   "Variant Id (comma-separated, e.g., 1,2,3)"
@@ -379,6 +376,71 @@ func CreateProduct(ctx *gin.Context) {
 			Error:   err.Error(),
 		})
 		return
+	}
+
+	// get uploaded files
+	form, err := ctx.MultipartForm()
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Failed to parse multipart form",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	files := form.File["images"]
+
+	// validate amount of uploaded images
+	if len(files) != 4 {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: fmt.Sprintf("Exactly 4 images are required, but got %d", len(files)),
+		})
+		return
+	}
+
+	// Validate each file
+	allowedTypes := map[string]bool{
+		"image/jpg":  true,
+		"image/jpeg": true,
+		"image/png":  true,
+	}
+	allowedExt := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+	}
+
+	for i, file := range files {
+		// check file size
+		if file.Size > 1<<20 {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: fmt.Sprintf("Image %d size must be less than 1MB (got %.2f MB)", i+1, float64(file.Size)/(1<<20)),
+			})
+			return
+		}
+
+		// check content type
+		contentType := file.Header.Get("Content-Type")
+		if !allowedTypes[contentType] {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: fmt.Sprintf("Image %d has invalid type. Only JPEG and PNG are allowed", i+1),
+			})
+			return
+		}
+
+		// check file extension
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		if !allowedExt[ext] {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: fmt.Sprintf("Image %d has invalid extension. Only JPG and PNG are allowed", i+1),
+			})
+			return
+		}
 	}
 
 	// check product with name from body is already exist
@@ -433,67 +495,24 @@ func CreateProduct(ctx *gin.Context) {
 	}
 
 	// Process and save images
-	fileImages := map[string]*multipart.FileHeader{
-		"image1": bodyCreate.Image1,
-		"image2": bodyCreate.Image2,
-		"image3": bodyCreate.Image3,
-		"image4": bodyCreate.Image4,
-	}
-
 	var savedImagePaths []string
+	uploadDir := "uploads/products"
+	os.MkdirAll(uploadDir, 0755)
 
-	for _, file := range fileImages {
-		if file == nil {
-			continue
-		}
-
-		if file.Size > 1<<20 {
-			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-				Success: false,
-				Message: "Each file size must be less than 1MB",
-			})
-			return
-		}
-
-		contentType := file.Header.Get("Content-Type")
-		allowedTypes := map[string]bool{
-			"image/jpeg": true,
-			"image/png":  true,
-		}
-
-		if !allowedTypes[contentType] {
-			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-				Success: false,
-				Message: "Invalid file type. Only JPEG and PNG are allowed",
-			})
-			return
-		}
-
+	for i, file := range files {
 		ext := strings.ToLower(filepath.Ext(file.Filename))
-		allowedExt := map[string]bool{
-			".jpg":  true,
-			".jpeg": true,
-			".png":  true,
-		}
-
-		if !allowedExt[ext] {
-			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-				Success: false,
-				Message: "Invalid file extension. Only JPG and PNG are allowed",
-			})
-			return
-		}
-
-		fileName := fmt.Sprintf("product_%d_%d%s", bodyCreate.Id, time.Now().UnixNano(), ext)
-		savedFilePath := "uploads/products/" + fileName
-
-		os.MkdirAll("uploads/products", 0755)
+		fileName := fmt.Sprintf("product_%d_img%d_%d%s", bodyCreate.Id, i+1, time.Now().UnixNano(), ext)
+		savedFilePath := filepath.Join(uploadDir, fileName)
 
 		err := ctx.SaveUploadedFile(file, savedFilePath)
 		if err != nil {
+			// clean up already saved files
+			for _, path := range savedImagePaths {
+				os.Remove(path)
+			}
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
-				Message: "Failed to save uploaded file",
+				Message: fmt.Sprintf("Failed to save image %d", i+1),
 				Error:   err.Error(),
 			})
 			return
@@ -642,10 +661,7 @@ func CreateProduct(ctx *gin.Context) {
 // @Param        isFlashSale        formData  bool      false  "Is flash sale"
 // @Param        isActive           formData  bool      false  "Is active"
 // @Param        isFavourite        formData  bool      false  "Is favourite"
-// @Param        image1             formData  file      false  "Product image 1 (JPEG/PNG, max 1MB)"
-// @Param        image2             formData  file      false  "Product image 2 (JPEG/PNG, max 1MB)"
-// @Param        image3             formData  file      false  "Product image 3 (JPEG/PNG, max 1MB)"
-// @Param        image4             formData  file      false  "Product image 4 (JPEG/PNG, max 1MB)"
+// @Param        fileImages         formData  file      false  "Product images (up to 4 files, JPEG/PNG, max 1MB each)"
 // @Param        sizeProducts       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
 // @Param        productCategories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
 // @Param        productVariants    formData  string    false  "Variant Id (comma-separated, e.g., 1,2,3)"
@@ -686,7 +702,69 @@ func UpdateProduct(ctx *gin.Context) {
 		return
 	}
 
-	// Start transaction
+	// get uploaded files (if any)
+	form, err := ctx.MultipartForm()
+	var files []*multipart.FileHeader
+	if err == nil && form != nil {
+		files = form.File["images"]
+	}
+
+	// validate files if uploaded
+	if len(files) > 0 {
+		// validate maximum 4 images
+		if len(files) > 4 {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: fmt.Sprintf("Maximum 4 images allowed, but got %d", len(files)),
+			})
+			return
+		}
+
+		// validate each file
+		allowedTypes := map[string]bool{
+			"image/jpg":  true,
+			"image/jpeg": true,
+			"image/png":  true,
+		}
+		allowedExt := map[string]bool{
+			".jpg":  true,
+			".jpeg": true,
+			".png":  true,
+		}
+
+		for i, file := range files {
+			// check file size
+			if file.Size > 1<<20 {
+				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+					Success: false,
+					Message: fmt.Sprintf("Image %d size must be less than 1MB (got %.2f MB)", i+1, float64(file.Size)/(1<<20)),
+				})
+				return
+			}
+
+			// check content type
+			contentType := file.Header.Get("Content-Type")
+			if !allowedTypes[contentType] {
+				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+					Success: false,
+					Message: fmt.Sprintf("Image %d has invalid type. Only JPEG and PNG are allowed", i+1),
+				})
+				return
+			}
+
+			// check file extension
+			ext := strings.ToLower(filepath.Ext(file.Filename))
+			if !allowedExt[ext] {
+				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+					Success: false,
+					Message: fmt.Sprintf("Image %d has invalid extension. Only JPG and PNG are allowed", i+1),
+				})
+				return
+			}
+		}
+	}
+
+	// start transaction
 	tx, err := config.DB.Begin(context.Background())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -698,7 +776,7 @@ func UpdateProduct(ctx *gin.Context) {
 	}
 	defer tx.Rollback(context.Background())
 
-	// Update product
+	// update product
 	err = models.UpdateDataProduct(tx, id, &bodyUpdate, userIdFromToken.(int))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -709,24 +787,8 @@ func UpdateProduct(ctx *gin.Context) {
 		return
 	}
 
-	// Process images if any
-	fileImages := map[string]*multipart.FileHeader{
-		"image1": bodyUpdate.Image1,
-		"image2": bodyUpdate.Image2,
-		"image3": bodyUpdate.Image3,
-		"image4": bodyUpdate.Image4,
-	}
-
-	hasFile := false
-	for _, file := range fileImages {
-		if file != nil {
-			hasFile = true
-			break
-		}
-	}
-
-	if hasFile {
-		// Delete old images
+	if len(files) > 0 {
+		// delete old images from database
 		err = models.DeleteProductImages(tx, id)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -737,58 +799,25 @@ func UpdateProduct(ctx *gin.Context) {
 			return
 		}
 
+		// process and save new images
 		var savedImagePaths []string
-		for _, file := range fileImages {
-			if file == nil {
-				continue
-			}
+		uploadDir := "uploads/products"
+		os.MkdirAll(uploadDir, 0755)
 
-			if file.Size > 1<<20 {
-				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-					Success: false,
-					Message: "Each file size must be less than 1MB",
-				})
-				return
-			}
-
-			contentType := file.Header.Get("Content-Type")
-			allowedTypes := map[string]bool{
-				"image/jpeg": true,
-				"image/png":  true,
-			}
-
-			if !allowedTypes[contentType] {
-				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-					Success: false,
-					Message: "Invalid file type. Only JPEG and PNG are allowed",
-				})
-				return
-			}
-
+		for i, file := range files {
 			ext := strings.ToLower(filepath.Ext(file.Filename))
-			allowedExt := map[string]bool{
-				".jpg":  true,
-				".jpeg": true,
-				".png":  true,
-			}
+			fileName := fmt.Sprintf("product_%d_img%d_%d%s", id, i+1, time.Now().UnixNano(), ext)
+			savedFilePath := filepath.Join(uploadDir, fileName)
 
-			if !allowedExt[ext] {
-				ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-					Success: false,
-					Message: "Invalid file extension. Only JPG and PNG are allowed",
-				})
-				return
-			}
-
-			fileName := fmt.Sprintf("product_%d_%d%s", id, time.Now().UnixNano(), ext)
-			savedFilePath := "uploads/products/" + fileName
-
-			os.MkdirAll("uploads/products", 0755)
-
-			if err := ctx.SaveUploadedFile(file, savedFilePath); err != nil {
+			err := ctx.SaveUploadedFile(file, savedFilePath)
+			if err != nil {
+				// clean up already saved files
+				for _, path := range savedImagePaths {
+					os.Remove(path)
+				}
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
-					Message: "Failed to save uploaded file",
+					Message: fmt.Sprintf("Failed to save image %d", i+1),
 					Error:   err.Error(),
 				})
 				return
@@ -797,10 +826,14 @@ func UpdateProduct(ctx *gin.Context) {
 			savedImagePaths = append(savedImagePaths, savedFilePath)
 		}
 
-		// Insert new images
+		// insert new images
 		if len(savedImagePaths) > 0 {
 			err = models.InsertProductImages(tx, id, savedImagePaths, userIdFromToken.(int))
 			if err != nil {
+				// clean up saved files on error
+				for _, path := range savedImagePaths {
+					os.Remove(path)
+				}
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
 					Message: "Internal server error while inserting product images",
@@ -811,7 +844,7 @@ func UpdateProduct(ctx *gin.Context) {
 		}
 	}
 
-	// Update sizes
+	// update sizes
 	if strings.TrimSpace(bodyUpdate.SizeProducts) != "" {
 		err = models.DeleteProductSizes(tx, id)
 		if err != nil {
@@ -850,7 +883,7 @@ func UpdateProduct(ctx *gin.Context) {
 		}
 	}
 
-	// Update categories
+	// update categories
 	if strings.TrimSpace(bodyUpdate.ProductCategories) != "" {
 		err = models.DeleteProductCategories(tx, id)
 		if err != nil {
@@ -889,7 +922,7 @@ func UpdateProduct(ctx *gin.Context) {
 		}
 	}
 
-	// Update variants
+	// update variants
 	if strings.TrimSpace(bodyUpdate.ProductVariants) != "" {
 		err = models.DeleteProductVariants(tx, id)
 		if err != nil {
@@ -928,7 +961,7 @@ func UpdateProduct(ctx *gin.Context) {
 		}
 	}
 
-	// Commit transaction
+	// commit transaction
 	err = tx.Commit(context.Background())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{

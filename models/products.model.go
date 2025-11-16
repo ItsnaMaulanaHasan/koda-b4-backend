@@ -31,10 +31,7 @@ type AdminProductResponse struct {
 
 type ProductRequest struct {
 	Id                int
-	Image1            *multipart.FileHeader `form:"image1"`
-	Image2            *multipart.FileHeader `form:"image2"`
-	Image3            *multipart.FileHeader `form:"image3"`
-	Image4            *multipart.FileHeader `form:"image4"`
+	FileImages        []*multipart.FileHeader `form:"fileImages"`
 	ProductImages     []string
 	Name              string   `form:"name"`
 	Description       string   `form:"description"`
