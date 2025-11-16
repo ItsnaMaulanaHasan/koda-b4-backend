@@ -444,7 +444,7 @@ func CreateProduct(ctx *gin.Context) {
 	}
 
 	// check product with name from body is already exist
-	exists, err := models.CheckProductName(*bodyCreate.Name)
+	exists, err := models.CheckProductName(bodyCreate.Name)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,

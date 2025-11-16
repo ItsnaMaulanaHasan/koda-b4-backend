@@ -33,8 +33,8 @@ type ProductRequest struct {
 	Id                int
 	FileImages        []*multipart.FileHeader `form:"fileImages"`
 	ProductImages     []string
-	Name              *string  `form:"name"`
-	Description       *string  `form:"description"`
+	Name              string   `form:"name"`
+	Description       string   `form:"description"`
 	Price             *float64 `form:"price"`
 	DiscountPercent   *float64 `form:"discountPercent"`
 	Rating            *float64 `form:"rating"`
@@ -370,32 +370,81 @@ func DeleteProductVariants(tx pgx.Tx, productId int) error {
 }
 
 func UpdateDataProduct(tx pgx.Tx, productId int, bodyUpdate *ProductRequest, userId int) error {
-	_, err := tx.Exec(
-		context.Background(),
-		`UPDATE products 
-		 SET name             = COALESCE($1, name),
-		     description      = COALESCE($2, description),
-		     price            = COALESCE($3, price),
-		     discount_percent = COALESCE($4, discount_percent),
-		     stock            = COALESCE($5, stock),
-		     is_flash_sale    = COALESCE($6, is_flash_sale),
-		     is_active        = COALESCE($7, is_active),
-		     is_favourite     = COALESCE($8, is_favourite),
-		     updated_by       = $9,
-		     updated_at       = NOW()
-		 WHERE id = $10`,
-		bodyUpdate.Name,
-		bodyUpdate.Description,
-		bodyUpdate.Price,
-		bodyUpdate.DiscountPercent,
-		bodyUpdate.Stock,
-		bodyUpdate.IsFlashSale,
-		bodyUpdate.IsActive,
-		bodyUpdate.IsFavourite,
-		userId,
-		productId,
-	)
-	return err
+	query := `UPDATE products SET updated_by = $1, updated_at = NOW()`
+	args := []any{userId}
+	argIndex := 2
+
+	if bodyUpdate.Name != "" {
+		query += fmt.Sprintf(", name = $%d", argIndex)
+		args = append(args, bodyUpdate.Name)
+		argIndex++
+	}
+
+	if bodyUpdate.Description != "" {
+		query += fmt.Sprintf(", description = $%d", argIndex)
+		args = append(args, bodyUpdate.Description)
+		argIndex++
+	}
+
+	if bodyUpdate.Price != nil {
+		if *bodyUpdate.Price <= 0 {
+			return errors.New("price must be greater than 0")
+		}
+		query += fmt.Sprintf(", price = $%d", argIndex)
+		args = append(args, *bodyUpdate.Price)
+		argIndex++
+	}
+
+	if bodyUpdate.DiscountPercent != nil {
+		if *bodyUpdate.DiscountPercent < 0 || *bodyUpdate.DiscountPercent > 100 {
+			return errors.New("discount percent must be between 0 and 100")
+		}
+		query += fmt.Sprintf(", discount_percent = $%d", argIndex)
+		args = append(args, *bodyUpdate.DiscountPercent)
+		argIndex++
+	}
+
+	if bodyUpdate.Stock != nil {
+		if *bodyUpdate.Stock < 0 {
+			return errors.New("stock cannot be negative")
+		}
+		query += fmt.Sprintf(", stock = $%d", argIndex)
+		args = append(args, *bodyUpdate.Stock)
+		argIndex++
+	}
+
+	if bodyUpdate.IsFlashSale != nil {
+		query += fmt.Sprintf(", is_flash_sale = $%d", argIndex)
+		args = append(args, *bodyUpdate.IsFlashSale)
+		argIndex++
+	}
+
+	if bodyUpdate.IsActive != nil {
+		query += fmt.Sprintf(", is_active = $%d", argIndex)
+		args = append(args, *bodyUpdate.IsActive)
+		argIndex++
+	}
+
+	if bodyUpdate.IsFavourite != nil {
+		query += fmt.Sprintf(", is_favourite = $%d", argIndex)
+		args = append(args, *bodyUpdate.IsFavourite)
+		argIndex++
+	}
+
+	query += fmt.Sprintf(" WHERE id = $%d", argIndex)
+	args = append(args, productId)
+
+	result, err := tx.Exec(context.Background(), query, args...)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		return errors.New("product not found")
+	}
+
+	return nil
 }
 
 func DeleteDataProduct(productId int) (bool, string, error) {
