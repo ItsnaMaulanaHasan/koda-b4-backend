@@ -221,8 +221,7 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, savedFile
 	_, err = tx.Exec(
 		context.Background(),
 		`UPDATE users 
-		 SET full_name = COALESCE(NULLIF($1, ''), full_name),
-		     email      = COALESCE(NULLIF($2, ''), email),
+		 SET email      = COALESCE(NULLIF($2, ''), email),
 		     role       = COALESCE(NULLIF($3, ''), role),
 		     updated_by = $4,
 		     updated_at = NOW()
@@ -241,12 +240,14 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, savedFile
 	_, err = tx.Exec(
 		context.Background(),
 		`UPDATE profiles 
-		 SET profile_photo = COALESCE(NULLIF($1, ''), profile_photo),
-		     address       = COALESCE(NULLIF($2, ''), address),
-		     phone_number  = COALESCE(NULLIF($3, ''), phone_number),
+		 SET full_name     = COALESCE(NULLIF($1, ''), full_name),
+		 	 profile_photo = COALESCE(NULLIF($2, ''), profile_photo),
+		     address       = COALESCE(NULLIF($3, ''), address),
+		     phone_number  = COALESCE(NULLIF($4, ''), phone_number),
 		     updated_by    = $4,
 		     updated_at    = NOW()
 		 WHERE user_id = $5`,
+		bodyUpdate.FullName,
 		savedFilePath,
 		bodyUpdate.Address,
 		bodyUpdate.Phone,
