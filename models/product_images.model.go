@@ -145,3 +145,75 @@ func InsertProductImage(productId int, imagePath string, isPrimary bool, userId 
 	message = "Product image created successfully"
 	return imageId, message, nil
 }
+
+func UpdateProductImage(imageId int, isPrimary bool, userId int) (bool, string, error) {
+	isSuccess := false
+	message := ""
+
+	ctx := context.Background()
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		message = "Failed to start database transaction"
+		return isSuccess, message, err
+	}
+	defer tx.Rollback(ctx)
+
+	// Get product_id from image
+	var productId int
+	err = tx.QueryRow(ctx, `SELECT product_id FROM product_images WHERE id = $1`, imageId).Scan(&productId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			message = "Product image not found"
+			return isSuccess, message, nil
+		}
+		message = "Internal server error while fetching product image"
+		return isSuccess, message, err
+	}
+
+	// If setting as primary, unset all other images
+	if isPrimary {
+		_, err = tx.Exec(
+			ctx,
+			`UPDATE product_images 
+			 SET is_primary = false 
+			 WHERE product_id = $1 AND id != $2`,
+			productId,
+			imageId,
+		)
+		if err != nil {
+			message = "Internal server error while updating other images"
+			return isSuccess, message, err
+		}
+	}
+
+	commandTag, err := tx.Exec(
+		ctx,
+		`UPDATE product_images 
+		 SET is_primary = $1,
+		     updated_by = $2,
+		     updated_at = NOW()
+		 WHERE id = $3`,
+		isPrimary,
+		userId,
+		imageId,
+	)
+	if err != nil {
+		message = "Internal server error while updating product image"
+		return isSuccess, message, err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		message = "Product image not found"
+		return isSuccess, message, nil
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		message = "Failed to commit transaction"
+		return isSuccess, message, err
+	}
+
+	isSuccess = true
+	message = "Product image updated successfully"
+	return isSuccess, message, nil
+}

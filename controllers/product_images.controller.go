@@ -275,3 +275,84 @@ func CreateProductImage(ctx *gin.Context) {
 		},
 	})
 }
+
+// UpdateProductImage godoc
+// @Summary      Update product image
+// @Description  Update product image properties (e.g., set as primary)
+// @Tags         admin/products
+// @Accept       x-www-form-urlencoded
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id             path      int     true  "Product Id"
+// @Param        imageId        path      int     true  "Image Id"
+// @Param        isPrimary      formData  bool    true  "Set as primary image"
+// @Success      200  {object}  lib.ResponseSuccess  "Product image updated successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid request"
+// @Failure      404  {object}  lib.ResponseError  "Product image not found"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error"
+// @Router       /admin/products/{id}/images/{imageId} [patch]
+func UpdateProductImage(ctx *gin.Context) {
+	imageId, err := strconv.Atoi(ctx.Param("imageId"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid image Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	isPrimaryStr := ctx.PostForm("isPrimary")
+	if isPrimaryStr == "" {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "isPrimary is required",
+		})
+		return
+	}
+
+	isPrimary, err := strconv.ParseBool(isPrimaryStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid isPrimary value",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// Get user id from token
+	userId, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User Id not found in token",
+		})
+		return
+	}
+
+	// Update image
+	isSuccess, message, err := models.UpdateProductImage(imageId, isPrimary, userId.(int))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: isSuccess,
+			Message: message,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if !isSuccess {
+		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+			Success: false,
+			Message: message,
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: message,
+	})
+}
