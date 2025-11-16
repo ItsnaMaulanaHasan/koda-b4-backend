@@ -22,7 +22,7 @@ INSERT INTO
     profiles (
         user_id,
         full_name,
-        photo_profile,
+        profile_photo,
         address,
         phone_number,
         created_by,
