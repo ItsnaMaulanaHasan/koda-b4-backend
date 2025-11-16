@@ -12,20 +12,20 @@ import (
 )
 
 type AdminProductResponse struct {
-	Id                int      `pg:"id" json:"id"`
-	ProductImages     []string `pg:"product_images" json:"productImages"`
-	Name              string   `pg:"name" json:"name"`
-	Description       string   `pg:"description" json:"description"`
-	Price             float64  `pg:"price" json:"price"`
-	DiscountPercent   float64  `pg:"discount_percent" json:"discountPercent"`
-	Rating            float64  `pg:"rating" json:"rating"`
-	IsFlashSale       bool     `pg:"is_flash_sale" json:"isFlashSale"`
-	Stock             int      `pg:"stock" json:"stock"`
-	IsActive          bool     `pg:"is_active" json:"isActive"`
-	IsFavourite       bool     `pg:"is_favourite" json:"isFavourite"`
-	SizeProducts      []string `pg:"product_sizes" json:"sizeProducts"`
-	ProductCategories []string `pg:"product_categories" json:"productCategories"`
-	ProductVariants   []string `pg:"product_variants" json:"productVariants"`
+	Id                int      `db:"id" json:"id"`
+	ProductImages     []string `db:"product_images" json:"productImages"`
+	Name              string   `db:"name" json:"name"`
+	Description       string   `db:"description" json:"description"`
+	Price             float64  `db:"price" json:"price"`
+	DiscountPercent   float64  `db:"discount_percent" json:"discountPercent"`
+	Rating            float64  `db:"rating" json:"rating"`
+	IsFlashSale       bool     `db:"is_flash_sale" json:"isFlashSale"`
+	Stock             int      `db:"stock" json:"stock"`
+	IsActive          bool     `db:"is_active" json:"isActive"`
+	IsFavourite       bool     `db:"is_favourite" json:"isFavourite"`
+	ProductSizes      []string `db:"product_sizes" json:"productSizes"`
+	ProductCategories []string `db:"product_categories" json:"productCategories"`
+	ProductVariants   []string `db:"product_variants" json:"productVariants"`
 }
 
 type ProductRequest struct {
@@ -50,30 +50,30 @@ type ProductRequest struct {
 }
 
 type PublicProductResponse struct {
-	Id              int      `pg:"id" json:"id"`
-	ProductImages   []string `pg:"product_images" json:"productImages"`
-	Name            string   `pg:"name" json:"name"`
-	Description     string   `pg:"description" json:"description"`
-	Price           float64  `pg:"price" json:"price"`
-	DiscountPercent float64  `pg:"discount_percent" json:"discountPercent"`
-	IsFlashSale     bool     `pg:"is_flash_sale" json:"isFlashSale"`
-	IsFavourite     bool     `pg:"is_favourite" json:"isFavourite"`
+	Id              int      `db:"id" json:"id"`
+	ProductImages   []string `db:"product_images" json:"productImages"`
+	Name            string   `db:"name" json:"name"`
+	Description     string   `db:"description" json:"description"`
+	Price           float64  `db:"price" json:"price"`
+	DiscountPercent float64  `db:"discount_percent" json:"discountPercent"`
+	IsFlashSale     bool     `db:"is_flash_sale" json:"isFlashSale"`
+	IsFavourite     bool     `db:"is_favourite" json:"isFavourite"`
 }
 
 type PublicProductDetailResponse struct {
-	Id                int                     `pg:"id" json:"id"`
-	ProductImages     []string                `pg:"product_images" json:"productImages"`
-	Name              string                  `pg:"name" json:"name"`
-	Description       string                  `pg:"description" json:"description"`
-	Price             float64                 `pg:"price" json:"price"`
-	DiscountPercent   float64                 `pg:"discount_percent" json:"discountPercent"`
-	Rating            float64                 `pg:"rating" json:"rating"`
-	IsFlashSale       bool                    `pg:"is_flash_sale" json:"isFlashSale"`
-	Stock             int                     `pg:"stock" json:"stock"`
-	SizeProducts      []string                `pg:"product_sizes" json:"sizeProducts"`
-	ProductCategories []string                `pg:"product_categories" json:"productCategories"`
-	ProductVariants   []string                `pg:"product_variants" json:"productVariants"`
-	Recomendations    []PublicProductResponse `pg:"-" json:"Recomendations"`
+	Id                int                     `db:"id" json:"id"`
+	ProductImages     []string                `db:"product_images" json:"productImages"`
+	Name              string                  `db:"name" json:"name"`
+	Description       string                  `db:"description" json:"description"`
+	Price             float64                 `db:"price" json:"price"`
+	DiscountPercent   float64                 `db:"discount_percent" json:"discountPercent"`
+	Rating            float64                 `db:"rating" json:"rating"`
+	IsFlashSale       bool                    `db:"is_flash_sale" json:"isFlashSale"`
+	Stock             int                     `db:"stock" json:"stock"`
+	ProductSizes      []string                `db:"product_sizes" json:"productSizes"`
+	ProductCategories []string                `db:"product_categories" json:"productCategories"`
+	ProductVariants   []string                `db:"product_variants" json:"productVariants"`
+	Recomendations    []PublicProductResponse `db:"-" json:"Recomendations"`
 }
 
 func TotalDataProducts(search string) (int, error) {
