@@ -122,7 +122,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 	}
 
 	totalPage := (totalData + limit - 1) / limit
-	if page > totalPage && totalData > 0 {
+	if page > totalPage {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
 			Message: "Page is out of range",
@@ -1283,7 +1283,7 @@ func ListProductsPublic(ctx *gin.Context) {
 	}
 
 	totalPage := (totalData + limit - 1) / limit
-	if page > totalPage && totalData > 0 {
+	if page > totalPage {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
 			Message: "Page is out of range",
