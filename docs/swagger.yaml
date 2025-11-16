@@ -1420,9 +1420,10 @@ paths:
         name: id
         required: true
         type: integer
-      - description: Transaction status (On Progress, Sending, Finished, Cancelled)
+      - description: Transaction status (1(On Progess), 2(Sending Goods), 3(Finish
+          Order))
         in: formData
-        name: status
+        name: statusId
         required: true
         type: string
       produces:
@@ -1948,7 +1949,7 @@ paths:
       - description: New password
         format: password
         in: formData
-        name: new_password
+        name: newPassword
         required: true
         type: string
       produces:

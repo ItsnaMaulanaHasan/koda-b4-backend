@@ -1550,8 +1550,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Transaction status (On Progress, Sending, Finished, Cancelled)",
-                        "name": "status",
+                        "description": "Transaction status (1(On Progess), 2(Sending Goods), 3(Finish Order))",
+                        "name": "statusId",
                         "in": "formData",
                         "required": true
                     }
@@ -2356,7 +2356,7 @@ const docTemplate = `{
                         "type": "string",
                         "format": "password",
                         "description": "New password",
-                        "name": "new_password",
+                        "name": "newPassword",
                         "in": "formData",
                         "required": true
                     }
