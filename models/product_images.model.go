@@ -217,3 +217,27 @@ func UpdateProductImage(imageId int, isPrimary bool, userId int) (bool, string, 
 	message = "Product image updated successfully"
 	return isSuccess, message, nil
 }
+
+func DeleteProductImage(imageId int) (bool, string, error) {
+	isSuccess := false
+	message := ""
+
+	commandTag, err := config.DB.Exec(
+		context.Background(),
+		`DELETE FROM product_images WHERE id = $1`,
+		imageId,
+	)
+	if err != nil {
+		message = "Internal server error while deleting product image"
+		return isSuccess, message, err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		message = "Product image not found"
+		return isSuccess, message, nil
+	}
+
+	isSuccess = true
+	message = "Product image deleted successfully"
+	return isSuccess, message, nil
+}
