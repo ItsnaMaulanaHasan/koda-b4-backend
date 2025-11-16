@@ -4,20 +4,22 @@ import (
 	"backend-daily-greens/config"
 	"context"
 	"errors"
+	"mime/multipart"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type User struct {
-	Id           int    `json:"id" db:"id"`
-	ProfilePhoto string `json:"profilePhoto" form:"profilePhoto" db:"profile_photo"`
-	FullName     string `json:"fullName" form:"firstName" db:"full_name"`
-	Phone        string `json:"phone" form:"phoneNumber" db:"phone_number"`
-	Address      string `json:"address" form:"address" db:"address"`
-	Email        string `json:"email" form:"email" db:"email"`
-	Password     string `json:"-" form:"-" db:"-"`
-	Role         string `json:"role" form:"role" db:"role"`
+	Id           int                   `json:"id" db:"id"`
+	FilePhoto    *multipart.FileHeader `json:"-" form:"filePhoto" db:"-"`
+	ProfilePhoto string                `json:"profilePhoto" form:"-" db:"profile_photo"`
+	FullName     string                `json:"fullName" form:"firstName" db:"full_name"`
+	Phone        string                `json:"phone" form:"phoneNumber" db:"phone_number"`
+	Address      string                `json:"address" form:"address" db:"address"`
+	Email        string                `json:"email" form:"email" db:"email"`
+	Password     string                `json:"-" form:"-" db:"-"`
+	Role         string                `json:"role" form:"role" db:"role"`
 }
 
 func GetTotalDataUsers(search string) (int, error) {

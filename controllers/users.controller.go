@@ -191,7 +191,7 @@ func DetailUser(ctx *gin.Context) {
 // @Param        phone          formData  string  true  "User phone"
 // @Param        address        formData  string  true  "User address"
 // @Param        role           formData  string  true  "User role"  default(customer)
-// @Param        profilePhoto   formData  file    false  "Profile photo (JPEG/PNG, max 3MB)"
+// @Param        filePhoto      formData  file    false  "Profile photo (JPEG/PNG, max 3MB)"
 // @Success      201  {object}  lib.ResponseSuccess{data=models.User}  "User created successfully"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body or failed to hash password"
 // @Failure      401  {object}  lib.ResponseError  "User unauthorized"
@@ -257,7 +257,7 @@ func CreateUser(ctx *gin.Context) {
 
 	// get file from body request
 	savedFilePath := ""
-	file, err := ctx.FormFile("profilePhoto")
+	file, err := ctx.FormFile("filePhoto")
 	if err == nil {
 
 		if file.Size > 3<<20 {
@@ -346,7 +346,7 @@ func CreateUser(ctx *gin.Context) {
 // @Param        phone          formData  string  false "User phone"
 // @Param        address        formData  string  false "User address"
 // @Param        role           formData  string  false "User role"
-// @Param        profilePhoto   formData  file    false "Profile photo (JPEG/PNG, max 3MB)"
+// @Param        filePhoto      formData  file    false "Profile photo (JPEG/PNG, max 3MB)"
 // @Success      200  {object}  lib.ResponseSuccess "User updated successfully"
 // @Failure      400  {object}  lib.ResponseError   "Invalid Id format or invalid request body"
 // @Failure      401  {object}  lib.ResponseError  "User unauthorized"
@@ -386,7 +386,7 @@ func UpdateUser(ctx *gin.Context) {
 	}
 
 	savedFilePath := ""
-	file, err := ctx.FormFile("profilePhoto")
+	file, err := ctx.FormFile("filePhoto")
 	if err == nil {
 		if file.Size > 3<<20 {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
