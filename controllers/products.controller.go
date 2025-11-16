@@ -357,7 +357,7 @@ func DetailProductAdmin(ctx *gin.Context) {
 // @Param        isFlashSale        formData  bool      true   "Is flash sale"  default(false)
 // @Param        isActive           formData  bool      true   "Is active"  default(true)
 // @Param        isFavourite        formData  bool      true   "Is active"  default(false)
-// @Param        fileImages         formData  file      true   "Product images (4 files required, JPEG/PNG, max 1MB each)"
+// @Param        fileImages         formData  file      false  "Product images (4 files required, JPEG/PNG, max 1MB each)"
 // @Param        sizeProducts       formData  string    true   "Size Id (comma-separated, e.g., 1,2,3)"
 // @Param        productCategories  formData  string    true   "Category Id (comma-separated, e.g., 1,2,3)"
 // @Param        productVariants  	formData  string    true   "Variant Id (comma-separated, e.g., 1,2,3)"
@@ -392,15 +392,15 @@ func CreateProduct(ctx *gin.Context) {
 	files := form.File["images"]
 
 	// validate amount of uploaded images
-	if len(files) != 4 {
+	if len(files) > 4 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: fmt.Sprintf("Exactly 4 images are required, but got %d", len(files)),
+			Message: "There must be no more than 4 product images uploaded",
 		})
 		return
 	}
 
-	// Validate each file
+	// validate each file
 	allowedTypes := map[string]bool{
 		"image/jpg":  true,
 		"image/jpeg": true,
@@ -471,7 +471,7 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
-	// Start transaction
+	// start transaction
 	tx, err := config.DB.Begin(context.Background())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -483,7 +483,7 @@ func CreateProduct(ctx *gin.Context) {
 	}
 	defer tx.Rollback(context.Background())
 
-	// Insert product
+	// insert product
 	err = models.InsertDataProduct(tx, &bodyCreate, userIdFromToken.(int))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -494,7 +494,7 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
-	// Process and save images
+	// process and save images
 	var savedImagePaths []string
 	uploadDir := "uploads/products"
 	os.MkdirAll(uploadDir, 0755)
@@ -521,7 +521,7 @@ func CreateProduct(ctx *gin.Context) {
 		savedImagePaths = append(savedImagePaths, savedFilePath)
 	}
 
-	// Insert images
+	// insert images
 	if len(savedImagePaths) > 0 {
 		err = models.InsertProductImages(tx, bodyCreate.Id, savedImagePaths, userIdFromToken.(int))
 		if err != nil {
@@ -535,7 +535,7 @@ func CreateProduct(ctx *gin.Context) {
 	}
 	bodyCreate.ProductImages = savedImagePaths
 
-	// Insert sizes
+	// insert sizes
 	if strings.TrimSpace(bodyCreate.SizeProducts) != "" {
 		sizeProducts := strings.Split(bodyCreate.SizeProducts, ",")
 		var sizeIds []int
@@ -564,7 +564,7 @@ func CreateProduct(ctx *gin.Context) {
 		}
 	}
 
-	// Insert categories
+	// insert categories
 	if strings.TrimSpace(bodyCreate.ProductCategories) != "" {
 		productCategories := strings.Split(bodyCreate.ProductCategories, ",")
 		var categoryIds []int
@@ -593,7 +593,7 @@ func CreateProduct(ctx *gin.Context) {
 		}
 	}
 
-	// Insert variants
+	// insert variants
 	if strings.TrimSpace(bodyCreate.ProductVariants) != "" {
 		productVariants := strings.Split(bodyCreate.ProductVariants, ",")
 		var variantIds []int
@@ -622,7 +622,7 @@ func CreateProduct(ctx *gin.Context) {
 		}
 	}
 
-	// Commit transaction
+	// commit transaction
 	err = tx.Commit(context.Background())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
