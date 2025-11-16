@@ -203,6 +203,21 @@ definitions:
       variantCost:
         type: number
     type: object
+  models.ProductImage:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      isPrimary:
+        type: boolean
+      productId:
+        type: integer
+      productImage:
+        type: string
+      updatedAt:
+        type: string
+    type: object
   models.PublicProductDetailResponse:
     properties:
       Recomendations:
@@ -1028,6 +1043,256 @@ paths:
       security:
       - BearerAuth: []
       summary: Update product
+      tags:
+      - admin/products
+  /admin/products/{id}/images:
+    get:
+      description: Retrieving all images of a specific product
+      parameters:
+      - default: Bearer <token>
+        description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Product Id
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved product images
+          schema:
+            allOf:
+            - $ref: '#/definitions/lib.ResponseSuccess'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.ProductImage'
+                  type: array
+              type: object
+        "400":
+          description: Invalid Id format
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "404":
+          description: Product not found
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Get all images of a product
+      tags:
+      - admin/products
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a new image for a specific product
+      parameters:
+      - default: Bearer <token>
+        description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Product Id
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Product image (JPEG/PNG, max 1MB)
+        in: formData
+        name: image
+        required: true
+        type: file
+      - default: false
+        description: Set as primary image
+        in: formData
+        name: isPrimary
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Product image created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/lib.ResponseSuccess'
+            - properties:
+                data:
+                  properties:
+                    id:
+                      type: integer
+                    productImage:
+                      type: string
+                  type: object
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "404":
+          description: Product not found
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Add new image to product
+      tags:
+      - admin/products
+  /admin/products/{id}/images/{imageId}:
+    delete:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Delete a specific product image
+      parameters:
+      - default: Bearer <token>
+        description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Product Id
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Image Id
+        in: path
+        name: imageId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product image deleted successfully
+          schema:
+            $ref: '#/definitions/lib.ResponseSuccess'
+        "400":
+          description: Invalid Id format
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "404":
+          description: Product image not found
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Delete product image
+      tags:
+      - admin/products
+    get:
+      description: Retrieving specific product image based on image Id
+      parameters:
+      - default: Bearer <token>
+        description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Product Id
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Image Id
+        in: path
+        name: imageId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved product image
+          schema:
+            allOf:
+            - $ref: '#/definitions/lib.ResponseSuccess'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ProductImage'
+              type: object
+        "400":
+          description: Invalid Id format
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "404":
+          description: Product image not found
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Get product image by Id
+      tags:
+      - admin/products
+    patch:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Update product image properties (e.g., set as primary)
+      parameters:
+      - default: Bearer <token>
+        description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Product Id
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Image Id
+        in: path
+        name: imageId
+        required: true
+        type: integer
+      - description: Set as primary image
+        in: formData
+        name: isPrimary
+        required: true
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product image updated successfully
+          schema:
+            $ref: '#/definitions/lib.ResponseSuccess'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "404":
+          description: Product image not found
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Update product image
       tags:
       - admin/products
   /admin/transactions:
