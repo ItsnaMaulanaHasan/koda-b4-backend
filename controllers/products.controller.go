@@ -777,12 +777,20 @@ func UpdateProduct(ctx *gin.Context) {
 	defer tx.Rollback(context.Background())
 
 	// update product
-	err = models.UpdateDataProduct(tx, id, &bodyUpdate, userIdFromToken.(int))
+	commandTag, err := models.UpdateDataProduct(tx, id, &bodyUpdate, userIdFromToken.(int))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
 			Message: "Internal server error while updating product",
 			Error:   err.Error(),
+		})
+		return
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+			Success: false,
+			Message: "Product not found",
 		})
 		return
 	}

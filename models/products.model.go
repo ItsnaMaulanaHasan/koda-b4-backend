@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type AdminProductResponse struct {
@@ -369,80 +370,33 @@ func DeleteProductVariants(tx pgx.Tx, productId int) error {
 	return err
 }
 
-func UpdateDataProduct(tx pgx.Tx, productId int, bodyUpdate *ProductRequest, userId int) error {
-	query := `UPDATE products SET updated_by = $1, updated_at = NOW()`
-	args := []interface{}{userId}
-	argIndex := 2
-
-	if bodyUpdate.Name != "" {
-		query += fmt.Sprintf(", name = $%d", argIndex)
-		args = append(args, bodyUpdate.Name)
-		argIndex++
-	}
-
-	if bodyUpdate.Description != "" {
-		query += fmt.Sprintf(", description = $%d", argIndex)
-		args = append(args, bodyUpdate.Description)
-		argIndex++
-	}
-
-	if bodyUpdate.Price != nil && *bodyUpdate.Price > 0 {
-		query += fmt.Sprintf(", price = $%d", argIndex)
-		args = append(args, *bodyUpdate.Price)
-		argIndex++
-	} else if bodyUpdate.Price != nil && *bodyUpdate.Price <= 0 {
-		return errors.New("price must be greater than 0")
-	}
-
-	if bodyUpdate.DiscountPercent != nil && *bodyUpdate.DiscountPercent >= 0 {
-		if *bodyUpdate.DiscountPercent > 100 {
-			return errors.New("discount percent must be between 0 and 100")
-		}
-		query += fmt.Sprintf(", discount_percent = $%d", argIndex)
-		args = append(args, *bodyUpdate.DiscountPercent)
-		argIndex++
-	}
-
-	if bodyUpdate.Stock != nil && *bodyUpdate.Stock >= 0 {
-		query += fmt.Sprintf(", stock = $%d", argIndex)
-		args = append(args, *bodyUpdate.Stock)
-		argIndex++
-	} else if bodyUpdate.Stock != nil && *bodyUpdate.Stock < 0 {
-		return errors.New("stock cannot be negative")
-	}
-
-	if bodyUpdate.IsFlashSale != nil {
-		query += fmt.Sprintf(", is_flash_sale = $%d", argIndex)
-		args = append(args, *bodyUpdate.IsFlashSale)
-		argIndex++
-	}
-
-	if bodyUpdate.IsActive != nil {
-		query += fmt.Sprintf(", is_active = $%d", argIndex)
-		args = append(args, *bodyUpdate.IsActive)
-		argIndex++
-	}
-
-	if bodyUpdate.IsFavourite != nil {
-		query += fmt.Sprintf(", is_favourite = $%d", argIndex)
-		args = append(args, *bodyUpdate.IsFavourite)
-		argIndex++
-	}
-
-	query += fmt.Sprintf(" WHERE id = $%d", argIndex)
-	args = append(args, productId)
-
-	result, err := tx.Exec(context.Background(), query, args...)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
-		return errors.New("product not found")
-	}
-
-	return nil
+func UpdateDataProduct(tx pgx.Tx, productId int, bodyUpdate *ProductRequest, userId int) (pgconn.CommandTag, error) {
+	commandTag, err := tx.Exec(
+		context.Background(),
+		`UPDATE products 
+		 SET name             = COALESCE(NULLIF($1, ''), name),
+		     description      = COALESCE(NULLIF($2, ''), description),
+		     price            = COALESCE($3, price),
+		     discount_percent = COALESCE($4, discount_percent),
+		     stock            = COALESCE($5, stock),
+		     is_flash_sale    = COALESCE($6, is_flash_sale),
+		     is_active        = COALESCE($7, is_active),
+		     is_favourite     = COALESCE($8, is_favourite),
+		     updated_by       = $9,
+		     updated_at       = NOW()
+		 WHERE id = $10`,
+		bodyUpdate.Name,
+		bodyUpdate.Description,
+		bodyUpdate.Price,
+		bodyUpdate.DiscountPercent,
+		bodyUpdate.Stock,
+		bodyUpdate.IsFlashSale,
+		bodyUpdate.IsActive,
+		bodyUpdate.IsFavourite,
+		userId,
+		productId,
+	)
+	return commandTag, err
 }
 
 func DeleteDataProduct(productId int) (bool, string, error) {
