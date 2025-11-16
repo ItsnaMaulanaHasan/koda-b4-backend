@@ -371,7 +371,7 @@ func DeleteProductVariants(tx pgx.Tx, productId int) error {
 
 func UpdateDataProduct(tx pgx.Tx, productId int, bodyUpdate *ProductRequest, userId int) error {
 	query := `UPDATE products SET updated_by = $1, updated_at = NOW()`
-	args := []any{userId}
+	args := []interface{}{userId}
 	argIndex := 2
 
 	if bodyUpdate.Name != "" {
@@ -386,17 +386,16 @@ func UpdateDataProduct(tx pgx.Tx, productId int, bodyUpdate *ProductRequest, use
 		argIndex++
 	}
 
-	if bodyUpdate.Price != nil {
-		if *bodyUpdate.Price <= 0 {
-			return errors.New("price must be greater than 0")
-		}
+	if bodyUpdate.Price != nil && *bodyUpdate.Price > 0 {
 		query += fmt.Sprintf(", price = $%d", argIndex)
 		args = append(args, *bodyUpdate.Price)
 		argIndex++
+	} else if bodyUpdate.Price != nil && *bodyUpdate.Price <= 0 {
+		return errors.New("price must be greater than 0")
 	}
 
-	if bodyUpdate.DiscountPercent != nil {
-		if *bodyUpdate.DiscountPercent < 0 || *bodyUpdate.DiscountPercent > 100 {
+	if bodyUpdate.DiscountPercent != nil && *bodyUpdate.DiscountPercent >= 0 {
+		if *bodyUpdate.DiscountPercent > 100 {
 			return errors.New("discount percent must be between 0 and 100")
 		}
 		query += fmt.Sprintf(", discount_percent = $%d", argIndex)
@@ -404,13 +403,12 @@ func UpdateDataProduct(tx pgx.Tx, productId int, bodyUpdate *ProductRequest, use
 		argIndex++
 	}
 
-	if bodyUpdate.Stock != nil {
-		if *bodyUpdate.Stock < 0 {
-			return errors.New("stock cannot be negative")
-		}
+	if bodyUpdate.Stock != nil && *bodyUpdate.Stock >= 0 {
 		query += fmt.Sprintf(", stock = $%d", argIndex)
 		args = append(args, *bodyUpdate.Stock)
 		argIndex++
+	} else if bodyUpdate.Stock != nil && *bodyUpdate.Stock < 0 {
+		return errors.New("stock cannot be negative")
 	}
 
 	if bodyUpdate.IsFlashSale != nil {
