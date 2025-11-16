@@ -10,10 +10,9 @@ import (
 )
 
 func Redis() *redis.Client {
-	options := &redis.Options{
-		Addr:     os.Getenv("REDIS_CLIENT"),
-		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       0,
+	options, err := redis.ParseURL(os.Getenv("REDIS_URL"))
+	if err != nil {
+		log.Fatalf("Invalid redis URL: %v", err)
 	}
 
 	if os.Getenv("ENVIRONMENT") != "development" {
