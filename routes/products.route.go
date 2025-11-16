@@ -16,6 +16,7 @@ func productsRoutes(r *gin.Engine, admin *gin.RouterGroup) {
 		products.DELETE("/:id", controllers.DeleteProduct)
 
 		products.GET(":id/images", controllers.ListProductImages)
+		products.GET(":id/images/:imageId", controllers.DetailProductImage)
 	}
 
 	r.GET("/products", controllers.ListProductsPublic)

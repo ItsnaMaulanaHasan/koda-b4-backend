@@ -3,6 +3,7 @@ package models
 import (
 	"backend-daily-greens/config"
 	"context"
+	"errors"
 	"mime/multipart"
 	"time"
 
@@ -59,4 +60,35 @@ func GetProductImages(productId int) ([]ProductImage, string, error) {
 
 	message = "Success get product images"
 	return images, message, nil
+}
+
+func GetProductImageById(imageId int) (ProductImage, string, error) {
+	image := ProductImage{}
+	message := ""
+
+	rows, err := config.DB.Query(
+		context.Background(),
+		`SELECT id, product_id, product_image, is_primary, created_at, updated_at
+		 FROM product_images
+		 WHERE id = $1`,
+		imageId,
+	)
+	if err != nil {
+		message = "Failed to fetch product image from database"
+		return image, message, err
+	}
+	defer rows.Close()
+
+	image, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[ProductImage])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			message = "Product image not found"
+			return image, message, err
+		}
+		message = "Failed to process product image data"
+		return image, message, err
+	}
+
+	message = "Success get product image"
+	return image, message, nil
 }

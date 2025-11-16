@@ -69,3 +69,50 @@ func ListProductImages(ctx *gin.Context) {
 		Data:    images,
 	})
 }
+
+// DetailProductImage godoc
+// @Summary      Get product image by Id
+// @Description  Retrieving specific product image based on image Id
+// @Tags         admin/products
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id             path    int     true  "Product Id"
+// @Param        imageId        path    int     true  "Image Id"
+// @Success      200  {object}  lib.ResponseSuccess{data=models.ProductImage}  "Successfully retrieved product image"
+// @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure      404  {object}  lib.ResponseError  "Product image not found"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error"
+// @Router       /admin/products/{id}/images/{imageId} [get]
+func DetailProductImage(ctx *gin.Context) {
+	imageId, err := strconv.Atoi(ctx.Param("imageId"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid image Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// Get product image
+	image, message, err := models.GetProductImageById(imageId)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if message == "Product image not found" {
+			statusCode = http.StatusNotFound
+		}
+		ctx.JSON(statusCode, lib.ResponseError{
+			Success: false,
+			Message: message,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: true,
+		Message: message,
+		Data:    image,
+	})
+}
