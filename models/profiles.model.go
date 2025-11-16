@@ -79,11 +79,11 @@ func UpdateDataProfile(userId int, bodyUpdate ProfileRequest) (bool, string, err
 	commandTag, err := tx.Exec(
 		ctx,
 		`UPDATE users 
-		 SET email      = COALESCE(NULLIF($3, ''), email),
-		     role       = COALESCE(NULLIF($4, ''), role),
-		     updated_by = $5,
+		 SET email      = COALESCE(NULLIF($1, ''), email),
+		     role       = COALESCE(NULLIF($2, ''), role),
+		     updated_by = $3,
 		     updated_at = NOW()
-		 WHERE id = $6`,
+		 WHERE id = $3`,
 		bodyUpdate.FullName,
 		bodyUpdate.Email,
 		userId,
@@ -107,11 +107,10 @@ func UpdateDataProfile(userId int, bodyUpdate ProfileRequest) (bool, string, err
 		     phone_number = COALESCE(NULLIF($3, ''), phone_number),
 		     updated_by   = $4,
 		     updated_at   = NOW()
-		 WHERE user_id = $5`,
+		 WHERE user_id = $4`,
 		bodyUpdate.FullName,
 		bodyUpdate.Address,
 		bodyUpdate.Phone,
-		userId,
 		userId,
 	)
 	if err != nil {
