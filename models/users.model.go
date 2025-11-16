@@ -243,9 +243,9 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, savedFile
 		 	 profile_photo = COALESCE(NULLIF($2, ''), profile_photo),
 		     address       = COALESCE(NULLIF($3, ''), address),
 		     phone_number  = COALESCE(NULLIF($4, ''), phone_number),
-		     updated_by    = $4,
+		     updated_by    = $5,
 		     updated_at    = NOW()
-		 WHERE user_id = $5`,
+		 WHERE user_id = $6`,
 		bodyUpdate.FullName,
 		savedFilePath,
 		bodyUpdate.Address,
