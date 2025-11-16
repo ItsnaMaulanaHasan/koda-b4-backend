@@ -34,7 +34,7 @@ func GetDetailProfile(userId int) (UserProfile, string, error) {
 		`SELECT 
 			u.id,
 			COALESCE(p.profile_photo, '') AS profile_photo,
-			u.full_name,
+			p.full_name,
 			u.email,
 			COALESCE(p.address, '') AS address,
 			COALESCE(p.phone_number, '') AS phone,
