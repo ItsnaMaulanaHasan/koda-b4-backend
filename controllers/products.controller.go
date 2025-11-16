@@ -70,7 +70,17 @@ func ListProductsAdmin(ctx *gin.Context) {
 
 	// redis for total products
 	cacheTotalDataProducts, _ := rdb.Get(context.Background(), totalCacheKey).Result()
-	if cacheTotalDataProducts == "" {
+	if cacheTotalDataProducts != "" && cacheTotalDataProducts != "null" {
+		err = json.Unmarshal([]byte(cacheTotalDataProducts), &totalData)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to unmarshal total products from cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	} else {
 		totalData, err = models.TotalDataProducts(search)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -85,16 +95,6 @@ func ListProductsAdmin(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
 				Message: "Failed to set total products to cache",
-				Error:   err.Error(),
-			})
-			return
-		}
-	} else {
-		err = json.Unmarshal([]byte(cacheTotalDataProducts), &totalData)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to unmarshal total products from cache",
 				Error:   err.Error(),
 			})
 			return
@@ -115,7 +115,17 @@ func ListProductsAdmin(ctx *gin.Context) {
 	// redis for list products
 	var products []models.AdminProductResponse
 	cacheListAllProducts, _ := rdb.Get(context.Background(), listCacheKey).Result()
-	if cacheListAllProducts == "" {
+	if cacheListAllProducts != "" && cacheListAllProducts != "null" {
+		err = json.Unmarshal([]byte(cacheListAllProducts), &products)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to unmarshal list all products from cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	} else {
 		products, err = models.GetListProductsAdmin(search, page, limit)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -141,16 +151,6 @@ func ListProductsAdmin(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
 				Message: "Failed to set list all products to cache",
-				Error:   err.Error(),
-			})
-			return
-		}
-	} else {
-		err = json.Unmarshal([]byte(cacheListAllProducts), &products)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to unmarshal list all products from cache",
 				Error:   err.Error(),
 			})
 			return
@@ -227,11 +227,22 @@ func DetailProductAdmin(ctx *gin.Context) {
 	}
 
 	rdb := lib.Redis()
+	cacheKey := fmt.Sprintf("products:detail:id:%d", id)
 
 	// redis for detail product
 	var product models.AdminProductResponse
-	cache, _ := rdb.Get(context.Background(), ctx.Request.RequestURI).Result()
-	if cache == "" {
+	cache, _ := rdb.Get(context.Background(), cacheKey).Result()
+	if cache != "" && cache != "null" {
+		err = json.Unmarshal([]byte(cache), &product)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to unmarshal data products from cache",
+				Error:   err.Error(),
+			})
+			return
+		}
+	} else {
 		product, message, err := models.GetDetailProductAdmin(id)
 		if err != nil {
 			statusCode := http.StatusInternalServerError
@@ -256,21 +267,11 @@ func DetailProductAdmin(ctx *gin.Context) {
 			return
 		}
 
-		err = rdb.Set(context.Background(), ctx.Request.RequestURI, productStr, 60*time.Second).Err()
+		err = rdb.Set(context.Background(), cacheKey, productStr, 15*time.Minute).Err()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
 				Message: "Failed to set data product to cache",
-				Error:   err.Error(),
-			})
-			return
-		}
-	} else {
-		err = json.Unmarshal([]byte(cache), &product)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to unmarshal data products from cache",
 				Error:   err.Error(),
 			})
 			return
