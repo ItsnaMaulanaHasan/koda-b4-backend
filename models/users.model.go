@@ -27,7 +27,7 @@ func GetTotalDataUsers(search string) (int, error) {
 		err = config.DB.QueryRow(context.Background(),
 			`SELECT COUNT(*) FROM users 
 			LEFT JOIN profiles ON users.id = profiles.user_id 
-			WHERE users.full_name ILIKE $1
+			WHERE profiles.full_name ILIKE $1
 			OR profiles.phone_number ILIKE $1
 			OR profiles.address ILIKE $1
 			OR users.email ILIKE $1`, "%"+search+"%").Scan(&totalData)
@@ -52,14 +52,14 @@ func GetListAllUser(page int, limit int, search string) ([]User, string, error) 
 			`SELECT 
 				users.id,
 				COALESCE(profiles.profile_photo, '') AS profile_photo,
-				COALESCE(users.full_name, '') AS full_name,
+				COALESCE(profiles.full_name, '') AS full_name,
 				COALESCE(profiles.phone_number, '') AS phone_number,
 				COALESCE(profiles.address, '') AS address,
 				users.email,
 				users.role
 			FROM users
 			LEFT JOIN profiles ON users.id = profiles.user_id
-			WHERE users.full_name ILIKE $3
+			WHERE profiles.full_name ILIKE $3
 			   OR profiles.phone_number ILIKE $3
 			   OR profiles.address ILIKE $3
 			   OR users.email ILIKE $3
@@ -71,7 +71,7 @@ func GetListAllUser(page int, limit int, search string) ([]User, string, error) 
 			`SELECT 
 				users.id,
 				COALESCE(profiles.profile_photo, '') AS profile_photo,
-				COALESCE(users.full_name, '') AS full_name,
+				COALESCE(profiles.full_name, '') AS full_name,
 				COALESCE(profiles.phone_number, '') AS phone_number,
 				COALESCE(profiles.address, '') AS address,
 				users.email,
@@ -105,7 +105,7 @@ func GetDetailUser(id int) (User, string, error) {
 		`SELECT 
 			users.id,
 			COALESCE(profiles.profile_photo, '') AS profile_photo,
-			COALESCE(users.full_name, '') AS full_name,
+			COALESCE(profiles.full_name, '') AS full_name,
 			COALESCE(profiles.phone_number, '') AS phone_number,
 			COALESCE(profiles.address, '') AS address,
 			users.email,
