@@ -261,13 +261,15 @@ func InsertDataProduct(tx pgx.Tx, bodyCreate *ProductRequest, userIdFromToken an
 }
 
 func InsertProductImages(tx pgx.Tx, productId int, imagePaths []string, userId int) error {
-	for _, imagePath := range imagePaths {
+	for i, imagePath := range imagePaths {
+		isPrimary := (i == 0)
 		_, err := tx.Exec(
 			context.Background(),
-			`INSERT INTO product_images (product_image, product_id, created_by, updated_by)
-			 VALUES ($1, $2, $3, $4)`,
+			`INSERT INTO product_images (product_image, product_id, is_primary, created_by, updated_by)
+			 VALUES ($1, $2, $3, $4, $5)`,
 			imagePath,
 			productId,
+			isPrimary,
 			userId,
 			userId,
 		)
