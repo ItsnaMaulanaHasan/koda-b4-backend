@@ -70,19 +70,9 @@ func ListProductsAdmin(ctx *gin.Context) {
 
 	totalCacheKey := fmt.Sprintf("products:total:search:%s", search)
 
-	// redis for total products
-	cacheTotalDataProducts, _ := rdb.Get(context.Background(), totalCacheKey).Result()
-	if cacheTotalDataProducts != "" && cacheTotalDataProducts != "null" {
-		err = json.Unmarshal([]byte(cacheTotalDataProducts), &totalData)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to unmarshal total products from cache",
-				Error:   err.Error(),
-			})
-			return
-		}
-	} else {
+	cacheTotalDataProducts, err := rdb.Get(context.Background(), totalCacheKey).Result()
+	if err == redis.Nil || cacheTotalDataProducts == "" {
+		// cache miss - ambil dari DB
 		totalData, err = models.TotalDataProducts(search)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -92,14 +82,42 @@ func ListProductsAdmin(ctx *gin.Context) {
 			})
 			return
 		}
-		err = rdb.Set(context.Background(), totalCacheKey, totalData, 15*time.Minute).Err()
+
+		// simpan ke cache
+		cacheErr := rdb.Set(context.Background(), totalCacheKey, totalData, 15*time.Minute).Err()
+		if cacheErr != nil {
+			log.Printf("Failed to set total cache for key %s: %v", totalCacheKey, cacheErr)
+		}
+	} else if err != nil {
+		// redis error - fallback ke DB
+		log.Printf("Redis error for key %s: %v", totalCacheKey, err)
+
+		totalData, err = models.TotalDataProducts(search)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
-				Message: "Failed to set total products to cache",
+				Message: "Failed to count total products in database",
 				Error:   err.Error(),
 			})
 			return
+		}
+	} else {
+		// cache hit - unmarshal
+		err = json.Unmarshal([]byte(cacheTotalDataProducts), &totalData)
+		if err != nil {
+			// cache rusak - hapus dan ambil dari DB
+			log.Printf("Failed to unmarshal total cache for key %s: %v", totalCacheKey, err)
+			rdb.Del(context.Background(), totalCacheKey)
+
+			totalData, err = models.TotalDataProducts(search)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Failed to count total products in database",
+					Error:   err.Error(),
+				})
+				return
+			}
 		}
 	}
 
@@ -114,20 +132,10 @@ func ListProductsAdmin(ctx *gin.Context) {
 
 	listCacheKey := fmt.Sprintf("products:list:page:%d:limit:%d:search:%s", page, limit, search)
 
-	// redis for list products
 	var products []models.AdminProductResponse
-	cacheListAllProducts, _ := rdb.Get(context.Background(), listCacheKey).Result()
-	if cacheListAllProducts != "" && cacheListAllProducts != "null" {
-		err = json.Unmarshal([]byte(cacheListAllProducts), &products)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to unmarshal list all products from cache",
-				Error:   err.Error(),
-			})
-			return
-		}
-	} else {
+	cacheListAllProducts, err := rdb.Get(context.Background(), listCacheKey).Result()
+	if err == redis.Nil || cacheListAllProducts == "" {
+		// cache miss - ambil dari DB
 		products, err = models.GetListProductsAdmin(search, page, limit)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
@@ -138,24 +146,46 @@ func ListProductsAdmin(ctx *gin.Context) {
 			return
 		}
 
-		productsStr, err := json.Marshal(products)
+		// simpan ke cache
+		productsStr, marshalErr := json.Marshal(products)
+		if marshalErr != nil {
+			log.Printf("Failed to marshal products: %v", marshalErr)
+		} else {
+			cacheErr := rdb.Set(context.Background(), listCacheKey, productsStr, 15*time.Minute).Err()
+			if cacheErr != nil {
+				log.Printf("Failed to set list cache for key %s: %v", listCacheKey, cacheErr)
+			}
+		}
+	} else if err != nil {
+		// redis error - fallback ke DB
+		log.Printf("Redis error for key %s: %v", listCacheKey, err)
+
+		products, err = models.GetListProductsAdmin(search, page, limit)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
-				Message: "Failed to serialization list all products",
+				Message: "Failed to fetch products from database",
 				Error:   err.Error(),
 			})
 			return
 		}
-
-		err = rdb.Set(context.Background(), listCacheKey, productsStr, 15*time.Minute).Err()
+	} else {
+		// cache hit - unmarshal
+		err = json.Unmarshal([]byte(cacheListAllProducts), &products)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to set list all products to cache",
-				Error:   err.Error(),
-			})
-			return
+			// cache rusak - hapus dan ambil dari DB
+			log.Printf("Failed to unmarshal list cache for key %s: %v", listCacheKey, err)
+			rdb.Del(context.Background(), listCacheKey)
+
+			products, err = models.GetListProductsAdmin(search, page, limit)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Failed to fetch products from database",
+					Error:   err.Error(),
+				})
+				return
+			}
 		}
 	}
 
