@@ -1204,10 +1204,14 @@ func ListProductsPublic(ctx *gin.Context) {
 	var err error
 	rdb := lib.Redis()
 
-	// redis for total data products
-	cacheTotalDataProducts, _ := rdb.Get(context.Background(), "totalDataProducts").Result()
-	if cacheTotalDataProducts == "" {
-		totalData, err = models.TotalDataProducts(search)
+	// Ubah cache key untuk include semua filter
+	totalCacheKey := fmt.Sprintf("productsPublic:total:q:%s:cat:%v:maxPrice:%f:minPrice:%f",
+		search, cat, maxPrice, minPrice)
+
+	cacheTotalDataProducts, err := rdb.Get(context.Background(), totalCacheKey).Result()
+	if err == redis.Nil || cacheTotalDataProducts == "" {
+		// cache miss - ambil dari DB dengan filter lengkap
+		totalData, err = models.TotalDataProductsPublic(search, cat, maxPrice, minPrice)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -1216,69 +1220,42 @@ func ListProductsPublic(ctx *gin.Context) {
 			})
 			return
 		}
-		err = rdb.Set(context.Background(), "totalDataProducts", totalData, 15*time.Minute).Err()
+
+		// simpan ke cache
+		cacheErr := rdb.Set(context.Background(), totalCacheKey, totalData, 15*time.Minute).Err()
+		if cacheErr != nil {
+			log.Printf("Failed to set total cache for key %s: %v", totalCacheKey, cacheErr)
+		}
+	} else if err != nil {
+		// redis error - fallback ke DB
+		log.Printf("Redis error for key %s: %v", totalCacheKey, err)
+
+		totalData, err = models.TotalDataProductsPublic(search, cat, maxPrice, minPrice)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
-				Message: "Failed to set total products to cache",
+				Message: "Failed to count total products in database",
 				Error:   err.Error(),
 			})
 			return
 		}
 	} else {
+		// cache hit - unmarshal
 		err = json.Unmarshal([]byte(cacheTotalDataProducts), &totalData)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to unmarshal total products from cache",
-				Error:   err.Error(),
-			})
-			return
-		}
-	}
+			// cache rusak - hapus dan ambil dari DB
+			log.Printf("Failed to unmarshal total cache for key %s: %v", totalCacheKey, err)
+			rdb.Del(context.Background(), totalCacheKey)
 
-	// redis for list products
-	var products []models.PublicProductResponse
-	cacheListAllProducts, _ := rdb.Get(context.Background(), ctx.Request.RequestURI).Result()
-	if cacheListAllProducts == "" {
-		products, err = models.GetListProductsPublic(search, cat, sortField, maxPrice, minPrice, limit, page)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to fetch products from database",
-				Error:   err.Error(),
-			})
-			return
-		}
-
-		productsStr, err := json.Marshal(products)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to serialization list all products",
-				Error:   err.Error(),
-			})
-			return
-		}
-
-		err = rdb.Set(context.Background(), ctx.Request.RequestURI, productsStr, 15*time.Minute).Err()
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to set list all products to cache",
-				Error:   err.Error(),
-			})
-			return
-		}
-	} else {
-		err = json.Unmarshal([]byte(cacheListAllProducts), &products)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to unmarshal list all products from cache",
-				Error:   err.Error(),
-			})
-			return
+			totalData, err = models.TotalDataProductsPublic(search, cat, maxPrice, minPrice)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Failed to count total products in database",
+					Error:   err.Error(),
+				})
+				return
+			}
 		}
 	}
 
@@ -1291,6 +1268,66 @@ func ListProductsPublic(ctx *gin.Context) {
 		return
 	}
 
+	listCacheKey := fmt.Sprintf("productsPublic:list:page:%d:limit:%d:q:%s:cat:%v:sort:%s:maxPrice:%f:minPrice:%f",
+		page, limit, search, cat, sortField, maxPrice, minPrice)
+
+	var products []models.PublicProductResponse
+	cacheListAllProducts, err := rdb.Get(context.Background(), listCacheKey).Result()
+	if err == redis.Nil || cacheListAllProducts == "" {
+		// cache miss - ambil dari DB
+		products, err = models.GetListProductsPublic(search, cat, sortField, maxPrice, minPrice, limit, page)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to fetch products from database",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		// simpan ke cache
+		productsStr, marshalErr := json.Marshal(products)
+		if marshalErr != nil {
+			log.Printf("Failed to marshal products: %v", marshalErr)
+		} else {
+			cacheErr := rdb.Set(context.Background(), listCacheKey, productsStr, 15*time.Minute).Err()
+			if cacheErr != nil {
+				log.Printf("Failed to set list cache for key %s: %v", listCacheKey, cacheErr)
+			}
+		}
+	} else if err != nil {
+		// redis error - fallback ke DB
+		log.Printf("Redis error for key %s: %v", listCacheKey, err)
+
+		products, err = models.GetListProductsPublic(search, cat, sortField, maxPrice, minPrice, limit, page)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to fetch products from database",
+				Error:   err.Error(),
+			})
+			return
+		}
+	} else {
+		// cache hit - unmarshal
+		err = json.Unmarshal([]byte(cacheListAllProducts), &products)
+		if err != nil {
+			// cache rusak - hapus dan ambil dari DB
+			log.Printf("Failed to unmarshal list cache for key %s: %v", listCacheKey, err)
+			rdb.Del(context.Background(), listCacheKey)
+
+			products, err = models.GetListProductsPublic(search, cat, sortField, maxPrice, minPrice, limit, page)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Failed to fetch products from database",
+					Error:   err.Error(),
+				})
+				return
+			}
+		}
+	}
+
 	host := ctx.Request.Host
 	scheme := "http"
 	if ctx.Request.TLS != nil {
@@ -1301,11 +1338,7 @@ func ListProductsPublic(ctx *gin.Context) {
 	var next any
 	var prev any
 
-	if totalData == 0 {
-		page = 0
-		next = nil
-		prev = nil
-	} else if page == 1 && totalPage > 1 {
+	if page == 1 && totalPage > 1 {
 		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
 		prev = nil
 	} else if page == totalPage && totalPage > 1 {

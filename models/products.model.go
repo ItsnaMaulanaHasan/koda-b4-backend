@@ -482,6 +482,50 @@ func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 	return products, nil
 }
 
+func TotalDataProductsPublic(q string, cat []string, maxPrice float64, minPrice float64) (int, error) {
+	var totalData int
+
+	query := `
+		SELECT COUNT(DISTINCT p.id)
+		FROM products p
+		LEFT JOIN product_categories pc ON pc.product_id = p.id
+		LEFT JOIN categories c ON c.id = pc.category_id
+		WHERE p.is_active = true`
+
+	args := []any{}
+	paramCount := 1
+
+	// search filter
+	if q != "" {
+		query += fmt.Sprintf(` AND p.name ILIKE $%d`, paramCount)
+		args = append(args, "%"+q+"%")
+		paramCount++
+	}
+
+	// category filter
+	if len(cat) > 0 {
+		query += fmt.Sprintf(` AND c.name = ANY($%d)`, paramCount)
+		args = append(args, cat)
+		paramCount++
+	}
+
+	// price range filter
+	if minPrice > 0 {
+		query += fmt.Sprintf(` AND p.price >= $%d`, paramCount)
+		args = append(args, minPrice)
+		paramCount++
+	}
+
+	if maxPrice > 0 {
+		query += fmt.Sprintf(` AND p.price <= $%d`, paramCount)
+		args = append(args, maxPrice)
+		paramCount++
+	}
+
+	err := config.DB.QueryRow(context.Background(), query, args...).Scan(&totalData)
+	return totalData, err
+}
+
 func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64, minPrice float64, limit int, page int) ([]PublicProductResponse, error) {
 	products := []PublicProductResponse{}
 	offset := (page - 1) * limit
