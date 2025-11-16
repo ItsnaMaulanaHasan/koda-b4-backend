@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/redis/go-redis/v9"
 )
 
 // ListProductsAdmin  godoc
@@ -231,19 +233,11 @@ func DetailProductAdmin(ctx *gin.Context) {
 
 	// redis for detail product
 	var product models.AdminProductResponse
-	cache, _ := rdb.Get(context.Background(), cacheKey).Result()
-	if cache != "" && cache != "null" {
-		err = json.Unmarshal([]byte(cache), &product)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to unmarshal data products from cache",
-				Error:   err.Error(),
-			})
-			return
-		}
-	} else {
-		product, message, err := models.GetDetailProductAdmin(id)
+	var message string
+
+	cache, err := rdb.Get(context.Background(), cacheKey).Result()
+	if err == redis.Nil || cache == "" {
+		product, message, err = models.GetDetailProductAdmin(id)
 		if err != nil {
 			statusCode := http.StatusInternalServerError
 			if message == "Product not found" {
@@ -257,24 +251,55 @@ func DetailProductAdmin(ctx *gin.Context) {
 			return
 		}
 
-		productStr, err := json.Marshal(product)
-		if err != nil {
+		productStr, marshalErr := json.Marshal(product)
+		if marshalErr != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
 				Message: "Failed to serialization detail product",
-				Error:   err.Error(),
+				Error:   marshalErr.Error(),
 			})
 			return
 		}
 
-		err = rdb.Set(context.Background(), cacheKey, productStr, 15*time.Minute).Err()
+		cacheErr := rdb.Set(context.Background(), cacheKey, productStr, 15*time.Minute).Err()
+		if cacheErr != nil {
+			log.Printf("Failed to set cache for key %s: %v", cacheKey, cacheErr)
+		}
+	} else if err != nil {
+		log.Printf("Redis error for key %s: %v", cacheKey, err)
+
+		product, message, err = models.GetDetailProductAdmin(id)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			statusCode := http.StatusInternalServerError
+			if message == "Product not found" {
+				statusCode = http.StatusNotFound
+			}
+			ctx.JSON(statusCode, lib.ResponseError{
 				Success: false,
-				Message: "Failed to set data product to cache",
+				Message: message,
 				Error:   err.Error(),
 			})
 			return
+		}
+	} else {
+		err = json.Unmarshal([]byte(cache), &product)
+		if err != nil {
+			log.Printf("Failed to unmarshal cache for key %s: %v", cacheKey, err)
+			rdb.Del(context.Background(), cacheKey)
+
+			product, message, err = models.GetDetailProductAdmin(id)
+			if err != nil {
+				statusCode := http.StatusInternalServerError
+				if message == "Product not found" {
+					statusCode = http.StatusNotFound
+				}
+				ctx.JSON(statusCode, lib.ResponseError{
+					Success: false,
+					Message: message,
+					Error:   err.Error(),
+				})
+				return
+			}
 		}
 	}
 
