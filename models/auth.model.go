@@ -64,6 +64,13 @@ func RegisterUser(bodyRegister *Register) (bool, string, error) {
 		return isSuccess, message, err
 	}
 
+	// update created_by and updated_by
+	_, err = tx.Exec(ctx, `UPDATE users SET created_by = $1, updated_by = $1`, bodyRegister.Id)
+	if err != nil {
+		message = "Internal server error while update created_by and updated_by"
+		return isSuccess, message, err
+	}
+
 	// insert data to profiles
 	_, err = tx.Exec(ctx, `INSERT INTO profiles (user_id, full_name, created_by, updated_by) VALUES ($1, $2, $3, $4)`,
 		bodyRegister.Id, bodyRegister.FullName, bodyRegister.Id, bodyRegister.Id,
