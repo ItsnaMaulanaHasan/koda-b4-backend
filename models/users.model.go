@@ -11,13 +11,13 @@ import (
 
 type User struct {
 	Id           int    `json:"id" db:"id"`
-	ProfilePhoto string `form:"profilePhoto" db:"profile_photo"`
-	FullName     string `form:"firstName" db:"full_name"`
-	Phone        string `form:"phoneNumber" db:"phone_number"`
-	Address      string `form:"address" db:"address"`
-	Email        string `form:"email" db:"email"`
-	Password     string `form:"-" db:"-" json:"-"`
-	Role         string `form:"role" db:"role"`
+	ProfilePhoto string `json:"profilePhoto" form:"profilePhoto" db:"profile_photo"`
+	FullName     string `json:"fullName" form:"firstName" db:"full_name"`
+	Phone        string `json:"phone" form:"phoneNumber" db:"phone_number"`
+	Address      string `json:"address" form:"address" db:"address"`
+	Email        string `json:"email" form:"email" db:"email"`
+	Password     string `json:"-" form:"-" db:"-"`
+	Role         string `json:"role" form:"role" db:"role"`
 }
 
 func GetTotalDataUsers(search string) (int, error) {
