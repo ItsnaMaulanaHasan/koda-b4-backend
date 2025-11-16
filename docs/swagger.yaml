@@ -203,6 +203,24 @@ definitions:
       variantCost:
         type: number
     type: object
+  models.OrderMethod:
+    properties:
+      deliveryFee:
+        type: number
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  models.PaymentMethod:
+    properties:
+      adminFee:
+        type: number
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   models.ProductImage:
     properties:
       createdAt:
@@ -2311,6 +2329,72 @@ paths:
       summary: Get detail history
       tags:
       - histories
+  /order-methods:
+    get:
+      description: Retrieving all order methods with delivery fee
+      parameters:
+      - default: Bearer <token>
+        description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved order methods
+          schema:
+            allOf:
+            - $ref: '#/definitions/lib.ResponseSuccess'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.OrderMethod'
+                  type: array
+              type: object
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Get all order methods
+      tags:
+      - fees
+  /payment-methods:
+    get:
+      description: Retrieving all payment methods with admin fee
+      parameters:
+      - default: Bearer <token>
+        description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved payment methods
+          schema:
+            allOf:
+            - $ref: '#/definitions/lib.ResponseSuccess'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.PaymentMethod'
+                  type: array
+              type: object
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/lib.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Get all payment methods
+      tags:
+      - fees
   /products:
     get:
       description: Retrieving list products with filter
