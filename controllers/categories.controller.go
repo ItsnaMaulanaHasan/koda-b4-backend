@@ -78,7 +78,7 @@ func ListCategories(ctx *gin.Context) {
 
 	// get total page
 	totalPage := (totalData + limit - 1) / limit
-	if page > totalPage {
+	if page > totalPage && totalPage > 0 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
 			Message: "Page is out of range",
