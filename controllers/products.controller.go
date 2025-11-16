@@ -101,6 +101,15 @@ func ListProductsAdmin(ctx *gin.Context) {
 		}
 	}
 
+	totalPage := (totalData + limit - 1) / limit
+	if page > totalPage && totalData > 0 {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Page is out of range",
+		})
+		return
+	}
+
 	listCacheKey := fmt.Sprintf("products:list:page:%d:limit:%d:search:%s", page, limit, search)
 
 	// redis for list products
@@ -146,15 +155,6 @@ func ListProductsAdmin(ctx *gin.Context) {
 			})
 			return
 		}
-	}
-
-	totalPage := (totalData + limit - 1) / limit
-	if page > totalPage && totalData > 0 {
-		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: false,
-			Message: "Page is out of range",
-		})
-		return
 	}
 
 	// hateoas
