@@ -80,11 +80,9 @@ func UpdateDataProfile(userId int, bodyUpdate ProfileRequest) (bool, string, err
 		ctx,
 		`UPDATE users 
 		 SET email      = COALESCE(NULLIF($1, ''), email),
-		     role       = COALESCE(NULLIF($2, ''), role),
-		     updated_by = $3,
+		     updated_by = $2,
 		     updated_at = NOW()
-		 WHERE id = $3`,
-		bodyUpdate.FullName,
+		 WHERE id = $2`,
 		bodyUpdate.Email,
 		userId,
 	)
