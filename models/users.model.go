@@ -14,8 +14,8 @@ type User struct {
 	Id           int                   `json:"id" db:"id"`
 	FilePhoto    *multipart.FileHeader `json:"-" form:"filePhoto" db:"-"`
 	ProfilePhoto string                `json:"profilePhoto" form:"-" db:"profile_photo"`
-	FullName     string                `json:"fullName" form:"firstName" db:"full_name"`
-	Phone        string                `json:"phone" form:"phoneNumber" db:"phone_number"`
+	FullName     string                `json:"fullName" form:"fullName" db:"full_name"`
+	Phone        string                `json:"phone" form:"phone" db:"phone_number"`
 	Address      string                `json:"address" form:"address" db:"address"`
 	Email        string                `json:"email" form:"email" db:"email"`
 	Password     string                `json:"-" form:"-" db:"-"`
