@@ -8,21 +8,27 @@ import (
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 )
 
-func UploadToCloudinary(file multipart.File, filePath string) (string, error) {
+func UploadToCloudinary(file *multipart.FileHeader, filePath string) (string, error) {
 	cld, err := config.Cloudinary()
 	if err != nil {
 		return "", err
 	}
 
+	src, err := file.Open()
+	if err != nil {
+		return "", err
+	}
+	defer src.Close()
+
 	uploadParams := uploader.UploadParams{
 		PublicID: filePath,
+		Folder:   "products",
 	}
 
-	result, err := cld.Upload.Upload(context.Background(), file, uploadParams)
+	result, err := cld.Upload.Upload(context.Background(), src, uploadParams)
 	if err != nil {
 		return "", err
 	}
 
-	imageUrl := result.SecureURL
-	return imageUrl, nil
+	return result.SecureURL, nil
 }

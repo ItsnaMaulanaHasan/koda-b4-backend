@@ -4,6 +4,7 @@ import (
 	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
+	"backend-daily-greens/utils"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -497,28 +498,47 @@ func CreateProduct(ctx *gin.Context) {
 	// process and save images
 	var savedImagePaths []string
 	uploadDir := "uploads/products"
-	os.MkdirAll(uploadDir, 0755)
+
+	useCloudinary := os.Getenv("CLOUDINARY_API_KEY") != ""
+	if !useCloudinary {
+		os.MkdirAll(uploadDir, 0755)
+	}
 
 	for i, file := range files {
 		ext := strings.ToLower(filepath.Ext(file.Filename))
 		fileName := fmt.Sprintf("product_%d_img%d_%d%s", bodyCreate.Id, i+1, time.Now().UnixNano(), ext)
-		savedFilePath := filepath.Join(uploadDir, fileName)
-
-		err := ctx.SaveUploadedFile(file, savedFilePath)
-		if err != nil {
-			// clean up already saved files
-			for _, path := range savedImagePaths {
-				os.Remove(path)
+		if !useCloudinary {
+			savedFilePath := filepath.Join(uploadDir, fileName)
+			err := ctx.SaveUploadedFile(file, savedFilePath)
+			if err != nil {
+				// clean up already saved files
+				for _, path := range savedImagePaths {
+					os.Remove(path)
+				}
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: fmt.Sprintf("Failed to save image %d", i+1),
+					Error:   err.Error(),
+				})
+				return
 			}
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: fmt.Sprintf("Failed to save image %d", i+1),
-				Error:   err.Error(),
-			})
-			return
-		}
+			savedImagePaths = append(savedImagePaths, savedFilePath)
+		} else {
+			imageUrl, err := utils.UploadToCloudinary(file, fileName)
+			if err != nil {
+				for _, url := range savedImagePaths {
+					utils.DeleteFromCloudinary(url)
+				}
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: fmt.Sprintf("Failed to upload image %d to Cloudinary", i+1),
+					Error:   err.Error(),
+				})
+				return
+			}
 
-		savedImagePaths = append(savedImagePaths, savedFilePath)
+			savedImagePaths = append(savedImagePaths, imageUrl)
+		}
 	}
 
 	// insert images
