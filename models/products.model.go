@@ -335,12 +335,14 @@ func InsertProductVariants(tx pgx.Tx, productId int, variantIds []int, userId in
 }
 
 func DeleteProductImages(tx pgx.Tx, productId int) error {
+	// get url product image
 	var images []string
 	err := tx.QueryRow(context.Background(), "SELECT ARRAY_AGG(product_image) FROM product_images WHERE product_id = $1", productId).Scan(&images)
 	if err != nil {
 		return err
 	}
 
+	// delete product image in cloudinary
 	for _, image := range images {
 		err = utils.DeleteFromCloudinary(image)
 		if err != nil {
@@ -348,6 +350,7 @@ func DeleteProductImages(tx pgx.Tx, productId int) error {
 		}
 	}
 
+	// delete product
 	_, err = tx.Exec(
 		context.Background(),
 		`DELETE FROM product_images WHERE product_id = $1`,
@@ -441,7 +444,24 @@ func DeleteDataProduct(productId int) (bool, string, error) {
 		return isSuccess, message, nil
 	}
 
-	// delete product (CASCADE will auto delete related data)
+	// get url product image
+	var images []string
+	err = tx.QueryRow(context.Background(), "SELECT ARRAY_AGG(product_image) FROM product_images WHERE product_id = $1", productId).Scan(&images)
+	if err != nil {
+		message = "Failed to get url product images to delete"
+		return isSuccess, message, err
+	}
+
+	// delete product image in cloudinary
+	for _, image := range images {
+		err = utils.DeleteFromCloudinary(image)
+		if err != nil {
+			message = "Failed to delete product image in cloudinary"
+			return isSuccess, message, err
+		}
+	}
+
+	// delete product
 	commandTag, err := tx.Exec(ctx, `DELETE FROM products WHERE id = $1`, productId)
 	if err != nil {
 		message = "Internal server error while deleting product data"
@@ -721,9 +741,12 @@ func InvalidateProductCache(ctx context.Context) error {
 	rdb := config.Redis()
 
 	patterns := []string{
-		"products:total:*",
-		"products:list:*",
-		"products:detail:*",
+		"productsAdmin:total:*",
+		"productsAdmin:list:*",
+		"productsAdmin:detail:*",
+		"productsPublic:detail:*",
+		"productsPublic:detail:*",
+		"productsPublic:detail:*",
 	}
 
 	for _, pattern := range patterns {

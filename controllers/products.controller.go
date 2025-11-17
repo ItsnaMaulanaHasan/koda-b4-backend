@@ -69,8 +69,8 @@ func ListProductsAdmin(ctx *gin.Context) {
 	var err error
 	rdb := config.Redis()
 
+	// caching total product
 	totalCacheKey := fmt.Sprintf("products:total:search:%s", search)
-
 	cacheTotalDataProducts, err := rdb.Get(context.Background(), totalCacheKey).Result()
 	if err == redis.Nil || cacheTotalDataProducts == "" {
 		// cache miss - ambil dari DB
@@ -131,8 +131,8 @@ func ListProductsAdmin(ctx *gin.Context) {
 		return
 	}
 
-	listCacheKey := fmt.Sprintf("products:list:page:%d:limit:%d:search:%s", page, limit, search)
-
+	// caching list product admin
+	listCacheKey := ctx.Request.URL.RequestURI()
 	var products []models.AdminProductResponse
 	cacheListAllProducts, err := rdb.Get(context.Background(), listCacheKey).Result()
 	if err == redis.Nil || cacheListAllProducts == "" {
@@ -191,45 +191,18 @@ func ListProductsAdmin(ctx *gin.Context) {
 	}
 
 	// hateoas
-	host := ctx.Request.Host
-	scheme := "http"
-	if ctx.Request.TLS != nil {
-		scheme = "https"
-	}
-	baseURL := fmt.Sprintf("%s://%s/admin/products", scheme, host)
-
-	var next any
-	var prev any
-
-	if totalData == 0 {
-		page = 0
-		next = nil
-		prev = nil
-	} else if page == 1 && totalPage > 1 {
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = nil
-	} else if page == totalPage && totalPage > 1 {
-		next = nil
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	} else if totalPage > 1 {
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	} else {
-		next = nil
-		prev = nil
-	}
+	links := utils.BuildHateoasPagination(ctx, page, limit, search, totalData)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Success get all product",
 		"data":    products,
+		"_links":  links,
 		"meta": gin.H{
 			"currentPage": page,
 			"perPage":     limit,
 			"totalData":   totalData,
 			"totalPages":  totalPage,
-			"next":        next,
-			"prev":        prev,
 		},
 	})
 }
