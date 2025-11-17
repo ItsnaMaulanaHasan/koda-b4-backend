@@ -27,7 +27,9 @@ func BuildHateoasPagination(ctx *gin.Context, page int, limit int, search string
 
 		q.Set("page", fmt.Sprintf("%d", p))
 		q.Set("limit", fmt.Sprintf("%d", limit))
-		q.Set("search", search)
+		if search != "" {
+			q.Set("search", search)
+		}
 
 		return fmt.Sprintf("%s://%s%s?%s",
 			getScheme(ctx),

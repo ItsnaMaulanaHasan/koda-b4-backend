@@ -13,8 +13,8 @@ type ResponseError struct {
 }
 
 type HateoasLink struct {
-	Self any `json:"self,omitempty"`
-	Next any `json:"next,omitempty"`
-	Prev any `json:"prev,omitempty"`
-	Last any `json:"last,omitempty"`
+	Self any `json:"self"`
+	Next any `json:"next"`
+	Prev any `json:"prev"`
+	Last any `json:"last"`
 }
