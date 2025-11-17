@@ -742,11 +742,9 @@ func InvalidateProductCache(ctx context.Context) error {
 
 	patterns := []string{
 		"productsAdmin:total:*",
-		"productsAdmin:list:*",
-		"productsAdmin:detail:*",
-		"productsPublic:detail:*",
-		"productsPublic:detail:*",
-		"productsPublic:detail:*",
+		"/admin/products*",
+		"productsPublic:total:*",
+		"/products*",
 	}
 
 	for _, pattern := range patterns {
