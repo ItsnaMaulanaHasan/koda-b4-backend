@@ -11,3 +11,10 @@ type ResponseError struct {
 	Message string `json:"message" example:"Error message"`
 	Error   string `json:"error,omitempty" example:"cause of error"`
 }
+
+type HateoasLink struct {
+	Self any `json:"self,omitempty"`
+	Next any `json:"next,omitempty"`
+	Prev any `json:"prev,omitempty"`
+	Last any `json:"last,omitempty"`
+}
