@@ -3,7 +3,7 @@ package controllers
 import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"fmt"
+	"backend-daily-greens/utils"
 	"net/http"
 	"strconv"
 
@@ -87,45 +87,18 @@ func ListCategories(ctx *gin.Context) {
 	}
 
 	// hateoas
-	host := ctx.Request.Host
-	scheme := "http"
-	if ctx.Request.TLS != nil {
-		scheme = "https"
-	}
-	baseURL := fmt.Sprintf("%s://%s/admin/categories", scheme, host)
-
-	var next any
-	var prev any
-
-	if totalData == 0 {
-		page = 0
-		next = nil
-		prev = nil
-	} else if page == 1 && totalPage > 1 {
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = nil
-	} else if page == totalPage && totalPage > 1 {
-		next = nil
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	} else if totalPage > 1 {
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	} else {
-		next = nil
-		prev = nil
-	}
+	links := utils.BuildHateoasPagination(ctx, page, limit, search, totalData)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": message,
 		"data":    categories,
+		"_links":  links,
 		"meta": gin.H{
 			"currentPage": page,
 			"perPage":     limit,
 			"totalData":   totalData,
 			"totalPages":  totalPage,
-			"next":        next,
-			"prev":        prev,
 		},
 	})
 }
