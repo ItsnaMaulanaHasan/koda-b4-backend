@@ -2,7 +2,6 @@ package models
 
 import (
 	"backend-daily-greens/config"
-	"backend-daily-greens/lib"
 	"context"
 	"errors"
 	"fmt"
@@ -701,7 +700,7 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 }
 
 func InvalidateProductCache(ctx context.Context) error {
-	rdb := lib.Redis()
+	rdb := config.Redis()
 
 	patterns := []string{
 		"products:total:*",

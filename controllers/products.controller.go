@@ -66,7 +66,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 
 	var totalData int
 	var err error
-	rdb := lib.Redis()
+	rdb := config.Redis()
 
 	totalCacheKey := fmt.Sprintf("products:total:search:%s", search)
 
@@ -258,7 +258,7 @@ func DetailProductAdmin(ctx *gin.Context) {
 		return
 	}
 
-	rdb := lib.Redis()
+	rdb := config.Redis()
 	cacheKey := fmt.Sprintf("products:detail:id:%d", id)
 
 	// redis for detail product
@@ -1076,7 +1076,7 @@ func ListFavouriteProducts(ctx *gin.Context) {
 
 	var err error
 	var products []models.PublicProductResponse
-	rdb := lib.Redis()
+	rdb := config.Redis()
 
 	// redis for list favourite products
 	cacheListFavouriteProducts, _ := rdb.Get(context.Background(), ctx.Request.RequestURI).Result()
@@ -1202,7 +1202,7 @@ func ListProductsPublic(ctx *gin.Context) {
 
 	var totalData int
 	var err error
-	rdb := lib.Redis()
+	rdb := config.Redis()
 
 	// Ubah cache key untuk include semua filter
 	totalCacheKey := fmt.Sprintf("productsPublic:total:q:%s:cat:%v:maxPrice:%f:minPrice:%f",
@@ -1390,7 +1390,7 @@ func DetailProductPublic(ctx *gin.Context) {
 		return
 	}
 
-	rdb := lib.Redis()
+	rdb := config.Redis()
 	cacheKey := fmt.Sprintf("productsPublic:detail:id:%d", id)
 
 	// redis for detail product
