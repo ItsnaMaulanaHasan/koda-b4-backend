@@ -390,7 +390,7 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
-	files := form.File["images"]
+	files := form.File["fileImages"]
 
 	// validate amount of uploaded images
 	if len(files) > 4 {
