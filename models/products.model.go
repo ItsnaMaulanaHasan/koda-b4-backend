@@ -2,6 +2,7 @@ package models
 
 import (
 	"backend-daily-greens/config"
+	"backend-daily-greens/utils"
 	"context"
 	"errors"
 	"fmt"
@@ -334,12 +335,29 @@ func InsertProductVariants(tx pgx.Tx, productId int, variantIds []int, userId in
 }
 
 func DeleteProductImages(tx pgx.Tx, productId int) error {
-	_, err := tx.Exec(
+	var images []string
+	err := tx.QueryRow(context.Background(), "SELECT ARRAY_AGG(product_image) FROM product_images WHERE product_id = $1", productId).Scan(&images)
+	if err != nil {
+		return err
+	}
+
+	for _, image := range images {
+		err = utils.DeleteFromCloudinary(image)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = tx.Exec(
 		context.Background(),
 		`DELETE FROM product_images WHERE product_id = $1`,
 		productId,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func DeleteProductSizes(tx pgx.Tx, productId int) error {
