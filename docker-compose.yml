@@ -33,7 +33,7 @@ services:
     environment:
       - ENVIRONMENT=development
       - APP_SECRET=6d0deb87aca67cf3d6be19513b335e29
-      - DATABASE_URL=postgres://postgres:123@postgres:5432/postgres?sslmode=disable
+      - DATABASE_URL=postgres://postgres:123@postgres:5432/db_daily_greens?sslmode=disable
       - REDIS_URL=redis://redis:6379/0
       - CLOUDINARY_NAME=dpa0efslk
       - CLOUDINARY_API_SECRET=ExJO10-e8TPWayG4Ed8Q5vdLfJA
