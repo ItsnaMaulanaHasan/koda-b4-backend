@@ -355,33 +355,37 @@ Before running this application, make sure you have:
 Create a `.env` file in the root directory with the following variables:
 
 ```env
-# Server Configuration
-PORT=8080
-GIN_MODE=release
+ENVIRONMENT=development
 
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=your_db_user
-DB_PASSWORD=your_db_password
-DB_NAME=daily_greens
+# origin url for cors
+ORIGIN_URL=http://localhost:3000
 
-# Redis Configuration
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
+# app secret jwt
+APP_SECRET=<your_app_secret_key>
 
-# JWT Configuration
-JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRATION=24h
+# connection string postgres
+DATABASE_URL=postgresql://user:password@localhost:5432/your_database
 
-# Cloudinary Configuration
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+# connection string redis
+REDIS_URL=redis://default:<PASSWORD>@<HOST>:<PORT>
 
-# Application Configuration
-APP_ENV=development
+# cloudinary configuration
+CLOUDINARY_NAME=<CLOUDINARY_NAME>
+CLOUDINARY_API_SECRET=<CLOUDINARY_API_SECRET>
+CLOUDINARY_API_KEY=<CLOUDINARY_API_KEY>
+
+# environment docker compose
+DATABASE_URL_DOCKER=postgresql://user:password@localhost:5432/your_database
+REDIS_URL_DOCKER=redis://host:port/db
+POSTGRES_PASSWORD_DOCKER=<your_posgtres_password>
+POSTGRES_DB_DOCKER=<db_name>
+POSTGRES_USER_DOCKER=<postgres_user>
+
+# smtp configuration
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=port_smtp
+SMTP_USER=your_email@gmail.com
+SMTP_PASSWORD=your_email_password
 ```
 
 ## Installation & Setup
