@@ -55,7 +55,7 @@ func RegisterUser(bodyRegister *Register) (bool, string, error) {
 	err = tx.QueryRow(
 		ctx,
 		`INSERT INTO users (email, role, password, created_by, updated_by)
-		 VALUES ($1, $2, $3)
+		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id`,
 		bodyRegister.Email, bodyRegister.Role, bodyRegister.Password, bodyRegister.Id, bodyRegister.Id,
 	).Scan(&bodyRegister.Id)
