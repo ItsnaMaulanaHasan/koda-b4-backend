@@ -54,13 +54,20 @@ func RegisterUser(bodyRegister *Register) (bool, string, error) {
 	// insert data to users
 	err = tx.QueryRow(
 		ctx,
-		`INSERT INTO users (email, role, password, created_by, updated_by)
-		 VALUES ($1, $2, $3, $4, $5)
+		`INSERT INTO users (email, role, password)
+		 VALUES ($1, $2, $3)
 		 RETURNING id`,
-		bodyRegister.Email, bodyRegister.Role, bodyRegister.Password, bodyRegister.Id, bodyRegister.Id,
+		bodyRegister.Email, bodyRegister.Role, bodyRegister.Password,
 	).Scan(&bodyRegister.Id)
 	if err != nil {
 		message = "Internal server error while inserting new user"
+		return isSuccess, message, err
+	}
+
+	// update created_by and updated_by
+	_, err = tx.Exec(ctx, `UPDATE users SET created_by = $1, updated_by = $1 WHERE id = $1`, bodyRegister.Id)
+	if err != nil {
+		message = "Internal server error while update created_by and updated_by"
 		return isSuccess, message, err
 	}
 
