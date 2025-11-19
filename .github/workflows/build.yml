@@ -40,4 +40,6 @@ jobs:
             username: ${{ secrets.USERNAME }}
             key: ${{ secrets.KEY }}
             port: ${{ secrets.PORT }}
-            script: docker pull ghcr.io/itsnamaulanahasan/backend-daily-greens:latest
+            script: |
+              cd ~/server && docker compose pull && docker compose up backend -d
+              docker system prune -a --volumes
