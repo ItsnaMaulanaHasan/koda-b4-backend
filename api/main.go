@@ -25,7 +25,7 @@ func init() {
 	router.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 			Success: true,
-			Message: "Backend is running well",
+			Message: "Backend is running good babyy",
 		})
 	})
 
