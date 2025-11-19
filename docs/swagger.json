@@ -1,7 +1,4 @@
 {
-    "schemes": [
-        "https"
-    ],
     "swagger": "2.0",
     "info": {
         "description": "Dokumentasi REST API menggunakan Gin dan Swagger",
@@ -9,7 +6,6 @@
         "contact": {},
         "version": "1.0"
     },
-    "host": "daily-greens-backend.vercel.app",
     "basePath": "/",
     "paths": {
         "/admin/categories": {

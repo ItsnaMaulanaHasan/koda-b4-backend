@@ -421,7 +421,6 @@ definitions:
       role:
         type: string
     type: object
-host: daily-greens-backend.vercel.app
 info:
   contact: {}
   description: Dokumentasi REST API menggunakan Gin dan Swagger
@@ -2680,6 +2679,4 @@ paths:
       summary: Checkout carts
       tags:
       - transactions
-schemes:
-- https
 swagger: "2.0"
