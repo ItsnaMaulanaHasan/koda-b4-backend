@@ -10,8 +10,10 @@ package main
 
 import (
 	"backend-daily-greens/config"
+	"backend-daily-greens/lib"
 	"backend-daily-greens/middlewares"
 	"backend-daily-greens/routes"
+	"net/http"
 
 	_ "backend-daily-greens/docs"
 
@@ -32,6 +34,15 @@ func main() {
 
 	r.Use(middlewares.AllowPrefic())
 	r.Use(middlewares.CorsMiddleware())
+
+	router := r.Group("/")
+
+	router.GET("/", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+			Success: true,
+			Message: "Backend is running good babyy",
+		})
+	})
 
 	routes.SetUpRoutes(r)
 
