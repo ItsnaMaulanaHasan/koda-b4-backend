@@ -32,3 +32,12 @@ jobs:
             tags: |
                 ghcr.io/itsnamaulanahasan/backend-daily-greens:latest
                 ghcr.io/itsnamaulanahasan/backend-daily-greens:${{ github.ref_name }}
+        
+        - name: Execute remote SSH commands using SSH key
+          uses: appleboy/ssh-action@v1
+          with:
+            host: ${{ secrets.HOST }}
+            username: ${{ secrets.USERNAME }}
+            key: ${{ secrets.KEY }}
+            port: ${{ secrets.PORT }}
+            script: docker pull ghcr.io/itsnamaulanahasan/backend-daily-greens:latest
