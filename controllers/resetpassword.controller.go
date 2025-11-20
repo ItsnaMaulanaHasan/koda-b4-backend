@@ -4,8 +4,8 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"fmt"
-	"math/rand"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,14 +19,14 @@ import (
 // @Accept        x-www-form-urlencoded
 // @Produce       json
 // @Param         email  formData  string  true  "User email"
-// @Success       200  {object}  lib.ResponseSuccess  "Reset token sent successfully"
-// @Failure       400  {object}  lib.ResponseError  "Invalid request body"
-// @Failure       404  {object}  lib.ResponseError  "Email not found"
-// @Failure       500  {object}  lib.ResponseError  "Internal server error"
+// @Success       200  {object}  lib.ResponseSuccess "Reset token sent successfully"
+// @Failure       400  {object}  lib.ResponseError   "Invalid request body"
+// @Failure       404  {object}  lib.ResponseError   "Email not found"
+// @Failure       500  {object}  lib.ResponseError   "Internal server error"
 // @Router        /auth/forgot-password [post]
 func GetTokenReset(ctx *gin.Context) {
-	bodyRequest := ctx.PostForm("email")
-	if bodyRequest == "" {
+	email := ctx.PostForm("email")
+	if email == "" {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
 			Message: "Email is required",
@@ -34,8 +34,8 @@ func GetTokenReset(ctx *gin.Context) {
 		return
 	}
 
-	// get user id by email
-	userId, message, err := models.GetUserIdByEmail(bodyRequest)
+	// get user id
+	userId, message, err := models.GetUserIdByEmail(email)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		if message == "Email not found" {
@@ -49,8 +49,8 @@ func GetTokenReset(ctx *gin.Context) {
 		return
 	}
 
-	// generate random 6-digit token
-	token := fmt.Sprintf("%06d", rand.Intn(1000000))
+	// generate token
+	token := lib.GenerateRandomToken(12)
 
 	// delete old tokens
 	err = models.DeleteOldPasswordResetTokens(userId)
@@ -63,8 +63,8 @@ func GetTokenReset(ctx *gin.Context) {
 		return
 	}
 
-	// insert new reset token
-	_, message, err = models.InsertPasswordResetToken(userId, token)
+	// insert token
+	message, err = models.InsertPasswordResetToken(userId, token)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -74,12 +74,39 @@ func GetTokenReset(ctx *gin.Context) {
 		return
 	}
 
+	// build reset URL
+	resetURL := fmt.Sprintf(
+		"%s/reset-password?otp=%s&email=%s",
+		os.Getenv("ORIGIN_URL"),
+		token,
+		email,
+	)
+
+	// email HTML content
+	htmlContent := fmt.Sprintf(`
+		<h2>Password Reset Request</h2>
+		<p>Click the link below to reset your password:</p>
+		<p><a href="%s">%s</a></p>
+		<br/>
+		<p>If you did not request this, you can ignore this email.</p>
+	`, resetURL, resetURL)
+
+	// send via resend
+	err = lib.SendResendEmail(email, "Password Reset Request", htmlContent)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to send reset email",
+			Error:   err.Error(),
+		})
+		return
+	}
+
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
-		Message: "Password reset token has been sent to your email",
+		Message: "Password reset link sent to email",
 		Data: gin.H{
-			"email": bodyRequest,
-			"token": token,
+			"email": email,
 		},
 	})
 }
