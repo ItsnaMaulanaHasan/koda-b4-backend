@@ -55,6 +55,7 @@ type PublicProductResponse struct {
 	Description     string   `db:"description" json:"description"`
 	Price           float64  `db:"price" json:"price"`
 	DiscountPercent float64  `db:"discount_percent" json:"discountPercent"`
+	DiscountPrice   float64  `db:"discount_price" json:"discountPrice"`
 	IsFlashSale     bool     `db:"is_flash_sale" json:"isFlashSale"`
 	IsFavourite     bool     `db:"is_favourite" json:"isFavourite"`
 }
@@ -496,6 +497,10 @@ func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 			p.description,
 			p.price,
 			COALESCE(p.discount_percent, 0) AS discount_percent,
+			CASE 
+				WHEN p.discount_percent = 0 OR p.discount_percent IS NULL THEN 0
+				ELSE p.price * (1 - (p.discount_percent/100))
+			END AS discount_price,
 			p.is_flash_sale,
 			p.is_favourite,
 			COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images
