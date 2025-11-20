@@ -78,25 +78,8 @@ func GetTokenReset(ctx *gin.Context) {
 		return
 	}
 
-	// build reset URL
-	resetURL := fmt.Sprintf(
-		"%s/reset-password?otp=%s&email=%s",
-		os.Getenv("ORIGIN_URL"),
-		token,
-		email,
-	)
-
-	// email HTML content
-	htmlContent := fmt.Sprintf(`
-		<h2>Password Reset Request</h2>
-		<p>Click the link below to reset your password:</p>
-		<p><a href="%s">%s</a></p>
-		<br/>
-		<p>If you did not request this, you can ignore this email.</p>
-	`, resetURL, resetURL)
-
-	// send via resend
-	err = lib.SendResendEmail(email, "Password Reset Request", htmlContent)
+	// send email reset password
+	err = lib.SendPasswordResetEmail(email, token)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
