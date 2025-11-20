@@ -510,7 +510,7 @@ func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 			COALESCE(p.discount_percent, 0) AS discount_percent,
 			CASE 
 				WHEN p.discount_percent = 0 OR p.discount_percent IS NULL THEN 0
-				ELSE p.price * (1 - (p.discount_percent/100))
+				ELSE p.price * (1 - (p.discount_percent/100.0))
 			END AS discount_price,
 			p.is_flash_sale,
 			p.is_favourite,
@@ -679,7 +679,7 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 				COALESCE(p.discount_percent, 0) AS discount_percent,
 				CASE 
 					WHEN p.discount_percent = 0 OR p.discount_percent IS NULL THEN 0
-					ELSE p.price * (1 - (p.discount_percent/100))
+					ELSE p.price * (1 - (p.discount_percent / 100.0))
 				END AS discount_price,
 				COALESCE(p.rating, 0) AS rating,
 				p.is_flash_sale,
@@ -742,7 +742,7 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 							COALESCE(p.discount_percent, 0) AS discount_percent,
 							CASE 
 								WHEN p.discount_percent = 0 OR p.discount_percent IS NULL THEN 0
-								ELSE p.price * (1 - (p.discount_percent/100))
+								ELSE p.price * (1 - (p.discount_percent/100.0))
 							END AS discount_price,
 							p.is_flash_sale,
 							p.is_favourite,
