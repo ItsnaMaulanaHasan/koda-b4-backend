@@ -50,7 +50,7 @@ type ProductRequest struct {
 
 type PublicProductResponse struct {
 	Id              int     `db:"id" json:"id"`
-	ProductImages   string  `db:"product_images" json:"productImages"`
+	ProductImages   string  `db:"product_image" json:"productImage"`
 	Name            string  `db:"name" json:"name"`
 	Description     string  `db:"description" json:"description"`
 	Price           float64 `db:"price" json:"price"`
