@@ -14,7 +14,7 @@ import (
 
 // GetTokenReset  godoc
 // @Summary       Request password reset
-// @Description   Send a 6-digit reset token to user's email
+// @Description   Send a 12-digit reset token to user's email
 // @Tags          auth
 // @Accept        x-www-form-urlencoded
 // @Produce       json
