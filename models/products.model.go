@@ -728,6 +728,10 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 							p.description,
 							p.price,
 							COALESCE(p.discount_percent, 0) AS discount_percent,
+							CASE 
+								WHEN p.discount_percent = 0 OR p.discount_percent IS NULL THEN 0
+								ELSE p.price * (1 - (p.discount_percent/100))
+							END AS discount_price,
 							p.is_flash_sale,
 							p.is_favourite,
 							COALESCE(MAX(pi.product_image), '') AS product_image
