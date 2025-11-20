@@ -1,13 +1,19 @@
 package controllers
 
 import (
+	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
+	"context"
+	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/matthewhartstonge/argon2"
 )
 
@@ -155,25 +161,7 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
-	var session = models.Session{
-		UserId:    user.Id,
-		LoginTime: time.Now(),
-		ExpiredAt: time.Now().Add(24 * time.Hour),
-		IpAddress: ctx.ClientIP(),
-		UserAgent: ctx.GetHeader("User-Agent"),
-	}
-
-	err = models.CreateSession(&session)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to create session",
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	jwtToken, err := lib.GenerateToken(user.Id, user.Role, session.Id)
+	jwtToken, err := lib.GenerateToken(user.Id, user.Role)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -183,72 +171,100 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
+	rdb := config.Redis()
+	userTokenKey := fmt.Sprintf("user_%d_token", user.Id)
+
+	err = rdb.Set(context.Background(), userTokenKey, jwtToken, 24*time.Hour).Err()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to logout user",
+			Error:   err.Error(),
+		})
+		return
+	}
+
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
 		Message: "User login successfully",
 		Data: gin.H{
-			"token":     jwtToken,
-			"sessionId": session.Id,
-			"loginTime": session.LoginTime,
-			"expiresAt": session.ExpiredAt,
+			"token": jwtToken,
 		},
 	})
 }
 
 // Logout        godoc
 // @Summary      Logout user
-// @Description  Logout user by deactivating the session
+// @Description  Logout user by blacklisting the JWT token
 // @Tags         auth
-// @Accept       x-www-form-urlencoded
+// @Accept       json
 // @Produce      json
 // @Security     BearerAuth
 // @Param        Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
 // @Success      200  {object}  lib.ResponseSuccess  "User logged out successfully"
-// @Failure      400  {object}  lib.ResponseError    "Invalid request body"
-// @Failure      401  {object}  lib.ResponseError    "User unauthorized"
-// @Failure      404  {object}  lib.ResponseError    "Session not found"
+// @Failure      401  {object}  lib.ResponseError    "User unauthorized or token invalid"
 // @Failure      500  {object}  lib.ResponseError    "Internal server error"
 // @Router       /auth/logout [post]
 func Logout(ctx *gin.Context) {
-	// get user id from token
-	userId, exists := ctx.Get("userId")
-	if !exists {
+	authHeader := ctx.Request.Header.Get("Authorization")
+	tokenString, found := strings.CutPrefix(authHeader, "Bearer ")
+	if !found {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
-			Message: "User Id not found in token",
+			Message: "Authorization header required or invalid format",
 		})
+		ctx.Abort()
 		return
 	}
 
-	sessionId, exists := ctx.Get("sessionId")
-	if !exists {
+	token, err := jwt.ParseWithClaims(tokenString, &lib.UserPayload{}, func(token *jwt.Token) (any, error) {
+		return []byte(os.Getenv("APP_SECRET")), nil
+	})
+
+	if err != nil || !token.Valid {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
-			Message: "Session Id not found in token",
-		})
-		return
-	}
-
-	isSuccess, message, err := models.LogoutSession(userId.(int), sessionId.(int))
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: isSuccess,
-			Message: message,
+			Message: "Invalid or expired token",
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	if !isSuccess {
-		ctx.JSON(http.StatusNotFound, lib.ResponseError{
+	claims, ok := token.Claims.(*lib.UserPayload)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
-			Message: message,
+			Message: "Invalid token claims",
+		})
+		return
+	}
+
+	expiryTime := claims.ExpiresAt.Time
+	ttl := time.Until(expiryTime)
+
+	if ttl <= 0 {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "Token already expired",
+		})
+		return
+	}
+
+	rdb := config.Redis()
+	blacklistKey := "blacklist:" + tokenString
+
+	err = rdb.Set(context.Background(), blacklistKey, tokenString, ttl).Err()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to logout user",
+			Error:   err.Error(),
 		})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
-		Message: message,
+		Message: "User logged out successfully",
 	})
 }

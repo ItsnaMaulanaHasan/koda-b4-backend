@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 // GetTokenReset  godoc
@@ -254,6 +258,48 @@ func ResetPassword(ctx *gin.Context) {
 			Error:   err.Error(),
 		})
 		return
+	}
+
+	rdb := config.Redis()
+	userTokenKey := fmt.Sprintf("user_%d_token", userId)
+	// get token from redis
+	tokenUser, err := rdb.Get(context.Background(), userTokenKey).Result()
+	if err != redis.Nil || tokenUser != "" {
+		token, err := jwt.ParseWithClaims(tokenUser, &lib.UserPayload{}, func(token *jwt.Token) (any, error) {
+			return []byte(os.Getenv("APP_SECRET")), nil
+		})
+
+		if err != nil || !token.Valid {
+			ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+				Success: false,
+				Message: "Invalid or expired token",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		claims, ok := token.Claims.(*lib.UserPayload)
+		if !ok {
+			ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+				Success: false,
+				Message: "Invalid token claims",
+			})
+			return
+		}
+
+		expiryTime := claims.ExpiresAt.Time
+		ttl := time.Until(expiryTime)
+
+		if ttl <= 0 {
+			ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+				Success: false,
+				Message: "Token already expired",
+			})
+			return
+		}
+
+		blacklistKey := "blacklist:" + tokenUser
+		rdb.Set(context.Background(), blacklistKey, tokenUser, ttl)
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
