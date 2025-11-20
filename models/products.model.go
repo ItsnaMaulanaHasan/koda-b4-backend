@@ -503,7 +503,7 @@ func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 			END AS discount_price,
 			p.is_flash_sale,
 			p.is_favourite,
-			MAX(pi.product_image) AS product_image
+			COALESCE(MAX(pi.product_image), '') AS product_image
 		FROM products p
 		LEFT JOIN product_images pi ON pi.product_id = p.id AND pi.is_primary = true
 		WHERE p.is_favourite = true AND p.is_active = true
