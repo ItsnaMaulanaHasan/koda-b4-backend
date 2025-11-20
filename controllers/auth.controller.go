@@ -150,7 +150,7 @@ func Login(ctx *gin.Context) {
 	if !isPasswordValid {
 		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 			Success: false,
-			Message: "Invalid email or password",
+			Message: "Incorrect email or password",
 		})
 		return
 	}
