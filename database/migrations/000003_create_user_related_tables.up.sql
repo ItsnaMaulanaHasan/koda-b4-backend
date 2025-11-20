@@ -11,21 +11,6 @@ CREATE TABLE "profiles" (
     "updated_by" int
 );
 
-CREATE TABLE "sessions" (
-    "id" serial PRIMARY KEY,
-    "user_id" int,
-    "login_time" timestamp DEFAULT (CURRENT_TIMESTAMP),
-    "logout_time" timestamp,
-    "expired_at" timestamp,
-    "ip_address" varchar(30),
-    "device" varchar(255),
-    "is_active" bool DEFAULT true,
-    "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
-    "updated_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
-    "created_by" int,
-    "updated_by" int
-);
-
 CREATE TABLE "password_resets" (
     "id" serial PRIMARY KEY,
     "user_id" int,
@@ -76,15 +61,6 @@ ADD CONSTRAINT "fk_profiles_created_by" FOREIGN KEY ("created_by") REFERENCES "u
 
 ALTER TABLE "profiles"
 ADD CONSTRAINT "fk_profiles_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
-
-ALTER TABLE "sessions"
-ADD CONSTRAINT "fk_sessions_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id");
-
-ALTER TABLE "sessions"
-ADD CONSTRAINT "fk_sessions_created_by" FOREIGN KEY ("created_by") REFERENCES "users" ("id");
-
-ALTER TABLE "sessions"
-ADD CONSTRAINT "fk_sessions_updated_by" FOREIGN KEY ("updated_by") REFERENCES "users" ("id");
 
 ALTER TABLE "password_resets"
 ADD CONSTRAINT "fk_password_resets_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id");

@@ -27,12 +27,6 @@ DROP CONSTRAINT "fk_password_resets_created_by";
 ALTER TABLE "password_resets"
 DROP CONSTRAINT "fk_password_resets_user_id";
 
-ALTER TABLE "sessions" DROP CONSTRAINT "fk_sessions_updated_by";
-
-ALTER TABLE "sessions" DROP CONSTRAINT "fk_sessions_created_by";
-
-ALTER TABLE "sessions" DROP CONSTRAINT "fk_sessions_user_id";
-
 ALTER TABLE "profiles" DROP CONSTRAINT "fk_profiles_updated_by";
 
 ALTER TABLE "profiles" DROP CONSTRAINT "fk_profiles_created_by";
@@ -44,7 +38,5 @@ DROP TABLE "carts";
 DROP TABLE "testimonies";
 
 DROP TABLE "password_resets";
-
-DROP TABLE "sessions";
 
 DROP TABLE "profiles";

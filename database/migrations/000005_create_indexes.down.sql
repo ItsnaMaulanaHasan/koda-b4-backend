@@ -1,11 +1,5 @@
 DROP INDEX IF EXISTS idx_password_resets_expired;
 
-DROP INDEX IF EXISTS idx_sessions_active;
-
-DROP INDEX IF EXISTS idx_sessions_user_expired;
-
-DROP INDEX IF EXISTS idx_sessions_token;
-
 DROP INDEX IF EXISTS idx_transaction_items_order;
 
 DROP INDEX IF EXISTS idx_product_images_product;

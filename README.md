@@ -146,21 +146,6 @@ erDiagram
         int updated_by FK
     }
 
-    sessions {
-        serial id PK
-        int user_id FK
-        timestamp login_time
-        timestamp logout_time
-        timestamp expired_at
-        varchar(30) ip_address
-        varchar(255) device
-        bool is_active
-        timestamp created_at
-        timestamp updated_at
-        int created_by FK
-        int updated_by FK
-    }
-
     password_resets {
         serial id PK
         int user_id FK
@@ -269,7 +254,6 @@ erDiagram
     }
 
     users ||--o| profiles : has
-    users ||--o{ sessions : has
     users ||--o{ password_resets : requests
     users ||--o{ testimonies : writes
     users ||--o{ carts : creates
