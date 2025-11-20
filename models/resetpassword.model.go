@@ -63,28 +63,25 @@ func DeleteOldPasswordResetTokens(userId int) error {
 	return err
 }
 
-func InsertPasswordResetToken(userId int, token string) (int, string, error) {
-	var resetId int
+func InsertPasswordResetToken(userId int, token string) (string, error) {
 	message := ""
-
-	err := config.DB.QueryRow(
+	_, err := config.DB.Exec(
 		context.Background(),
 		`INSERT INTO password_resets (user_id, token_reset, created_by, updated_by)
-		 VALUES ($1, $2, $3, $4)
-		 RETURNING id`,
+		 VALUES ($1, $2, $3, $4)`,
 		userId,
 		token,
 		userId,
 		userId,
-	).Scan(&resetId)
+	)
 
 	if err != nil {
 		message = "Internal server error while creating reset token"
-		return resetId, message, err
+		return message, err
 	}
 
 	message = "Reset token created successfully"
-	return resetId, message, nil
+	return message, nil
 }
 
 func VerifyPasswordResetToken(email string, token string) (int, time.Time, string, error) {
