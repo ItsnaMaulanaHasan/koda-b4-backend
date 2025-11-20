@@ -30,7 +30,6 @@ func main() {
 
 	r.MaxMultipartMemory = 1 << 20
 
-	r.Use(middlewares.AllowPrefic())
 	r.Use(middlewares.CorsMiddleware())
 
 	router := r.Group("/")
