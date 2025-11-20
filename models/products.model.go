@@ -77,6 +77,7 @@ type PublicProductDetailResponse struct {
 	Description       string                  `db:"description" json:"description"`
 	Price             float64                 `db:"price" json:"price"`
 	DiscountPercent   float64                 `db:"discount_percent" json:"discountPercent"`
+	DiscountPrice     float64                 `db:"discount_price" json:"discountPrice"`
 	Rating            float64                 `db:"rating" json:"rating"`
 	IsFlashSale       bool                    `db:"is_flash_sale" json:"isFlashSale"`
 	Stock             int                     `db:"stock" json:"stock"`
@@ -676,6 +677,10 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 				p.description,
 				p.price,
 				COALESCE(p.discount_percent, 0) AS discount_percent,
+				CASE 
+					WHEN p.discount_percent = 0 OR p.discount_percent IS NULL THEN 0
+					ELSE p.price * (1 - (p.discount_percent/100))
+				END AS discount_price,
 				COALESCE(p.rating, 0) AS rating,
 				p.is_flash_sale,
 				COALESCE(p.stock, 0) AS stock,
