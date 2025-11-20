@@ -1,7 +1,9 @@
 package middlewares
 
 import (
+	"backend-daily-greens/config"
 	"backend-daily-greens/lib"
+	"context"
 	"net/http"
 	"os"
 	"strings"
@@ -23,13 +25,35 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
+		rdb := config.Redis()
+		blacklistKey := "blacklist:" + tokenString
+		exists, err := rdb.Exists(context.Background(), blacklistKey).Result()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to verify token",
+				Error:   err.Error(),
+			})
+			ctx.Abort()
+			return
+		}
+
+		if exists > 0 {
+			ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+				Success: false,
+				Message: "Token has been revoked, please login again",
+			})
+			ctx.Abort()
+			return
+		}
+
 		token, err := jwt.ParseWithClaims(tokenString, &lib.UserPayload{}, func(token *jwt.Token) (any, error) {
 			return []byte(os.Getenv("APP_SECRET")), nil
 		})
 		if err != nil {
 			ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
 				Success: false,
-				Message: "Invalid token",
+				Message: "Invalid or expired token",
 			})
 			ctx.Abort()
 			return
