@@ -382,6 +382,7 @@ func UpdateUser(ctx *gin.Context) {
 	savedFilePath := ""
 	file, err := ctx.FormFile("filePhoto")
 	if err == nil {
+		// check file size
 		if file.Size > 3<<20 {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 				Success: false,
@@ -390,53 +391,73 @@ func UpdateUser(ctx *gin.Context) {
 			return
 		}
 
-		contentType := file.Header.Get("Content-Type")
 		allowedTypes := map[string]bool{
+			"image/jpg":  true,
 			"image/jpeg": true,
 			"image/png":  true,
 		}
-
-		if !allowedTypes[contentType] {
-			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-				Success: false,
-				Message: "Invalid file type. Only JPEG and PNG are allowed",
-			})
-			return
-		}
-
-		ext := strings.ToLower(filepath.Ext(file.Filename))
 		allowedExt := map[string]bool{
 			".jpg":  true,
 			".jpeg": true,
 			".png":  true,
 		}
 
+		// check content type
+		contentType := file.Header.Get("Content-Type")
+		if !allowedTypes[contentType] {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "Image has invalid type. Only JPEG and PNG are allowed",
+			})
+			return
+		}
+
+		// check file extension
+		ext := strings.ToLower(filepath.Ext(file.Filename))
 		if !allowedExt[ext] {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 				Success: false,
-				Message: "Invalid file extension. Only JPG and PNG are allowed",
+				Message: "Image has invalid extension. Only JPG and PNG are allowed",
 			})
 			return
+		}
+
+		uploadDir := "uploads/profiles"
+
+		useCloudinary := os.Getenv("CLOUDINARY_API_KEY") != ""
+		if !useCloudinary {
+			os.MkdirAll(uploadDir, 0755)
 		}
 
 		fileName := fmt.Sprintf("user_%d_%d%s", userId, time.Now().Unix(), ext)
-		savedFilePath = "uploads/profiles/" + fileName
 
-		os.MkdirAll("uploads/profiles", 0755)
-
-		err = ctx.SaveUploadedFile(file, savedFilePath)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "User updated but failed to save profile photo",
-				Error:   err.Error(),
-			})
-			return
+		if !useCloudinary {
+			savedFilePath = filepath.Join(uploadDir, fileName)
+			err = ctx.SaveUploadedFile(file, savedFilePath)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "User updated but failed to save profile photo",
+					Error:   err.Error(),
+				})
+				return
+			}
+			bodyUpdate.ProfilePhoto = savedFilePath
+		} else {
+			imageUrl, err := utils.UploadToCloudinary(file, fileName)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Failed to upload profile photo to Cloudinary",
+					Error:   err.Error(),
+				})
+				return
+			}
+			bodyUpdate.ProfilePhoto = imageUrl
 		}
-		bodyUpdate.ProfilePhoto = savedFilePath
 	}
 
-	// insert data user
+	// update data user
 	isSuccess, message, err := models.UpdateDataUser(id, userId.(int), &bodyUpdate, savedFilePath)
 	if err != nil {
 		statusHttp := http.StatusInternalServerError

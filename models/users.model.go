@@ -2,6 +2,7 @@ package models
 
 import (
 	"backend-daily-greens/config"
+	"backend-daily-greens/utils"
 	"context"
 	"errors"
 	"mime/multipart"
@@ -239,6 +240,12 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, savedFile
 	if commandTag.RowsAffected() == 0 {
 		message = "user not found"
 		return isSuccess, message, errors.New(message)
+	}
+
+	err = utils.DeleteFromCloudinary(bodyUpdate.ProfilePhoto)
+	if err != nil {
+		message = "Failed to delete photo profile from cloudinary"
+		return isSuccess, message, err
 	}
 
 	_, err = tx.Exec(
