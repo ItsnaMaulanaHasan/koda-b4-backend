@@ -8,18 +8,16 @@ import (
 )
 
 type UserPayload struct {
-	Id        int    `json:"id"`
-	Role      string `json:"role"`
-	SessionId int    `json:"sessionId"`
+	Id   int    `json:"id"`
+	Role string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(id int, role string, sessionId int) (string, error) {
+func GenerateToken(id int, role string) (string, error) {
 	secretKey := []byte(os.Getenv("APP_SECRET"))
 	claims := UserPayload{
 		id,
 		role,
-		sessionId,
 		jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

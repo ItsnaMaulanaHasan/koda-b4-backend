@@ -256,17 +256,6 @@ func ResetPassword(ctx *gin.Context) {
 		return
 	}
 
-	// deactivate all user sessions (force logout from all devices)
-	err = models.DeactivateAllUserSessions(userId)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while deactivating user sessions",
-			Error:   err.Error(),
-		})
-		return
-	}
-
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
 		Message: "Password has been reset successfully",

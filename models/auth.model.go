@@ -4,7 +4,6 @@ import (
 	"backend-daily-greens/config"
 	"context"
 	"errors"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -26,17 +25,6 @@ type QueryLogin struct {
 	Id       int    `db:"id"`
 	Password string `db:"password"`
 	Role     string `db:"role"`
-}
-
-type Session struct {
-	Id         int `json:"sessionId"`
-	UserId     int
-	LoginTime  time.Time  `json:"loginTime"`
-	LogoutTime *time.Time `json:"logoutTime,omitempty"`
-	ExpiredAt  time.Time  `json:"expiredAt"`
-	IpAddress  string
-	UserAgent  string
-	IsActive   bool
 }
 
 func RegisterUser(bodyRegister *Register) (bool, string, error) {
@@ -116,77 +104,4 @@ func GetUserByEmail(bodyLogin *Login) (QueryLogin, string, error) {
 	}
 
 	return user, message, nil
-}
-
-func CreateSession(session *Session) error {
-	err := config.DB.QueryRow(
-		context.Background(),
-		`INSERT INTO sessions 
-		(user_id, login_time, expired_at, ip_address, device, is_active, created_by, updated_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id`,
-		session.UserId,
-		session.LoginTime,
-		session.ExpiredAt,
-		session.IpAddress,
-		session.UserAgent,
-		true,
-		session.UserId,
-		session.UserId,
-	).Scan(&session.Id)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func LogoutSession(userId int, sessionId int) (bool, string, error) {
-	isSuccess := false
-	message := ""
-
-	commandTag, err := config.DB.Exec(
-		context.Background(),
-		`UPDATE sessions 
-		 SET is_active = false,
-		 	 logout_time = NOW(),
-		     updated_by = $1, 
-		     updated_at = NOW() 
-		 WHERE id = $2 AND user_id = $1 AND is_active = true`,
-		userId,
-		sessionId,
-	)
-	if err != nil {
-		message = "Internal server error while updating session"
-		return isSuccess, message, err
-	}
-
-	if commandTag.RowsAffected() == 0 {
-		message = "Session not found or already logged out"
-		return isSuccess, message, nil
-	}
-
-	isSuccess = true
-	message = "User logged out successfully"
-	return isSuccess, message, nil
-}
-
-func IsSessionActive(sessionId int) (bool, error) {
-	var isActive bool
-	err := config.DB.QueryRow(
-		context.Background(),
-		`SELECT is_active FROM sessions 
-         WHERE id = $1 AND expired_at > NOW()`,
-		sessionId,
-	).Scan(&isActive)
-
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return false, nil
-		}
-		return false, err
-	}
-
-	return isActive, nil
 }

@@ -137,17 +137,3 @@ func UpdateUserPassword(userId int, hashedPassword string) (bool, string, error)
 	message = "Password updated successfully"
 	return isSuccess, message, nil
 }
-
-func DeactivateAllUserSessions(userId int) error {
-	_, err := config.DB.Exec(
-		context.Background(),
-		`UPDATE sessions 
-		 SET is_active = false,
-		     logout_time = NOW(),
-		     updated_by = $1,
-		     updated_at = NOW()
-		 WHERE user_id = $1 AND is_active = true`,
-		userId,
-	)
-	return err
-}
