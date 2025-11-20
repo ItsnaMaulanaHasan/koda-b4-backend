@@ -95,10 +95,8 @@ func GetUserByEmail(bodyLogin *Login) (QueryLogin, string, error) {
 	user, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[QueryLogin])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			message = "User not found"
 			return user, message, err
 		}
-
 		message = "Failed to process user data"
 		return user, message, err
 	}

@@ -120,7 +120,7 @@ func Login(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Invalid form data",
+			Message: "Please provide valid email and password",
 			Error:   err.Error(),
 		})
 		return
@@ -129,7 +129,7 @@ func Login(ctx *gin.Context) {
 	user, message, err := models.GetUserByEmail(&bodyLogin)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
-		if message == "User not found" {
+		if message == "Incorrect email or password" {
 			statusCode = http.StatusNotFound
 		}
 		ctx.JSON(statusCode, lib.ResponseError{
@@ -147,7 +147,7 @@ func Login(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to verify password",
+			Message: "Failed to verifi password. Please try again",
 			Error:   err.Error(),
 		})
 		return
@@ -165,7 +165,7 @@ func Login(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to generate token",
+			Message: "Failed to generate token. Please try again",
 			Error:   err.Error(),
 		})
 		return
@@ -178,7 +178,7 @@ func Login(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to logout user",
+			Message: "Failed to save token. Please try again",
 			Error:   err.Error(),
 		})
 		return
@@ -186,7 +186,7 @@ func Login(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: true,
-		Message: "User login successfully",
+		Message: "Login successful!",
 		Data: gin.H{
 			"token": jwtToken,
 		},
