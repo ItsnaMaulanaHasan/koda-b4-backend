@@ -31,7 +31,6 @@ func init() {
 
 	App.MaxMultipartMemory = 1 << 20
 
-	App.Use(middlewares.AllowPrefic())
 	App.Use(middlewares.CorsMiddleware())
 
 	App.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
