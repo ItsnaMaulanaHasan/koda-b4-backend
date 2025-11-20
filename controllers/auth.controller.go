@@ -38,7 +38,7 @@ func Register(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Invalid form data",
+			Message: "Please provide valid registration information",
 			Error:   err.Error(),
 		})
 		return
@@ -53,7 +53,7 @@ func Register(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while checking email uniqueness",
+			Message: "Unable to process registration. Please try again",
 			Error:   err.Error(),
 		})
 		return
@@ -62,7 +62,7 @@ func Register(ctx *gin.Context) {
 	if exists {
 		ctx.JSON(http.StatusConflict, lib.ResponseError{
 			Success: false,
-			Message: "Email already registered",
+			Message: "Email is already registered",
 		})
 		return
 	}
@@ -70,7 +70,7 @@ func Register(ctx *gin.Context) {
 	// hash password
 	hashedPassword, err := lib.HashPassword(bodyRegister.Password)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
 			Message: "Failed to hash password",
 			Error:   err.Error(),
