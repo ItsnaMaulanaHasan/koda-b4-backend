@@ -111,7 +111,7 @@ func Register(ctx *gin.Context) {
 // @Param        password  formData  string  true  "User password" format(password)
 // @Success      200  {object}  lib.ResponseSuccess{data=object{token=string}}  "Login successful"
 // @Failure      400  {object}  lib.ResponseError  "Invalid request body"
-// @Failure      401  {object}  lib.ResponseError  "Invalid email or password"
+// @Failure      401  {object}  lib.ResponseError  "Incorrect email or password"
 // @Failure      500  {object}  lib.ResponseError  "Internal server error"
 // @Router       /auth/login [post]
 func Login(ctx *gin.Context) {
