@@ -704,7 +704,14 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 			WHERE p.id = $1
 			GROUP BY p.id;`
 
-	rows, err := config.DB.Query(context.Background(), query, id)
+	tx, err := config.DB.Begin(context.Background())
+	if err != nil {
+		message = "Failed to start database transaction"
+		return product, message, err
+	}
+	defer tx.Rollback(context.Background())
+
+	rows, err := tx.Query(context.Background(), query, id)
 	if err != nil {
 		message = "Failed to fetch detail product from database"
 		return product, message, err
@@ -753,7 +760,7 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 						ORDER BY RANDOM()
 						LIMIT 5;`
 
-	rowsRec, err := config.DB.Query(context.Background(), queryRecomendation, id)
+	rowsRec, err := tx.Query(context.Background(), queryRecomendation, id)
 	if err != nil {
 		message = "Failed to get recomendation product from database"
 		return product, message, err
@@ -761,6 +768,12 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 	defer rowsRec.Close()
 
 	product.Recomendations, _ = pgx.CollectRows(rowsRec, pgx.RowToStructByName[PublicProductResponse])
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		message = "Failed to commit transaction"
+		return product, message, err
+	}
 
 	return product, message, nil
 }
