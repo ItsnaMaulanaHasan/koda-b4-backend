@@ -49,15 +49,15 @@ type ProductRequest struct {
 }
 
 type PublicProductResponse struct {
-	Id              int      `db:"id" json:"id"`
-	ProductImages   []string `db:"product_images" json:"productImages"`
-	Name            string   `db:"name" json:"name"`
-	Description     string   `db:"description" json:"description"`
-	Price           float64  `db:"price" json:"price"`
-	DiscountPercent float64  `db:"discount_percent" json:"discountPercent"`
-	DiscountPrice   float64  `db:"discount_price" json:"discountPrice"`
-	IsFlashSale     bool     `db:"is_flash_sale" json:"isFlashSale"`
-	IsFavourite     bool     `db:"is_favourite" json:"isFavourite"`
+	Id              int     `db:"id" json:"id"`
+	ProductImages   string  `db:"product_images" json:"productImages"`
+	Name            string  `db:"name" json:"name"`
+	Description     string  `db:"description" json:"description"`
+	Price           float64 `db:"price" json:"price"`
+	DiscountPercent float64 `db:"discount_percent" json:"discountPercent"`
+	DiscountPrice   float64 `db:"discount_price" json:"discountPrice"`
+	IsFlashSale     bool    `db:"is_flash_sale" json:"isFlashSale"`
+	IsFavourite     bool    `db:"is_favourite" json:"isFavourite"`
 }
 
 type PublicProductDetailResponse struct {
@@ -503,9 +503,9 @@ func GetListFavouriteProducts(limit int) ([]PublicProductResponse, error) {
 			END AS discount_price,
 			p.is_flash_sale,
 			p.is_favourite,
-			COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images
+			MAX(pi.product_image) AS product_image
 		FROM products p
-		LEFT JOIN product_images pi ON pi.product_id = p.id
+		LEFT JOIN product_images pi ON pi.product_id = p.id AND pi.is_primary = true
 		WHERE p.is_favourite = true AND p.is_active = true
 		GROUP BY p.id
 		ORDER BY p.id ASC
