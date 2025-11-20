@@ -16,6 +16,7 @@ type UserProfile struct {
 	Phone        string `db:"phone" json:"phone"`
 	Address      string `db:"address" json:"address"`
 	Password     string `db:"password" json:"-"`
+	Role         string `db:"role" json:"role"`
 }
 
 type ProfileRequest struct {
@@ -38,7 +39,8 @@ func GetDetailProfile(userId int) (UserProfile, string, error) {
 			u.email,
 			COALESCE(p.address, '') AS address,
 			COALESCE(p.phone_number, '') AS phone,
-			u.password
+			u.password,
+			u.role
 		FROM users u
 		LEFT JOIN profiles p ON u.id = p.user_id
 		WHERE u.id = $1`, userId)
