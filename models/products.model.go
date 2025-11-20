@@ -60,6 +60,16 @@ type PublicProductResponse struct {
 	IsFavourite     bool    `db:"is_favourite" json:"isFavourite"`
 }
 
+type productSizes struct {
+	Id   int    `json:"id"`
+	Size string `json:"size"`
+}
+
+type productVariants struct {
+	Id      int    `json:"id"`
+	Variant string `json:"variant"`
+}
+
 type PublicProductDetailResponse struct {
 	Id                int                     `db:"id" json:"id"`
 	ProductImages     []string                `db:"product_images" json:"productImages"`
@@ -70,10 +80,10 @@ type PublicProductDetailResponse struct {
 	Rating            float64                 `db:"rating" json:"rating"`
 	IsFlashSale       bool                    `db:"is_flash_sale" json:"isFlashSale"`
 	Stock             int                     `db:"stock" json:"stock"`
-	ProductSizes      []string                `db:"product_sizes" json:"productSizes"`
 	ProductCategories []string                `db:"product_categories" json:"productCategories"`
-	ProductVariants   []string                `db:"product_variants" json:"productVariants"`
-	Recomendations    []PublicProductResponse `db:"-" json:"Recomendations"`
+	ProductSizes      []productSizes          `db:"product_sizes" json:"productSizes"`
+	ProductVariants   []productVariants       `db:"product_variants" json:"productVariants"`
+	Recomendations    []PublicProductResponse `db:"-" json:"recomendations"`
 }
 
 func TotalDataProducts(search string) (int, error) {
@@ -670,9 +680,19 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 				p.is_flash_sale,
 				COALESCE(p.stock, 0) AS stock,
 				COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images,
-				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
 				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
-				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
+				COALESCE(
+					JSON_AGG(
+						DISTINCT JSONB_BUILD_OBJECT('id', s.id, 'size', s.name)
+					) FILTER (WHERE s.id IS NOT NULL),
+					'[]'
+				) AS product_sizes,
+				COALESCE(
+					JSON_AGG(
+						DISTINCT JSONB_BUILD_OBJECT('id', v.id, 'variant', v.name)
+					) FILTER (WHERE v.id IS NOT NULL),
+					'[]'
+				) AS product_variants
 			FROM products p
 			LEFT JOIN product_images pi ON pi.product_id = p.id
 			LEFT JOIN product_sizes sp ON sp.product_id = p.id
@@ -697,7 +717,7 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 			message = "Product not found"
 			return product, message, err
 		}
-		message = "Failed tp process detail product"
+		message = "Failed to process detail product"
 		return product, message, err
 	}
 
@@ -710,9 +730,9 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 							COALESCE(p.discount_percent, 0) AS discount_percent,
 							p.is_flash_sale,
 							p.is_favourite,
-							COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images
+							COALESCE(MAX(pi.product_image), '') AS product_image
 						FROM products p
-						LEFT JOIN product_images pi ON pi.product_id = p.id
+						LEFT JOIN product_images pi ON pi.product_id = p.id AND pi.is_primary = true
 						WHERE p.is_active = true
 						AND p.id != $1
 						AND EXISTS (
@@ -739,7 +759,6 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 	product.Recomendations, _ = pgx.CollectRows(rowsRec, pgx.RowToStructByName[PublicProductResponse])
 
 	return product, message, nil
-
 }
 
 func InvalidateProductCache(ctx context.Context) error {
