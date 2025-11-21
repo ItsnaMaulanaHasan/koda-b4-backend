@@ -11,7 +11,6 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -470,47 +469,22 @@ func CreateProduct(ctx *gin.Context) {
 
 	// process and save images
 	var savedImagePaths []string
-	uploadDir := "uploads/products"
-
-	useCloudinary := os.Getenv("CLOUDINARY_API_KEY") != ""
-	if !useCloudinary {
-		os.MkdirAll(uploadDir, 0755)
-	}
 
 	for i, file := range files {
-		ext := strings.ToLower(filepath.Ext(file.Filename))
-		fileName := fmt.Sprintf("product_%d_img%d_%d%s", bodyCreate.Id, i+1, time.Now().UnixNano(), ext)
-		if !useCloudinary {
-			savedFilePath := filepath.Join(uploadDir, fileName)
-			err := ctx.SaveUploadedFile(file, savedFilePath)
-			if err != nil {
-				// clean up already saved files
-				for _, path := range savedImagePaths {
-					os.Remove(path)
-				}
-				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-					Success: false,
-					Message: fmt.Sprintf("Failed to save image %d", i+1),
-					Error:   err.Error(),
-				})
-				return
+		fileName := fmt.Sprintf("product_%d_img%d_%d", bodyCreate.Id, i+1, time.Now().UnixNano())
+		imageUrl, err := utils.UploadToCloudinary(file, fileName, "products")
+		if err != nil {
+			for _, url := range savedImagePaths {
+				utils.DeleteFromCloudinary(url)
 			}
-			savedImagePaths = append(savedImagePaths, savedFilePath)
-		} else {
-			imageUrl, err := utils.UploadToCloudinary(file, fileName)
-			if err != nil {
-				for _, url := range savedImagePaths {
-					utils.DeleteFromCloudinary(url)
-				}
-				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-					Success: false,
-					Message: fmt.Sprintf("Failed to upload image %d to Cloudinary", i+1),
-					Error:   err.Error(),
-				})
-				return
-			}
-			savedImagePaths = append(savedImagePaths, imageUrl)
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: fmt.Sprintf("Failed to upload image %d to Cloudinary", i+1),
+				Error:   err.Error(),
+			})
+			return
 		}
+		savedImagePaths = append(savedImagePaths, imageUrl)
 	}
 
 	// insert images
@@ -518,14 +492,8 @@ func CreateProduct(ctx *gin.Context) {
 		err = models.InsertProductImages(tx, bodyCreate.Id, savedImagePaths, userIdFromToken.(int))
 		if err != nil {
 			// clean up saved files on error
-			if !useCloudinary {
-				for _, path := range savedImagePaths {
-					os.Remove(path)
-				}
-			} else {
-				for _, url := range savedImagePaths {
-					utils.DeleteFromCloudinary(url)
-				}
+			for _, url := range savedImagePaths {
+				utils.DeleteFromCloudinary(url)
 			}
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -811,48 +779,21 @@ func UpdateProduct(ctx *gin.Context) {
 
 		// process and save new images
 		var savedImagePaths []string
-		uploadDir := "uploads/products"
-
-		useCloudinary := os.Getenv("CLOUDINARY_API_KEY") != ""
-		if !useCloudinary {
-			os.MkdirAll(uploadDir, 0755)
-		}
-
 		for i, file := range files {
-			ext := strings.ToLower(filepath.Ext(file.Filename))
-			fileName := fmt.Sprintf("product_%d_img%d_%d%s", id, i+1, time.Now().UnixNano(), ext)
-
-			if !useCloudinary {
-				savedFilePath := filepath.Join(uploadDir, fileName)
-				err := ctx.SaveUploadedFile(file, savedFilePath)
-				if err != nil {
-					// clean up already saved files
-					for _, path := range savedImagePaths {
-						os.Remove(path)
-					}
-					ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-						Success: false,
-						Message: fmt.Sprintf("Failed to save image %d", i+1),
-						Error:   err.Error(),
-					})
-					return
+			fileName := fmt.Sprintf("product_%d_img%d_%d", id, i+1, time.Now().UnixNano())
+			imageUrl, err := utils.UploadToCloudinary(file, fileName, "products")
+			if err != nil {
+				for _, url := range savedImagePaths {
+					utils.DeleteFromCloudinary(url)
 				}
-				savedImagePaths = append(savedImagePaths, savedFilePath)
-			} else {
-				imageUrl, err := utils.UploadToCloudinary(file, fileName)
-				if err != nil {
-					for _, url := range savedImagePaths {
-						utils.DeleteFromCloudinary(url)
-					}
-					ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-						Success: false,
-						Message: fmt.Sprintf("Failed to upload image %d to Cloudinary", i+1),
-						Error:   err.Error(),
-					})
-					return
-				}
-				savedImagePaths = append(savedImagePaths, imageUrl)
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: fmt.Sprintf("Failed to upload image %d to Cloudinary", i+1),
+					Error:   err.Error(),
+				})
+				return
 			}
+			savedImagePaths = append(savedImagePaths, imageUrl)
 
 		}
 
@@ -861,14 +802,8 @@ func UpdateProduct(ctx *gin.Context) {
 			err = models.InsertProductImages(tx, id, savedImagePaths, userIdFromToken.(int))
 			if err != nil {
 				// clean up saved files on error
-				if !useCloudinary {
-					for _, path := range savedImagePaths {
-						os.Remove(path)
-					}
-				} else {
-					for _, url := range savedImagePaths {
-						utils.DeleteFromCloudinary(url)
-					}
+				for _, url := range savedImagePaths {
+					utils.DeleteFromCloudinary(url)
 				}
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
