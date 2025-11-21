@@ -242,7 +242,7 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, imageUrl 
 		return isSuccess, message, errors.New(message)
 	}
 
-	err = utils.DeleteFromCloudinary(bodyUpdate.ProfilePhoto)
+	err = utils.DeleteFromSupabase(bodyUpdate.ProfilePhoto, "photo-profile")
 	if err != nil {
 		message = "Failed to delete photo profile from cloudinary"
 		return isSuccess, message, err

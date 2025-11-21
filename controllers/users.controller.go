@@ -273,7 +273,7 @@ func CreateUser(ctx *gin.Context) {
 		}
 
 		fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
-		imageUrl, err := utils.UploadToCloudinary(file, fileName, "photo-profiles")
+		imageUrl, err := utils.UploadToSupabase(file, fileName, "photo-profiles")
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -399,7 +399,7 @@ func UpdateUser(ctx *gin.Context) {
 		}
 
 		fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
-		imageUrl, err := utils.UploadToCloudinary(file, fileName, "photo-profiles")
+		imageUrl, err := utils.UploadToSupabase(file, fileName, "photo-profiles")
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,

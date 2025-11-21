@@ -469,10 +469,10 @@ func CreateProduct(ctx *gin.Context) {
 
 	for i, file := range files {
 		fileName := fmt.Sprintf("product_%d_img%d_%d", bodyCreate.Id, i+1, time.Now().UnixNano())
-		imageUrl, err := utils.UploadToCloudinary(file, fileName, "products")
+		imageUrl, err := utils.UploadToSupabase(file, fileName, "products")
 		if err != nil {
 			for _, url := range savedImagePaths {
-				utils.DeleteFromCloudinary(url)
+				utils.DeleteFromSupabase(url, "products")
 			}
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -490,7 +490,7 @@ func CreateProduct(ctx *gin.Context) {
 		if err != nil {
 			// clean up saved files on error
 			for _, url := range savedImagePaths {
-				utils.DeleteFromCloudinary(url)
+				utils.DeleteFromSupabase(url, "products")
 			}
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
@@ -778,10 +778,10 @@ func UpdateProduct(ctx *gin.Context) {
 		var savedImagePaths []string
 		for i, file := range files {
 			fileName := fmt.Sprintf("product_%d_img%d_%d", id, i+1, time.Now().UnixNano())
-			imageUrl, err := utils.UploadToCloudinary(file, fileName, "products")
+			imageUrl, err := utils.UploadToSupabase(file, fileName, "products")
 			if err != nil {
 				for _, url := range savedImagePaths {
-					utils.DeleteFromCloudinary(url)
+					utils.DeleteFromSupabase(url, "products")
 				}
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,
@@ -800,7 +800,7 @@ func UpdateProduct(ctx *gin.Context) {
 			if err != nil {
 				// clean up saved files on error
 				for _, url := range savedImagePaths {
-					utils.DeleteFromCloudinary(url)
+					utils.DeleteFromSupabase(url, "products")
 				}
 				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 					Success: false,

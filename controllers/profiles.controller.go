@@ -193,11 +193,11 @@ func UploadProfilePhoto(ctx *gin.Context) {
 	}
 
 	fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
-	imageUrl, err := utils.UploadToCloudinary(file, fileName, "profile-photos")
+	imageUrl, err := utils.UploadToSupabase(file, fileName, "profile-photos")
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to upload profile photo to Cloudinary",
+			Message: "Failed to upload profile photo",
 			Error:   err.Error(),
 		})
 		return

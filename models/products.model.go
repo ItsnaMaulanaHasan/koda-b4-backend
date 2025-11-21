@@ -356,7 +356,7 @@ func DeleteProductImages(tx pgx.Tx, productId int) error {
 
 	// delete product image in cloudinary
 	for _, image := range images {
-		err = utils.DeleteFromCloudinary(image)
+		err = utils.DeleteFromSupabase(image, "products")
 		if err != nil {
 			return err
 		}
@@ -466,7 +466,7 @@ func DeleteDataProduct(productId int) (bool, string, error) {
 
 	// delete product image in cloudinary
 	for _, image := range images {
-		err = utils.DeleteFromCloudinary(image)
+		err = utils.DeleteFromSupabase(image, "products")
 		if err != nil {
 			message = "Failed to delete product image in cloudinary"
 			return isSuccess, message, err
