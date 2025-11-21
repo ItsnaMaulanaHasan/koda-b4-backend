@@ -3,9 +3,9 @@ package controllers
 import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
+	"backend-daily-greens/utils"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -161,51 +161,49 @@ func UploadProfilePhoto(ctx *gin.Context) {
 		return
 	}
 
-	contentType := file.Header.Get("Content-Type")
 	allowedTypes := map[string]bool{
+		"image/jpg":  true,
 		"image/jpeg": true,
 		"image/png":  true,
 	}
-
-	if !allowedTypes[contentType] {
-		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: false,
-			Message: "Invalid file type. Only JPEG and PNG are allowed",
-		})
-		return
-	}
-
-	ext := strings.ToLower(filepath.Ext(file.Filename))
 	allowedExt := map[string]bool{
 		".jpg":  true,
 		".jpeg": true,
 		".png":  true,
 	}
 
+	// check content type
+	contentType := file.Header.Get("Content-Type")
+	if !allowedTypes[contentType] {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Image has invalid type. Only JPEG and PNG are allowed",
+		})
+		return
+	}
+
+	// check file extension
+	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if !allowedExt[ext] {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 			Success: false,
-			Message: "Invalid file extension. Only JPG and PNG are allowed",
+			Message: "Image has invalid extension. Only JPG and PNG are allowed",
 		})
 		return
 	}
 
 	fileName := fmt.Sprintf("user_%d_%d%s", userId, time.Now().Unix(), ext)
-	savedFilePath := "uploads/profiles/" + fileName
-
-	os.MkdirAll("uploads/profiles", 0755)
-
-	err = ctx.SaveUploadedFile(file, savedFilePath)
+	imageUrl, err := utils.UploadToCloudinary(file, fileName)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Failed to save uploaded file",
+			Message: "Failed to upload profile photo to Cloudinary",
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	isSuccess, message, err := models.UploadProfilePhotoUser(userId.(int), savedFilePath)
+	isSuccess, message, err := models.UploadProfilePhotoUser(userId.(int), imageUrl)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: isSuccess,
