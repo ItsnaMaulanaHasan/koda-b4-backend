@@ -192,8 +192,8 @@ func UploadProfilePhoto(ctx *gin.Context) {
 		return
 	}
 
-	fileName := fmt.Sprintf("user_%d_%d%s", userId, time.Now().Unix(), ext)
-	imageUrl, err := utils.UploadToCloudinary(file, fileName)
+	fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
+	imageUrl, err := utils.UploadToCloudinary(file, fileName, "profile-photos")
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -216,5 +216,8 @@ func UploadProfilePhoto(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: isSuccess,
 		Message: message,
+		Data: gin.H{
+			"profilePhoto": imageUrl,
+		},
 	})
 }

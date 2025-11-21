@@ -149,9 +149,8 @@ func UploadProfilePhotoUser(userId int, savedFilePath string) (bool, string, err
 		 SET profile_photo = COALESCE($1, profile_photo),
 		     updated_by    = $2,
 		     updated_at    = NOW()
-		 WHERE user_id = $3`,
+		 WHERE user_id = $2`,
 		savedFilePath,
-		userId,
 		userId,
 	)
 	if err != nil {
@@ -159,6 +158,7 @@ func UploadProfilePhotoUser(userId int, savedFilePath string) (bool, string, err
 		return isSuccess, message, err
 	}
 
+	isSuccess = true
 	message = "User updated successfully"
 	return isSuccess, message, nil
 }
