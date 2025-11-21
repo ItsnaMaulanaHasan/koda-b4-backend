@@ -12,6 +12,7 @@ type EmailConfig struct {
 	SMTPUsername string
 	SMTPPassword string
 	FromEmail    string
+	AppUrl       string
 }
 
 func SendPasswordResetEmail(toEmail, token string) error {
@@ -21,6 +22,7 @@ func SendPasswordResetEmail(toEmail, token string) error {
 		SMTPUsername: os.Getenv("SMTP_USERNAME"),
 		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
 		FromEmail:    os.Getenv("FROM_EMAIL"),
+		AppUrl:       os.Getenv("APP_URL"),
 	}
 
 	if config.SMTPHost == "" || config.SMTPPort == "" || config.SMTPUsername == "" || config.SMTPPassword == "" {
@@ -29,7 +31,7 @@ func SendPasswordResetEmail(toEmail, token string) error {
 
 	auth := smtp.PlainAuth("", config.SMTPUsername, config.SMTPPassword, config.SMTPHost)
 
-	resetLink := fmt.Sprintf("http://165.22.110.38:9032/reset-password?email=%s&token=%s", toEmail, token)
+	resetLink := fmt.Sprintf("%s/reset-password?email=%s&token=%s", config.AppUrl, toEmail, token)
 
 	subject := "Subject: Password Reset Request\r\n"
 	mime := "MIME-version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n"
