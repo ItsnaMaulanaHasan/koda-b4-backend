@@ -23,7 +23,9 @@ import (
 
 func main() {
 	godotenv.Load()
-	config.ConnectDatabase()
+	config.InitDatabase()
+	config.InitRedis()
+	config.InitSupabase()
 	defer config.CloseDatabase()
 
 	r := gin.Default()

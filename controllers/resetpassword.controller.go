@@ -243,10 +243,9 @@ func ResetPassword(ctx *gin.Context) {
 		return
 	}
 
-	rdb := config.Redis()
 	userTokenKey := fmt.Sprintf("user_%d_token", userId)
 	// get token from redis
-	tokenUser, err := rdb.Get(context.Background(), userTokenKey).Result()
+	tokenUser, err := config.Rdb.Get(context.Background(), userTokenKey).Result()
 	if err != redis.Nil || tokenUser != "" {
 		token, err := jwt.ParseWithClaims(tokenUser, &lib.UserPayload{}, func(token *jwt.Token) (any, error) {
 			return []byte(os.Getenv("APP_SECRET")), nil
@@ -282,7 +281,7 @@ func ResetPassword(ctx *gin.Context) {
 		}
 
 		blacklistKey := "blacklist:" + tokenUser
-		rdb.Set(context.Background(), blacklistKey, tokenUser, ttl)
+		config.Rdb.Set(context.Background(), blacklistKey, tokenUser, ttl)
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{

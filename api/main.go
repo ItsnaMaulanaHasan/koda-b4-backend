@@ -17,6 +17,10 @@ import (
 var App *gin.Engine
 
 func init() {
+	config.InitDatabase()
+	config.InitRedis()
+	config.InitSupabase()
+
 	App = gin.New()
 	App.Use(gin.Recovery())
 
@@ -38,6 +42,5 @@ func init() {
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	config.ConnectDatabase()
 	App.ServeHTTP(w, r)
 }

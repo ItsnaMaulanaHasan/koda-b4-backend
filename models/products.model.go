@@ -784,8 +784,6 @@ func GetDetailProductPublic(id int) (PublicProductDetailResponse, string, error)
 }
 
 func InvalidateProductCache(ctx context.Context) error {
-	rdb := config.Redis()
-
 	patterns := []string{
 		"productsAdmin:total:*",
 		"/admin/products*",
@@ -794,14 +792,14 @@ func InvalidateProductCache(ctx context.Context) error {
 	}
 
 	for _, pattern := range patterns {
-		keys, err := rdb.Keys(ctx, pattern).Result()
+		keys, err := config.Rdb.Keys(ctx, pattern).Result()
 		if err != nil {
 			log.Printf("Failed to get keys for pattern %s: %v", pattern, err)
 			continue
 		}
 
 		if len(keys) > 0 {
-			err := rdb.Del(ctx, keys...).Err()
+			err := config.Rdb.Del(ctx, keys...).Err()
 			if err != nil {
 				log.Printf("Failed to delete keys for pattern %s: %v", pattern, err)
 			} else {

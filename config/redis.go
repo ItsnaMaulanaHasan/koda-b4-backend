@@ -9,7 +9,9 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func Redis() *redis.Client {
+var Rdb *redis.Client
+
+func InitRedis() {
 	options, err := redis.ParseURL(os.Getenv("REDIS_URL"))
 	if err != nil {
 		log.Fatalf("Invalid redis URL: %v", err)
@@ -19,13 +21,11 @@ func Redis() *redis.Client {
 		options.TLSConfig = &tls.Config{}
 	}
 
-	rdb := redis.NewClient(options)
+	Rdb = redis.NewClient(options)
 
-	if err := rdb.Ping(context.Background()).Err(); err != nil {
+	if err := Rdb.Ping(context.Background()).Err(); err != nil {
 		log.Fatalf("Redis connection failed: %v", err)
 	} else {
 		log.Println("Connected to Redis successfully!")
 	}
-
-	return rdb
 }

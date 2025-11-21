@@ -66,11 +66,10 @@ func ListProductsAdmin(ctx *gin.Context) {
 
 	var totalData int
 	var err error
-	rdb := config.Redis()
 
 	// caching total product
 	totalCacheKey := fmt.Sprintf("productsAdmin:total:search:%s", search)
-	cacheTotalDataProducts, err := rdb.Get(context.Background(), totalCacheKey).Result()
+	cacheTotalDataProducts, err := config.Rdb.Get(context.Background(), totalCacheKey).Result()
 	if err == redis.Nil || cacheTotalDataProducts == "" {
 		// cache miss - ambil dari DB
 		totalData, err = models.TotalDataProducts(search)
@@ -84,7 +83,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 		}
 
 		// simpan ke cache
-		cacheErr := rdb.Set(context.Background(), totalCacheKey, totalData, 15*time.Minute).Err()
+		cacheErr := config.Rdb.Set(context.Background(), totalCacheKey, totalData, 15*time.Minute).Err()
 		if cacheErr != nil {
 			log.Printf("Failed to set total cache for key %s: %v", totalCacheKey, cacheErr)
 		}
@@ -107,7 +106,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 		if err != nil {
 			// cache rusak - hapus dan ambil dari DB
 			log.Printf("Failed to unmarshal total cache for key %s: %v", totalCacheKey, err)
-			rdb.Del(context.Background(), totalCacheKey)
+			config.Rdb.Del(context.Background(), totalCacheKey)
 
 			totalData, err = models.TotalDataProducts(search)
 			if err != nil {
@@ -133,7 +132,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 	// caching list product admin
 	listCacheKey := ctx.Request.URL.RequestURI()
 	var products []models.AdminProductResponse
-	cacheListAllProducts, err := rdb.Get(context.Background(), listCacheKey).Result()
+	cacheListAllProducts, err := config.Rdb.Get(context.Background(), listCacheKey).Result()
 	if err == redis.Nil || cacheListAllProducts == "" {
 		// cache miss - ambil dari DB
 		products, err = models.GetListProductsAdmin(search, page, limit)
@@ -151,7 +150,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 		if marshalErr != nil {
 			log.Printf("Failed to marshal products: %v", marshalErr)
 		} else {
-			cacheErr := rdb.Set(context.Background(), listCacheKey, productsStr, 15*time.Minute).Err()
+			cacheErr := config.Rdb.Set(context.Background(), listCacheKey, productsStr, 15*time.Minute).Err()
 			if cacheErr != nil {
 				log.Printf("Failed to set list cache for key %s: %v", listCacheKey, cacheErr)
 			}
@@ -175,7 +174,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 		if err != nil {
 			// cache rusak - hapus dan ambil dari DB
 			log.Printf("Failed to unmarshal list cache for key %s: %v", listCacheKey, err)
-			rdb.Del(context.Background(), listCacheKey)
+			config.Rdb.Del(context.Background(), listCacheKey)
 
 			products, err = models.GetListProductsAdmin(search, page, limit)
 			if err != nil {
@@ -231,14 +230,12 @@ func DetailProductAdmin(ctx *gin.Context) {
 		return
 	}
 
-	rdb := config.Redis()
-
 	// redis for detail product
 	var product models.AdminProductResponse
 	var message string
 
 	cacheDetailKey := ctx.Request.URL.RequestURI()
-	cache, err := rdb.Get(context.Background(), cacheDetailKey).Result()
+	cache, err := config.Rdb.Get(context.Background(), cacheDetailKey).Result()
 	if err == redis.Nil || cache == "" {
 		product, message, err = models.GetDetailProductAdmin(id)
 		if err != nil {
@@ -264,7 +261,7 @@ func DetailProductAdmin(ctx *gin.Context) {
 			return
 		}
 
-		cacheErr := rdb.Set(context.Background(), cacheDetailKey, productStr, 15*time.Minute).Err()
+		cacheErr := config.Rdb.Set(context.Background(), cacheDetailKey, productStr, 15*time.Minute).Err()
 		if cacheErr != nil {
 			log.Printf("Failed to set cache for key %s: %v", cacheDetailKey, cacheErr)
 		}
@@ -288,7 +285,7 @@ func DetailProductAdmin(ctx *gin.Context) {
 		err = json.Unmarshal([]byte(cache), &product)
 		if err != nil {
 			log.Printf("Failed to unmarshal cache for key %s: %v", cacheDetailKey, err)
-			rdb.Del(context.Background(), cacheDetailKey)
+			config.Rdb.Del(context.Background(), cacheDetailKey)
 
 			product, message, err = models.GetDetailProductAdmin(id)
 			if err != nil {
@@ -1039,11 +1036,10 @@ func ListFavouriteProducts(ctx *gin.Context) {
 
 	var err error
 	var products []models.PublicProductResponse
-	rdb := config.Redis()
 
 	// redis for list favourite products
 	listCacheKey := ctx.Request.URL.RequestURI()
-	cacheListFavouriteProducts, err := rdb.Get(context.Background(), listCacheKey).Result()
+	cacheListFavouriteProducts, err := config.Rdb.Get(context.Background(), listCacheKey).Result()
 	if err == redis.Nil || cacheListFavouriteProducts == "" {
 		// cache miss - ambil dari DB
 		products, err = models.GetListFavouriteProducts(limit)
@@ -1061,7 +1057,7 @@ func ListFavouriteProducts(ctx *gin.Context) {
 		if marshalErr != nil {
 			log.Printf("Failed to marshal products: %v", marshalErr)
 		} else {
-			cacheErr := rdb.Set(context.Background(), listCacheKey, productsStr, 15*time.Minute).Err()
+			cacheErr := config.Rdb.Set(context.Background(), listCacheKey, productsStr, 15*time.Minute).Err()
 			if cacheErr != nil {
 				log.Printf("Failed to set list cache for key %s: %v", listCacheKey, cacheErr)
 			}
@@ -1085,7 +1081,7 @@ func ListFavouriteProducts(ctx *gin.Context) {
 		if err != nil {
 			// cache rusak - hapus dan ambil dari DB
 			log.Printf("Failed to unmarshal list cache for key %s: %v", listCacheKey, err)
-			rdb.Del(context.Background(), listCacheKey)
+			config.Rdb.Del(context.Background(), listCacheKey)
 
 			products, err = models.GetListFavouriteProducts(limit)
 			if err != nil {
@@ -1179,12 +1175,11 @@ func ListProductsPublic(ctx *gin.Context) {
 
 	var totalData int
 	var err error
-	rdb := config.Redis()
 
 	// Ubah cache key untuk include semua filter
 	totalCacheKey := fmt.Sprintf("productsPublic:total:q:%s:cat:%v:maxPrice:%f:minPrice:%f",
 		search, cat, maxPrice, minPrice)
-	cacheTotalDataProducts, err := rdb.Get(context.Background(), totalCacheKey).Result()
+	cacheTotalDataProducts, err := config.Rdb.Get(context.Background(), totalCacheKey).Result()
 	if err == redis.Nil || cacheTotalDataProducts == "" {
 		// cache miss - ambil dari DB dengan filter lengkap
 		totalData, err = models.TotalDataProductsPublic(search, cat, maxPrice, minPrice)
@@ -1198,7 +1193,7 @@ func ListProductsPublic(ctx *gin.Context) {
 		}
 
 		// simpan ke cache
-		cacheErr := rdb.Set(context.Background(), totalCacheKey, totalData, 15*time.Minute).Err()
+		cacheErr := config.Rdb.Set(context.Background(), totalCacheKey, totalData, 15*time.Minute).Err()
 		if cacheErr != nil {
 			log.Printf("Failed to set total cache for key %s: %v", totalCacheKey, cacheErr)
 		}
@@ -1221,7 +1216,7 @@ func ListProductsPublic(ctx *gin.Context) {
 		if err != nil {
 			// cache rusak - hapus dan ambil dari DB
 			log.Printf("Failed to unmarshal total cache for key %s: %v", totalCacheKey, err)
-			rdb.Del(context.Background(), totalCacheKey)
+			config.Rdb.Del(context.Background(), totalCacheKey)
 
 			totalData, err = models.TotalDataProductsPublic(search, cat, maxPrice, minPrice)
 			if err != nil {
@@ -1246,7 +1241,7 @@ func ListProductsPublic(ctx *gin.Context) {
 
 	listCacheKey := ctx.Request.URL.RequestURI()
 	var products []models.PublicProductResponse
-	cacheListAllProducts, err := rdb.Get(context.Background(), listCacheKey).Result()
+	cacheListAllProducts, err := config.Rdb.Get(context.Background(), listCacheKey).Result()
 	if err == redis.Nil || cacheListAllProducts == "" {
 		// cache miss - ambil dari DB
 		products, err = models.GetListProductsPublic(search, cat, sortField, maxPrice, minPrice, limit, page)
@@ -1264,7 +1259,7 @@ func ListProductsPublic(ctx *gin.Context) {
 		if marshalErr != nil {
 			log.Printf("Failed to marshal products: %v", marshalErr)
 		} else {
-			cacheErr := rdb.Set(context.Background(), listCacheKey, productsStr, 15*time.Minute).Err()
+			cacheErr := config.Rdb.Set(context.Background(), listCacheKey, productsStr, 15*time.Minute).Err()
 			if cacheErr != nil {
 				log.Printf("Failed to set list cache for key %s: %v", listCacheKey, cacheErr)
 			}
@@ -1288,7 +1283,7 @@ func ListProductsPublic(ctx *gin.Context) {
 		if err != nil {
 			// cache rusak - hapus dan ambil dari DB
 			log.Printf("Failed to unmarshal list cache for key %s: %v", listCacheKey, err)
-			rdb.Del(context.Background(), listCacheKey)
+			config.Rdb.Del(context.Background(), listCacheKey)
 
 			products, err = models.GetListProductsPublic(search, cat, sortField, maxPrice, minPrice, limit, page)
 			if err != nil {
@@ -1364,14 +1359,12 @@ func DetailProductPublic(ctx *gin.Context) {
 		return
 	}
 
-	rdb := config.Redis()
-
 	// redis for detail product
 	var product models.PublicProductDetailResponse
 	var message string
 
 	cacheDetailKey := ctx.Request.URL.RequestURI()
-	cache, err := rdb.Get(context.Background(), cacheDetailKey).Result()
+	cache, err := config.Rdb.Get(context.Background(), cacheDetailKey).Result()
 	if err == redis.Nil || cache == "" {
 		product, message, err = models.GetDetailProductPublic(id)
 		if err != nil {
@@ -1397,7 +1390,7 @@ func DetailProductPublic(ctx *gin.Context) {
 			return
 		}
 
-		cacheErr := rdb.Set(context.Background(), cacheDetailKey, productStr, 15*time.Minute).Err()
+		cacheErr := config.Rdb.Set(context.Background(), cacheDetailKey, productStr, 15*time.Minute).Err()
 		if cacheErr != nil {
 			log.Printf("Failed to set cache for key %s: %v", cacheDetailKey, cacheErr)
 		}
@@ -1421,7 +1414,7 @@ func DetailProductPublic(ctx *gin.Context) {
 		err = json.Unmarshal([]byte(cache), &product)
 		if err != nil {
 			log.Printf("Failed to unmarshal cache for key %s: %v", cacheDetailKey, err)
-			rdb.Del(context.Background(), cacheDetailKey)
+			config.Rdb.Del(context.Background(), cacheDetailKey)
 
 			product, message, err = models.GetDetailProductPublic(id)
 			if err != nil {

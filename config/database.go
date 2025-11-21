@@ -13,7 +13,7 @@ import (
 var DB *pgxpool.Pool
 var once sync.Once
 
-func ConnectDatabase() {
+func InitDatabase() {
 	once.Do(func() {
 		ctx := context.Background()
 

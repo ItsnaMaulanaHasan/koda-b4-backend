@@ -171,10 +171,9 @@ func Login(ctx *gin.Context) {
 		return
 	}
 
-	rdb := config.Redis()
 	userTokenKey := fmt.Sprintf("user_%d_token", user.Id)
 
-	err = rdb.Set(context.Background(), userTokenKey, jwtToken, 24*time.Hour).Err()
+	err = config.Rdb.Set(context.Background(), userTokenKey, jwtToken, 24*time.Hour).Err()
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -250,10 +249,9 @@ func Logout(ctx *gin.Context) {
 		return
 	}
 
-	rdb := config.Redis()
 	blacklistKey := "blacklist:" + tokenString
 
-	err = rdb.Set(context.Background(), blacklistKey, tokenString, ttl).Err()
+	err = config.Rdb.Set(context.Background(), blacklistKey, tokenString, ttl).Err()
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,

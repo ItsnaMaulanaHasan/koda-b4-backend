@@ -25,9 +25,8 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
-		rdb := config.Redis()
 		blacklistKey := "blacklist:" + tokenString
-		exists, err := rdb.Exists(context.Background(), blacklistKey).Result()
+		exists, err := config.Rdb.Exists(context.Background(), blacklistKey).Result()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
