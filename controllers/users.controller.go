@@ -6,7 +6,6 @@ import (
 	"backend-daily-greens/utils"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -273,39 +272,17 @@ func CreateUser(ctx *gin.Context) {
 			return
 		}
 
-		uploadDir := "uploads/profiles"
-
-		useCloudinary := os.Getenv("CLOUDINARY_API_KEY") != ""
-		if !useCloudinary {
-			os.MkdirAll(uploadDir, 0755)
+		fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
+		imageUrl, err := utils.UploadToCloudinary(file, fileName, "photo-profiles")
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to upload profile photo to Cloudinary",
+				Error:   err.Error(),
+			})
+			return
 		}
-
-		fileName := fmt.Sprintf("user_%d_%d%s", userId, time.Now().Unix(), ext)
-
-		if !useCloudinary {
-			savedFilePath = filepath.Join(uploadDir, fileName)
-			err = ctx.SaveUploadedFile(file, savedFilePath)
-			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-					Success: false,
-					Message: "Failed to save profile photo",
-					Error:   err.Error(),
-				})
-				return
-			}
-			bodyCreate.ProfilePhoto = savedFilePath
-		} else {
-			imageUrl, err := utils.UploadToCloudinary(file, fileName)
-			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-					Success: false,
-					Message: "Failed to upload profile photo to Cloudinary",
-					Error:   err.Error(),
-				})
-				return
-			}
-			bodyCreate.ProfilePhoto = imageUrl
-		}
+		bodyCreate.ProfilePhoto = imageUrl
 	}
 
 	// insert data user
@@ -421,8 +398,8 @@ func UpdateUser(ctx *gin.Context) {
 			return
 		}
 
-		fileName := fmt.Sprintf("user_%d_%d%s", userId, time.Now().Unix(), ext)
-		imageUrl, err := utils.UploadToCloudinary(file, fileName)
+		fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
+		imageUrl, err := utils.UploadToCloudinary(file, fileName, "photo-profiles")
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
