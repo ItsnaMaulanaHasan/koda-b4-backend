@@ -353,10 +353,9 @@ DATABASE_URL=postgresql://user:password@localhost:5432/your_database
 # connection string redis
 REDIS_URL=redis://default:<PASSWORD>@<HOST>:<PORT>
 
-# cloudinary configuration
-CLOUDINARY_NAME=<CLOUDINARY_NAME>
-CLOUDINARY_API_SECRET=<CLOUDINARY_API_SECRET>
-CLOUDINARY_API_KEY=<CLOUDINARY_API_KEY>
+# supabase configuration
+SUPABASE_URL=<SUPABASE_URL>
+SUPABASE_KEY=<SUPABASE_KEY>
 
 # environment docker compose
 DATABASE_URL_DOCKER=postgresql://user:password@localhost:5432/your_database
