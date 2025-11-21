@@ -67,7 +67,7 @@ func DetailProfile(ctx *gin.Context) {
 // @Produce          json
 // @Security         BearerAuth
 // @Param            Authorization  header    string  true  "Bearer token"  default(Bearer <token>)
-// @Param            full_name      formData  string  false "User fullname name"
+// @Param            fullName      formData  string  false "User fullname name"
 // @Param            email          formData  string  false "User email"
 // @Param            phone          formData  string  false "User phone"
 // @Param            address        formData  string  false "User address"
@@ -97,7 +97,7 @@ func UpdateProfile(ctx *gin.Context) {
 		return
 	}
 
-	isSuccess, message, err := models.UpdateDataProfile(userId.(int), bodyUpdate)
+	isSuccess, message, dataUpdated, err := models.UpdateDataProfile(userId.(int), bodyUpdate)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		if message == "User not found" || message == "Profile not found" {
@@ -114,6 +114,7 @@ func UpdateProfile(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: isSuccess,
 		Message: message,
+		Data:    dataUpdated,
 	})
 }
 
