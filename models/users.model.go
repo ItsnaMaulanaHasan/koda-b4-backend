@@ -207,7 +207,7 @@ func InsertDataUser(userId int, bodyCreate *User, filePatch string) (bool, strin
 	return isSuccess, message, nil
 }
 
-func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, savedFilePath string) (bool, string, error) {
+func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, imageUrl string) (bool, string, error) {
 	ctx := context.Background()
 	isSuccess := false
 	message := ""
@@ -259,7 +259,7 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, savedFile
 		     updated_at    = NOW()
 		 WHERE user_id = $6`,
 		bodyUpdate.FullName,
-		savedFilePath,
+		imageUrl,
 		bodyUpdate.Address,
 		bodyUpdate.Phone,
 		userIdFromToken,

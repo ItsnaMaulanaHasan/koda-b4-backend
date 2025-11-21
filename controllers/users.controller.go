@@ -379,7 +379,6 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	savedFilePath := ""
 	file, err := ctx.FormFile("filePhoto")
 	if err == nil {
 		// check file size
@@ -422,43 +421,21 @@ func UpdateUser(ctx *gin.Context) {
 			return
 		}
 
-		uploadDir := "uploads/profiles"
-
-		useCloudinary := os.Getenv("CLOUDINARY_API_KEY") != ""
-		if !useCloudinary {
-			os.MkdirAll(uploadDir, 0755)
-		}
-
 		fileName := fmt.Sprintf("user_%d_%d%s", userId, time.Now().Unix(), ext)
-
-		if !useCloudinary {
-			savedFilePath = filepath.Join(uploadDir, fileName)
-			err = ctx.SaveUploadedFile(file, savedFilePath)
-			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-					Success: false,
-					Message: "User updated but failed to save profile photo",
-					Error:   err.Error(),
-				})
-				return
-			}
-			bodyUpdate.ProfilePhoto = savedFilePath
-		} else {
-			imageUrl, err := utils.UploadToCloudinary(file, fileName)
-			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-					Success: false,
-					Message: "Failed to upload profile photo to Cloudinary",
-					Error:   err.Error(),
-				})
-				return
-			}
-			bodyUpdate.ProfilePhoto = imageUrl
+		imageUrl, err := utils.UploadToCloudinary(file, fileName)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to upload profile photo to Cloudinary",
+				Error:   err.Error(),
+			})
+			return
 		}
+		bodyUpdate.ProfilePhoto = imageUrl
 	}
 
 	// update data user
-	isSuccess, message, err := models.UpdateDataUser(id, userId.(int), &bodyUpdate, savedFilePath)
+	isSuccess, message, err := models.UpdateDataUser(id, userId.(int), &bodyUpdate, bodyUpdate.ProfilePhoto)
 	if err != nil {
 		statusHttp := http.StatusInternalServerError
 		if message == "user not found" {
