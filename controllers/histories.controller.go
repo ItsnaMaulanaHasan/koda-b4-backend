@@ -123,24 +123,16 @@ func ListHistories(ctx *gin.Context) {
 // @Produce          json
 // @Security         BearerAuth
 // @Param            Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
-// @Param            id             path    int     true  "History Id"
+// @Param            noInvoice             path    int     true  "Nomor Invoice"
 // @Success          200  {object}  lib.ResponseSuccess{data=models.HistoryDetail}  "Successfully retrieved history detail"
 // @Failure          400  {object}  lib.ResponseError  "Invalid Id format"
 // @Failure          404  {object}  lib.ResponseError  "history not found"
 // @Failure          500  {object}  lib.ResponseError  "Internal server error while fetching history from database"
-// @Router           /histories/{id} [get]
+// @Router           /histories/{noinvoice} [get]
 func DetailHistory(ctx *gin.Context) {
-	id, err := strconv.Atoi(ctx.Param("id"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
-			Success: false,
-			Message: "Invalid Id format",
-			Error:   err.Error(),
-		})
-		return
-	}
+	noInovice := ctx.Param("noinvoice")
 
-	historyDetail, message, err := models.GetDetailHistory(id)
+	historyDetail, message, err := models.GetDetailHistory(noInovice)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		if message == "History not found" {
