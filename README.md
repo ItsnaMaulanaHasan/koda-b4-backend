@@ -339,8 +339,6 @@ Before running this application, make sure you have:
 Create a `.env` file in the root directory with the following variables:
 
 ```env
-ENVIRONMENT=development
-
 # origin url for cors
 ORIGIN_URL=http://localhost:3000
 

@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"crypto/tls"
 	"log"
 	"os"
 
@@ -15,10 +14,6 @@ func InitRedis() {
 	options, err := redis.ParseURL(os.Getenv("REDIS_URL"))
 	if err != nil {
 		log.Fatalf("Invalid redis URL: %v", err)
-	}
-
-	if os.Getenv("ENVIRONMENT") != "development" {
-		options.TLSConfig = &tls.Config{}
 	}
 
 	Rdb = redis.NewClient(options)

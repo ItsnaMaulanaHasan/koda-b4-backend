@@ -31,7 +31,6 @@ services:
     ports:
       - "8081:8080"
     environment:
-      - ENVIRONMENT=${ENVIRONMENT}
       - APP_SECRET=${APP_SECRET}
       - DATABASE_URL=${DATABASE_URL_DOCKER}
       - REDIS_URL=${REDIS_URL_DOCKER}
