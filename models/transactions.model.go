@@ -398,6 +398,12 @@ func MakeTransaction(userId int, bodyCheckout TransactionRequest, carts []Cart) 
 		}
 	}
 
+	_, err = tx.Exec(ctx, "DELETE FROM carts WHERE user_id = $1", userId)
+	if err != nil {
+		message = "Failed to clear cart"
+		return 0, message, err
+	}
+
 	err = tx.Commit(ctx)
 	if err != nil {
 		message = "Failed to commit transaction"
