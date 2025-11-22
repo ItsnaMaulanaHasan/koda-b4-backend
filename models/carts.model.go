@@ -10,21 +10,21 @@ import (
 )
 
 type Cart struct {
-	Id              int      `db:"id" json:"id"`
-	UserId          int      `db:"user_id" json:"userId"`
-	ProductId       int      `db:"product_id" json:"productId"`
-	ProductImages   []string `db:"product_images" json:"productImages"`
-	ProductName     string   `db:"product_name" json:"productName"`
-	ProductPrice    float64  `db:"product_price" json:"productPrice"`
-	IsFlashSale     bool     `db:"is_flash_sale" json:"isFlashSale"`
-	DiscountPercent float64  `db:"discount_percent" json:"discountPercent"`
-	DiscountPrice   float64  `db:"discount_price" json:"discountPrice"`
-	SizeName        string   `db:"size_name" json:"sizeName"`
-	SizeCost        float64  `db:"size_cost" json:"sizeCost"`
-	VariantName     string   `db:"variant_name" json:"variantName"`
-	VariantCost     float64  `db:"variant_cost" json:"variantCost"`
-	Amount          int      `db:"amount" json:"amount"`
-	Subtotal        float64  `db:"subtotal" json:"subtotal"`
+	Id              int     `db:"id" json:"id"`
+	UserId          int     `db:"user_id" json:"userId"`
+	ProductId       int     `db:"product_id" json:"productId"`
+	ProductImage    string  `db:"product_image" json:"productImage"`
+	ProductName     string  `db:"product_name" json:"productName"`
+	ProductPrice    float64 `db:"product_price" json:"productPrice"`
+	IsFlashSale     bool    `db:"is_flash_sale" json:"isFlashSale"`
+	DiscountPercent float64 `db:"discount_percent" json:"discountPercent"`
+	DiscountPrice   float64 `db:"discount_price" json:"discountPrice"`
+	SizeName        string  `db:"size_name" json:"sizeName"`
+	SizeCost        float64 `db:"size_cost" json:"sizeCost"`
+	VariantName     string  `db:"variant_name" json:"variantName"`
+	VariantCost     float64 `db:"variant_cost" json:"variantCost"`
+	Amount          int     `db:"amount" json:"amount"`
+	Subtotal        float64 `db:"subtotal" json:"subtotal"`
 }
 
 type CartRequest struct {
@@ -48,12 +48,15 @@ func GetListCart(userId int) ([]Cart, string, error) {
 			c.id, 
 			c.user_id,
 			c.product_id, 
-			COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images, 
+			COALESCE(MAX(pi.product_image), '') AS product_image, 
 			p.name AS product_name,
 			p.price AS product_price,
 			p.is_flash_sale,
 			p.discount_percent,
-			(p.price * (1-(p.discount_percent/100))) AS discount_price,
+			CASE 
+				WHEN p.discount_percent = 0 OR p.discount_percent IS NULL THEN 0
+				ELSE p.price * (1 - (p.discount_percent/100.0))
+			END AS discount_price,
 			s.name AS size_name,
 			s.size_cost AS size_cost,
 			v.name AS variant_name,
@@ -62,7 +65,7 @@ func GetListCart(userId int) ([]Cart, string, error) {
 			c.subtotal
 			FROM carts c
 		LEFT JOIN products p ON p.id = c.product_id
-		LEFT JOIN product_images pi ON p.id = pi.product_id
+		LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
 		LEFT JOIN sizes s  ON s.id = c.size_id
 		LEFT JOIN variants v ON v.id = c.variant_id
 		WHERE c.user_id = $1
