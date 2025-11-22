@@ -3,9 +3,10 @@ package controllers
 import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
-	"fmt"
+	"backend-daily-greens/utils"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,9 +20,9 @@ import (
 // @Param          Authorization  header    string  true   "Bearer token" default(Bearer <token>)
 // @Param          page           query     int     false  "Page number"  default(1)  minimum(1)
 // @Param          limit          query     int     false  "Number of items per page"  default(5)  minimum(1)  maximum(10)
-// @Param          month          query     int     false  "Month filter (1–12)"
-// @Param          status         query     int     false  "Id of status"  default(1)
-// @Success        200            {object}  object{success=bool,message=string,data=[]models.History,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved histories list"
+// @Param          date           query     string  false  "Date filter (format: YYYY-MM-DD)"  example(2024-01-15)
+// @Param          statusid       query     int     false  "Id of status"  default(1)
+// @Success        200            {object}  object{success=bool,message=string,data=[]models.History,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int},_links=lib.HateoasLink}  "Successfully retrieved histories list"
 // @Failure        400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range"
 // @Failure        401            {object}  lib.ResponseError  "User Id not found in token"
 // @Failure        500            {object}  lib.ResponseError  "Internal server error while fetching or processing history data"
@@ -29,8 +30,8 @@ import (
 func ListHistories(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "5"))
-	month, _ := strconv.Atoi(ctx.Query("month"))
-	statusId, _ := strconv.Atoi(ctx.DefaultQuery("status", "1"))
+	date := ctx.Query("date")
+	statusId, _ := strconv.Atoi(ctx.DefaultQuery("statusid", "1"))
 
 	if page < 1 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -56,6 +57,17 @@ func ListHistories(ctx *gin.Context) {
 		return
 	}
 
+	if date != "" {
+		_, err := time.Parse("2006-01-02", date)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+				Success: false,
+				Message: "Invalid date format. Expected format: YYYY-MM-DD",
+			})
+			return
+		}
+	}
+
 	// get user id from token
 	userId, exists := ctx.Get("userId")
 	if !exists {
@@ -67,7 +79,7 @@ func ListHistories(ctx *gin.Context) {
 	}
 
 	// get list histories
-	histories, totalData, message, err := models.GetListHistories(userId.(int), page, limit, month, statusId)
+	histories, totalData, message, err := models.GetListHistories(userId.(int), page, limit, date, statusId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -88,45 +100,18 @@ func ListHistories(ctx *gin.Context) {
 	}
 
 	// hateoas
-	host := ctx.Request.Host
-	scheme := "http"
-	if ctx.Request.TLS != nil {
-		scheme = "https"
-	}
-	baseURL := fmt.Sprintf("%s://%s/histories", scheme, host)
-
-	var next any
-	var prev any
-
-	if totalData == 0 {
-		page = 0
-		next = nil
-		prev = nil
-	} else if page == 1 && totalPage > 1 {
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = nil
-	} else if page == totalPage && totalPage > 1 {
-		next = nil
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	} else if totalPage > 1 {
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	} else {
-		next = nil
-		prev = nil
-	}
+	links := utils.BuildHateoasPaginationHistories(ctx, page, limit, date, statusId, totalData)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": message,
 		"data":    histories,
+		"_links":  links,
 		"meta": gin.H{
 			"currentPage": page,
 			"perPage":     limit,
 			"totalData":   totalData,
 			"totalPages":  totalPage,
-			"next":        next,
-			"prev":        prev,
 		},
 	})
 }
