@@ -28,10 +28,10 @@ type HistoryDetail struct {
 	Email            string         `json:"email" db:"email"`
 	Address          string         `json:"address" db:"address"`
 	Phone            string         `json:"phone" db:"phone"`
-	PaymentMethod    string         `json:"payment_method" db:"payment_method"`
+	PaymentMethod    string         `json:"paymentMethod" db:"payment_method"`
 	OrderMethod      string         `json:"orderMethod" db:"order_method"`
 	Status           string         `json:"status" db:"status"`
-	DeliveryFee      float64        `json:"delivery_fee" db:"delivery_fee"`
+	DeliveryFee      float64        `json:"deliveryFee" db:"delivery_fee"`
 	AdminFee         float64        `json:"adminFee" db:"admin_fee"`
 	Tax              float64        `json:"tax" db:"tax"`
 	TotalTransaction float64        `json:"totalTransaction" db:"total_transaction"`
@@ -41,14 +41,15 @@ type HistoryDetail struct {
 type HistoryItems struct {
 	Id              int     `json:"id" db:"id"`
 	TransactionId   int     `json:"transactionId" db:"transaction_id"`
-	ProductId       int     `json:"product_id" db:"product_id"`
-	ProductName     string  `json:"product_name" db:"product_name"`
-	ProductPrice    float64 `json:"product_price" db:"product_price"`
-	DiscountPercent float64 `json:"discount_percent" db:"discount_percent"`
-	DiscountPrice   float64 `json:"discount_price" db:"discount_price"`
-	Size            string  `json:"size" db:"size"`
+	ProductId       int     `json:"productId" db:"product_id"`
+	ProductName     string  `json:"productName" db:"product_name"`
+	ProductImage    string  `json:"productImage" db:"product_image"`
+	ProductPrice    float64 `json:"productPrice" db:"product_price"`
+	DiscountPercent float64 `json:"discountPercent" db:"discount_percent"`
+	DiscountPrice   float64 `json:"discountPrice" db:"discount_price"`
+	SizeName        string  `json:"sizeName" db:"size"`
 	SizeCost        float64 `json:"sizeCost" db:"size_cost"`
-	Variant         string  `json:"variant" db:"variant"`
+	VariantName     string  `json:"variantName" db:"variant"`
 	VariantCost     float64 `json:"variantCost" db:"variant_cost"`
 	Amount          int     `json:"amount" db:"amount"`
 	Subtotal        float64 `json:"subtotal" db:"subtotal"`
@@ -120,7 +121,7 @@ func GetListHistories(userId int, page int, limit int, date string, statusId int
 	return histories, totalData, message, nil
 }
 
-func GetDetailHistory(userId int) (HistoryDetail, string, error) {
+func GetDetailHistory(noInvoice string) (HistoryDetail, string, error) {
 	historyDetail := HistoryDetail{}
 	message := ""
 
@@ -157,7 +158,7 @@ func GetDetailHistory(userId int) (HistoryDetail, string, error) {
 			order_methods om ON t.order_method_id = om.id
 		JOIN 
 			status s ON t.status_id = s.id
-		WHERE t.id = $1`, userId)
+		WHERE t.no_invoice = $1`, noInvoice)
 	if err != nil {
 		message = "Failed to fetch history from database"
 		return historyDetail, message, err
@@ -177,22 +178,25 @@ func GetDetailHistory(userId int) (HistoryDetail, string, error) {
 
 	itemRows, err := tx.Query(ctx,
 		`SELECT 
-			id,
-			transaction_id,
-			product_id,
-			product_name,
-			product_price,
-			discount_percent,
-			discount_price,
-			size,
-			size_cost,
-			variant,
-			variant_cost,
-			amount,
-			subtotal
-		FROM transaction_items
+			ti.id,
+			ti.transaction_id,
+			ti.product_id,
+			ti.product_name,
+			COALESCE(MAX(pi.product_image), '') AS product_image,
+			ti.product_price,
+			ti.discount_percent,
+			ti.discount_price,
+			ti.size,
+			ti.size_cost,
+			ti.variant,
+			ti.variant_cost,
+			ti.amount,
+			ti.subtotal
+		FROM transaction_items ti
+		LEFT JOIN product_images pi ON ti.product_id = pi.product_id
 		WHERE transaction_id = $1
-		ORDER BY id ASC`, userId)
+		GROUP BY ti.id
+		ORDER BY id ASC`, historyDetail.Id)
 	if err != nil {
 		message = "Failed to fetch ordered products from database"
 		return historyDetail, message, err
