@@ -12,10 +12,10 @@ import (
 
 type History struct {
 	Id               int       `db:"id" json:"id"`
-	NoInvoice        string    `db:"no_invoice" json:"no_invoice"`
-	DateTransaction  time.Time `db:"date_transaction" json:"date_transaction"`
+	NoInvoice        string    `db:"no_invoice" json:"noInvoice"`
+	DateTransaction  time.Time `db:"date_transaction" json:"dateTransaction"`
 	Status           string    `db:"status" json:"status"`
-	TotalTransaction float64   `db:"total_transaction" json:"total_transaction"`
+	TotalTransaction float64   `db:"total_transaction" json:"totalTransaction"`
 	Image            string    `db:"image" json:"image"`
 }
 
@@ -54,7 +54,7 @@ type HistoryItems struct {
 	Subtotal        float64 `json:"subtotal" db:"subtotal"`
 }
 
-func GetListHistories(userId int, page int, limit int, month int, statusId int) ([]History, int, string, error) {
+func GetListHistories(userId int, page int, limit int, date string, statusId int) ([]History, int, string, error) {
 	histories := []History{}
 	totalData := 0
 	message := ""
@@ -75,11 +75,12 @@ func GetListHistories(userId int, page int, limit int, month int, statusId int) 
 	params := []any{userId}
 	paramIndex := 2
 
-	if month > 0 && month <= 12 {
-		query += fmt.Sprintf(" AND EXTRACT(MONTH FROM t.date_transaction) = $%d", paramIndex)
-		params = append(params, month)
+	if date != "" {
+		query += fmt.Sprintf(" AND DATE(t.date_transaction) = $%d", paramIndex)
+		params = append(params, date)
 		paramIndex++
 	}
+
 	if statusId > 0 {
 		query += fmt.Sprintf(" AND t.status_id = $%d", paramIndex)
 		params = append(params, statusId)
