@@ -8,5 +8,5 @@ import (
 
 func historiesRoutes(r *gin.RouterGroup) {
 	r.GET("", controllers.ListHistories)
-	r.GET("/:id", controllers.DetailHistory)
+	r.GET("/:noinvoice", controllers.DetailHistory)
 }
