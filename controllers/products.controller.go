@@ -31,7 +31,7 @@ import (
 // @Param             page   		 query     int     false  "Page number"  default(1)  minimum(1)
 // @Param             limit          query     int     false  "Number of items per page"  default(10)  minimum(1)  maximum(50)
 // @Param             search         query     string  false  "Search value"
-// @Success           200            {object}  object{success=bool,message=string,data=[]models.AdminProductResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved product list"
+// @Success           200            {object}  object{success=bool,message=string,data=[]models.History,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int},_links=lib.HateoasLink}  "Successfully retrieved product list"
 // @Failure           400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
 // @Failure           500            {object}  lib.ResponseError  "Internal server error while fetching or processing product data."
 // @Router            /admin/products [get]
@@ -189,7 +189,7 @@ func ListProductsAdmin(ctx *gin.Context) {
 	}
 
 	// hateoas
-	links := utils.BuildHateoasPagination(ctx, page, limit, search, totalData)
+	links := utils.BuildHateoasPagination(ctx, page, limit, totalData)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -1116,7 +1116,7 @@ func ListFavouriteProducts(ctx *gin.Context) {
 // @Param        	   minPrice   	query     number   false  "Minimum price product"
 // @Param        	   page   		query     int      false  "Page number"  default(1)  minimum(1)
 // @Param        	   limit        query     int      false  "Number of items per page"  default(10)  minimum(1)  maximum(50)
-// @Success      	   200          {object}  object{success=bool,message=string,data=[]models.PublicProductResponse,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved product list"
+// @Success      	   200          {object}  object{success=bool,message=string,data=[]models.History,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int},_links=lib.HateoasLink}  "Successfully retrieved product list"
 // @Failure      	   400          {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
 // @Failure      	   500          {object}  lib.ResponseError  "Internal server error while fetching or processing product data."
 // @Router       	   /products [get]
@@ -1144,8 +1144,8 @@ func ListProductsPublic(ctx *gin.Context) {
 		}
 	}
 
-	maxPrice, _ := strconv.ParseFloat(ctx.Query("maxPrice"), 64)
-	minPrice, _ := strconv.ParseFloat(ctx.Query("minPrice"), 64)
+	maxPrice, _ := strconv.ParseFloat(ctx.Query("maxprice"), 64)
+	minPrice, _ := strconv.ParseFloat(ctx.Query("minprice"), 64)
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 
@@ -1297,41 +1297,19 @@ func ListProductsPublic(ctx *gin.Context) {
 		}
 	}
 
-	host := ctx.Request.Host
-	scheme := "http"
-	if ctx.Request.TLS != nil {
-		scheme = "https"
-	}
-	baseURL := fmt.Sprintf("%s://%s/products", scheme, host)
-
-	var next any
-	var prev any
-
-	if page == 1 && totalPage > 1 {
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = nil
-	} else if page == totalPage && totalPage > 1 {
-		next = nil
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	} else if totalPage > 1 {
-		next = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page+1, limit)
-		prev = fmt.Sprintf("%s?page=%v&limit=%v", baseURL, page-1, limit)
-	} else {
-		next = nil
-		prev = nil
-	}
+	// hateoas
+	links := utils.BuildHateoasPagination(ctx, page, limit, totalData)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Success get all product",
 		"data":    products,
+		"_links":  links,
 		"meta": gin.H{
 			"currentPage": page,
 			"perPage":     limit,
 			"totalData":   totalData,
 			"totalPages":  totalPage,
-			"next":        next,
-			"prev":        prev,
 		},
 	})
 }
