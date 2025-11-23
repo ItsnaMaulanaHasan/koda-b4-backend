@@ -17,7 +17,7 @@ func SetUpRoutes(r *gin.Engine) {
 	transactionsRoutes(r, admin)
 
 	// public
-	cartsRouter(r, r.Group("/carts", middlewares.Auth()))
+	cartsRouter(r.Group("/carts", middlewares.Auth()))
 	profilesRoutes(r.Group("/profiles", middlewares.Auth()))
 	historiesRoutes(r.Group("/histories", middlewares.Auth()))
 	feeRoutes(r)
