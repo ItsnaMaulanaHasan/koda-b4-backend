@@ -175,6 +175,21 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 	return products, nil
 }
 
+func GetProductImagesAdmin(tx pgx.Tx, productId int) ([]string, error) {
+	var images []string
+	err := tx.QueryRow(
+		context.Background(),
+		"SELECT COALESCE(ARRAY_AGG(product_image), '{}') FROM product_images WHERE product_id = $1",
+		productId,
+	).Scan(&images)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return images, nil
+}
+
 func GetDetailProductAdmin(id int) (AdminProductResponse, string, error) {
 	product := AdminProductResponse{}
 	message := ""
@@ -282,6 +297,20 @@ func InsertProductImages(tx pgx.Tx, productId int, imagePaths []string, userId i
 	return nil
 }
 
+func InsertSingleProductImage(tx pgx.Tx, productId int, imagePath string, isPrimary bool, userId int) error {
+	_, err := tx.Exec(
+		context.Background(),
+		`INSERT INTO product_images (product_image, product_id, is_primary, created_by, updated_by)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		imagePath,
+		productId,
+		isPrimary,
+		userId,
+		userId,
+	)
+	return err
+}
+
 func InsertProductSizes(tx pgx.Tx, productId int, sizeIds []int, userId int) error {
 	for _, sizeId := range sizeIds {
 		_, err := tx.Exec(
@@ -363,6 +392,16 @@ func DeleteProductImages(tx pgx.Tx, productId int) error {
 	}
 
 	return nil
+}
+
+func DeleteProductImageByUrl(tx pgx.Tx, productId int, imageUrl string) error {
+	_, err := tx.Exec(
+		context.Background(),
+		"DELETE FROM product_images WHERE product_id = $1 AND product_image = $2",
+		productId,
+		imageUrl,
+	)
+	return err
 }
 
 func DeleteProductSizes(tx pgx.Tx, productId int) error {

@@ -618,20 +618,21 @@ func CreateProduct(ctx *gin.Context) {
 // @Accept       multipart/form-data
 // @Produce      json
 // @Security     BearerAuth
-// @Param        Authorization      header    string    true   "Bearer token"  default(Bearer <token>)
-// @Param        id                 path      int       true   "Product Id"
-// @Param        name               formData  string    false  "Product name"
-// @Param        description        formData  string    false  "Product description"
-// @Param        price              formData  number    false  "Product price"
-// @Param        discountPercent    formData  number    false  "Discount percentage"
-// @Param        stock              formData  int       false  "Product stock"
-// @Param        isFlashSale        formData  bool      false  "Is flash sale"
-// @Param        isActive           formData  bool      false  "Is active"
-// @Param        isFavourite        formData  bool      false  "Is favourite"
-// @Param        fileImages         formData  file      false  "Product images (up to 4 files, JPEG/PNG, max 1MB each)"
-// @Param        sizeProducts       formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
-// @Param        productCategories  formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
-// @Param        productVariants    formData  string    false  "Variant Id (comma-separated, e.g., 1,2,3)"
+// @Param        Authorization         header    string    true   "Bearer token"  default(Bearer <token>)
+// @Param        id                    path      int       true   "Product Id"
+// @Param        name                  formData  string    false  "Product name"
+// @Param        description           formData  string    false  "Product description"
+// @Param        price                 formData  number    false  "Product price"
+// @Param        discountPercent       formData  number    false  "Discount percentage"
+// @Param        stock                 formData  int       false  "Product stock"
+// @Param        isFlashSale           formData  bool      false  "Is flash sale"
+// @Param        isActive              formData  bool      false  "Is active"
+// @Param        isFavourite           formData  bool      false  "Is favourite"
+// @Param        fileImages            formData  file      false  "Product images (up to 4 files, JPEG/PNG, max 1MB each)"
+// @Param        keepExistingImages    formData  string    false  "Comma-separated URLs of existing images to keep"
+// @Param        sizeProducts          formData  string    false  "Size Id (comma-separated, e.g., 1,2,3)"
+// @Param        productCategories     formData  string    false  "Category Id (comma-separated, e.g., 1,2,3)"
+// @Param        productVariants       formData  string    false  "Variant Id (comma-separated, e.g., 1,2,3)"
 // @Success      200  {object}  lib.ResponseSuccess  "Product updated successfully"
 // @Failure      400  {object}  lib.ResponseError   "Invalid Id format or invalid request body"
 // @Failure      404  {object}  lib.ResponseError   "Product not found"
@@ -676,13 +677,25 @@ func UpdateProduct(ctx *gin.Context) {
 		files = form.File["fileImages"]
 	}
 
+	// get keepExistingImages parameter
+	keepExistingImagesStr := ctx.PostForm("keepExistingImages")
+	var keepExistingImages []string
+	if keepExistingImagesStr != "" {
+		keepExistingImages = strings.Split(keepExistingImagesStr, ",")
+		// trim whitespace
+		for i := range keepExistingImages {
+			keepExistingImages[i] = strings.TrimSpace(keepExistingImages[i])
+		}
+	}
+
 	// validate files if uploaded
 	if len(files) > 0 {
-		// validate maximum 4 images
-		if len(files) > 4 {
+		// validate total images (existing + new)
+		totalImages := len(keepExistingImages) + len(files)
+		if totalImages > 4 {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 				Success: false,
-				Message: fmt.Sprintf("Maximum 4 images allowed, but got %d", len(files)),
+				Message: fmt.Sprintf("Maximum 4 images allowed, but got %d total", totalImages),
 			})
 			return
 		}
@@ -762,52 +775,88 @@ func UpdateProduct(ctx *gin.Context) {
 		return
 	}
 
-	if len(files) > 0 {
-		// delete old images from database
-		err = models.DeleteProductImages(tx, id)
+	// handle images update jika ada perubahan
+	if len(files) > 0 || len(keepExistingImages) > 0 {
+		// get current images from database
+		currentImages, err := models.GetProductImagesAdmin(tx, id)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
-				Message: "Internal server error while deleting old images",
+				Message: "Internal server error while fetching current images",
 				Error:   err.Error(),
 			})
 			return
 		}
 
-		// process and save new images
-		var savedImagePaths []string
-		for i, file := range files {
-			fileName := fmt.Sprintf("product_%d_img%d_%d", id, i+1, time.Now().UnixNano())
-			imageUrl, err := utils.UploadToSupabase(file, fileName, "products")
-			if err != nil {
-				for _, url := range savedImagePaths {
-					utils.DeleteFromSupabase(url, "products")
+		// determine which images to delete
+		for _, currentImg := range currentImages {
+			shouldKeep := false
+			for _, keepImg := range keepExistingImages {
+				if currentImg == keepImg {
+					shouldKeep = true
+					break
 				}
-				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-					Success: false,
-					Message: fmt.Sprintf("Failed to upload image %d to Cloudinary", i+1),
-					Error:   err.Error(),
-				})
-				return
 			}
-			savedImagePaths = append(savedImagePaths, imageUrl)
 
+			// delete image jika tidak di-keep
+			if !shouldKeep {
+				// delete from storage
+				err = utils.DeleteFromSupabase(currentImg, "products")
+				if err != nil {
+					fmt.Printf("Warning: Failed to delete image from storage: %v\n", err)
+				}
+
+				// delete from database
+				err = models.DeleteProductImageByUrl(tx, id, currentImg)
+				if err != nil {
+					ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+						Success: false,
+						Message: "Internal server error while deleting old images",
+						Error:   err.Error(),
+					})
+					return
+				}
+			}
 		}
 
-		// insert new images
-		if len(savedImagePaths) > 0 {
-			err = models.InsertProductImages(tx, id, savedImagePaths, userIdFromToken.(int))
-			if err != nil {
-				// clean up saved files on error
-				for _, url := range savedImagePaths {
-					utils.DeleteFromSupabase(url, "products")
+		// upload and insert new images
+		if len(files) > 0 {
+			var savedImagePaths []string
+			for i, file := range files {
+				fileName := fmt.Sprintf("product_%d_img%d_%d", id, i+1, time.Now().UnixNano())
+				imageUrl, err := utils.UploadToSupabase(file, fileName, "products")
+				if err != nil {
+					for _, url := range savedImagePaths {
+						utils.DeleteFromSupabase(url, "products")
+					}
+					ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+						Success: false,
+						Message: fmt.Sprintf("Failed to upload image %d", i+1),
+						Error:   err.Error(),
+					})
+					return
 				}
-				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-					Success: false,
-					Message: "Internal server error while inserting product images",
-					Error:   err.Error(),
-				})
-				return
+				savedImagePaths = append(savedImagePaths, imageUrl)
+			}
+
+			// insert new images
+			for i, imagePath := range savedImagePaths {
+				// set primary hanya untuk gambar pertama jika tidak ada existing images
+				isPrimary := (i == 0 && len(keepExistingImages) == 0)
+
+				err = models.InsertSingleProductImage(tx, id, imagePath, isPrimary, userIdFromToken.(int))
+				if err != nil {
+					// clean up saved files on error
+					for _, url := range savedImagePaths {
+						utils.DeleteFromSupabase(url, "products")
+					}
+					ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+						Success: false,
+						Message: "Internal server error while inserting product images",
+						Error:   err.Error(),
+					})
+					return
+				}
 			}
 		}
 	}
