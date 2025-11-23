@@ -9,6 +9,7 @@ import (
 
 type PaymentMethod struct {
 	Id       int     `json:"id" db:"id"`
+	Image    string  `json:"image" db:"image"`
 	Name     string  `json:"name" db:"name"`
 	AdminFee float64 `json:"adminFee" db:"admin_fee"`
 }
@@ -25,7 +26,7 @@ func GetAllPaymentMethods() ([]PaymentMethod, string, error) {
 
 	rows, err := config.DB.Query(
 		context.Background(),
-		`SELECT id, name, admin_fee 
+		`SELECT id, image, name, admin_fee 
 		 FROM payment_methods 
 		 ORDER BY id ASC`,
 	)
