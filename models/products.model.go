@@ -50,7 +50,7 @@ type ProductRequest struct {
 
 type PublicProductResponse struct {
 	Id              int     `db:"id" json:"id"`
-	ProductImages   string  `db:"product_image" json:"productImage"`
+	ProductImage    string  `db:"product_image" json:"productImage"`
 	Name            string  `db:"name" json:"name"`
 	Description     string  `db:"description" json:"description"`
 	Price           float64 `db:"price" json:"price"`
@@ -590,11 +590,15 @@ func GetListProductsPublic(q string, cat []string, sort string, maxPrice float64
 			p.description,
 			p.price,
 			COALESCE(p.discount_percent, 0) AS discount_percent,
+			CASE 
+				WHEN p.discount_percent = 0 OR p.discount_percent IS NULL THEN 0
+				ELSE p.price * (1 - (p.discount_percent/100.0))
+			END AS discount_price,
 			p.is_flash_sale,
 			p.is_favourite,
-			COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images
+			COALESCE(MAX(pi.product_image), '') AS product_image
 		FROM products p
-		LEFT JOIN product_images pi ON pi.product_id = p.id
+		LEFT JOIN product_images pi ON pi.product_id = p.id AND pi.is_primary = true
 		LEFT JOIN product_categories pc ON pc.product_id = p.id
 		LEFT JOIN categories c ON c.id = pc.category_id
 		WHERE p.is_active = true`
