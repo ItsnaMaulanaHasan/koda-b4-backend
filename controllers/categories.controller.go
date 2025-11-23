@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 )
 
-// ListCategores     godoc
+// ListCategories     godoc
 // @Summary      	 Get list categories
 // @Description  	 Retrieving list categories data with pagination support
 // @Tags         	 admin/categories

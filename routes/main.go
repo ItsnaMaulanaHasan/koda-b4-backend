@@ -21,4 +21,6 @@ func SetUpRoutes(r *gin.Engine) {
 	profilesRoutes(r.Group("/profiles", middlewares.Auth()))
 	historiesRoutes(r.Group("/histories", middlewares.Auth()))
 	feeRoutes(r)
+	sizesRoutes(r)
+	variantsRoutes(r)
 }
