@@ -15,11 +15,13 @@ import (
 
 type AdminProductResponse struct {
 	Id                int      `db:"id" json:"id"`
+	ImagePrimary      string   `db:"image_primary" json:"imagePrimary"`
 	ProductImages     []string `db:"product_images" json:"productImages"`
 	Name              string   `db:"name" json:"name"`
 	Description       string   `db:"description" json:"description"`
 	Price             float64  `db:"price" json:"price"`
 	DiscountPercent   float64  `db:"discount_percent" json:"discountPercent"`
+	DiscountPrice     float64  `db:"discount_price" json:"discountPrice"`
 	Rating            float64  `db:"rating" json:"rating"`
 	IsFlashSale       bool     `db:"is_flash_sale" json:"isFlashSale"`
 	Stock             int      `db:"stock" json:"stock"`
@@ -112,66 +114,54 @@ func GetListProductsAdmin(search string, page int, limit int) ([]AdminProductRes
 	var err error
 	products := []AdminProductResponse{}
 	offset := (page - 1) * limit
+
+	query := `SELECT 
+		p.id,
+		p.name,
+		p.description,
+		p.price,
+		COALESCE(p.discount_percent, 0)::FLOAT AS discount_percent,
+		CASE 
+			WHEN COALESCE(p.discount_percent, 0) = 0 THEN 0
+			ELSE (p.price * (1 - (p.discount_percent/100.0)))
+		END AS discount_price,
+		COALESCE(p.rating, 0)::FLOAT AS rating,
+		p.is_flash_sale,
+		COALESCE(p.stock, 0) AS stock,
+		p.is_active,
+		p.is_favourite,
+		COALESCE(MAX(pi.product_image) FILTER (WHERE pi.is_primary = true), '') AS image_primary,
+		COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images,
+		COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
+		COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
+		COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
+	FROM products p
+	LEFT JOIN product_images pi ON pi.product_id = p.id
+	LEFT JOIN product_sizes sp ON sp.product_id = p.id
+	LEFT JOIN sizes s ON s.id = sp.size_id
+	LEFT JOIN product_categories pc ON pc.product_id = p.id
+	LEFT JOIN categories c ON c.id = pc.category_id
+	LEFT JOIN product_variants pv ON pv.product_id = p.id
+	LEFT JOIN variants v ON v.id = pv.variant_id`
+
 	if search != "" {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT 
-				p.id,
-				p.name,
-				p.description,
-				p.price,
-				COALESCE(p.discount_percent, 0) AS discount_percent,
-				COALESCE(p.rating, 0) AS rating,
-				p.is_flash_sale,
-				COALESCE(p.stock, 0) AS stock,
-				p.is_active,
-				p.is_favourite,
-				COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images,
-				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
-				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
-				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
-			FROM products p
-			LEFT JOIN product_images pi ON pi.product_id = p.id
-			LEFT JOIN product_sizes sp ON sp.product_id = p.id
-			LEFT JOIN sizes s ON s.id = sp.size_id
-			LEFT JOIN product_categories pc ON pc.product_id = p.id
-			LEFT JOIN categories c ON c.id = pc.category_id
-			LEFT JOIN product_variants pv ON pv.product_id = p.id
-			LEFT JOIN variants v ON v.id = pv.variant_id
-			WHERE p.name ILIKE $3
-				OR p.description ILIKE $3
-				OR c.name ILIKE $3
-			GROUP BY p.id
-			ORDER BY p.id ASC
-			LIMIT $1 OFFSET $2`, limit, offset, "%"+search+"%")
+		query += `
+	WHERE p.name ILIKE $3
+		OR p.description ILIKE $3
+		OR c.name ILIKE $3`
+		query += `
+	GROUP BY p.id
+	ORDER BY p.id ASC
+	LIMIT $1 OFFSET $2`
+		rows, err = config.DB.Query(context.Background(), query, limit, offset, "%"+search+"%")
 	} else {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT 
-				p.id,
-				p.name,
-				p.description,
-				p.price,
-				COALESCE(p.discount_percent, 0) AS discount_percent,
-				COALESCE(p.rating, 0) AS rating,
-				p.is_flash_sale,
-				COALESCE(p.stock, 0) AS stock,
-				p.is_active,
-				p.is_favourite,
-				COALESCE(ARRAY_AGG(DISTINCT pi.product_image) FILTER (WHERE pi.product_image IS NOT NULL), '{}') AS product_images,
-				COALESCE(ARRAY_AGG(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS product_sizes,
-				COALESCE(ARRAY_AGG(DISTINCT c.name) FILTER (WHERE c.name IS NOT NULL), '{}') AS product_categories,
-				COALESCE(ARRAY_AGG(DISTINCT v.name) FILTER (WHERE v.name IS NOT NULL), '{}') AS product_variants
-			FROM products p
-			LEFT JOIN product_images pi ON pi.product_id = p.id
-			LEFT JOIN product_sizes sp ON sp.product_id = p.id
-			LEFT JOIN sizes s ON s.id = sp.size_id
-			LEFT JOIN product_categories pc ON pc.product_id = p.id
-			LEFT JOIN categories c ON c.id = pc.category_id
-			LEFT JOIN product_variants pv ON pv.product_id = p.id
-			LEFT JOIN variants v ON v.id = pv.variant_id
-			GROUP BY p.id
-			ORDER BY p.id ASC
-			LIMIT $1 OFFSET $2`, limit, offset)
+		query += `
+	GROUP BY p.id
+	ORDER BY p.id ASC
+	LIMIT $1 OFFSET $2`
+		rows, err = config.DB.Query(context.Background(), query, limit, offset)
 	}
+
 	if err != nil {
 		return products, err
 	}
