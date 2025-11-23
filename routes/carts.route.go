@@ -6,8 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func cartsRouter(r *gin.RouterGroup) {
-	r.GET("", controllers.ListCarts)
-	r.POST("", controllers.AddCart)
-	r.DELETE("/:id", controllers.DeleteCart)
+func cartsRouter(r *gin.Engine, cart *gin.RouterGroup) {
+	cart.POST("", controllers.AddCart)
+	cart.DELETE("/:id", controllers.DeleteCart)
+
+	r.GET("/carts", controllers.ListCarts)
 }
