@@ -24,7 +24,7 @@ import (
 // @Param        	 page           query     int     false  "Page number"  default(1)  minimum(1)
 // @Param        	 limit          query     int     false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
 // @Param        	 search         query     string  false  "Search value"
-// @Success      	 200            {object}  object{success=bool,message=string,data=[]models.Transaction,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int,next=string,prev=string}}  "Successfully retrieved transaction list"
+// @Success      	 200            {object}  object{success=bool,message=string,data=[]models.History,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int},_links=lib.HateoasLink}  "Successfully retrieved transaction list"
 // @Failure      	 400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
 // @Failure      	 500            {object}  lib.ResponseError  "Internal server error while fetching or processing transaction data."
 // @Router       	 /admin/transactions [get]
@@ -90,7 +90,7 @@ func ListTransactions(ctx *gin.Context) {
 	}
 
 	// hateoas
-	links := utils.BuildHateoasPagination(ctx, page, limit, search, totalData)
+	links := utils.BuildHateoasPagination(ctx, page, limit, totalData)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,

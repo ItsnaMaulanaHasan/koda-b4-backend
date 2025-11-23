@@ -100,7 +100,7 @@ func ListHistories(ctx *gin.Context) {
 	}
 
 	// hateoas
-	links := utils.BuildHateoasPaginationHistories(ctx, page, limit, date, statusId, totalData)
+	links := utils.BuildHateoasPagination(ctx, page, limit, totalData)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
