@@ -5,9 +5,7 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/middlewares"
 	"backend-daily-greens/routes"
-	"fmt"
 	"net/http"
-	"os"
 	"sync"
 
 	_ "backend-daily-greens/docs"
@@ -24,10 +22,6 @@ var (
 
 func initApp() {
 	once.Do(func() {
-		fmt.Println("ORIGIN_URL:", os.Getenv("ORIGIN_URL"))
-		fmt.Println("ORIGIN_URL_VERCEL:", os.Getenv("ORIGIN_URL_VERCEL"))
-		fmt.Println("ORIGIN_URL_VERCEL2:", os.Getenv("ORIGIN_URL_VERCEL2"))
-
 		App = gin.New()
 		App.Use(gin.Recovery())
 		App.Use(middlewares.CorsMiddleware())
