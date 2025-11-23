@@ -26,25 +26,25 @@ func main() {
 	config.InitDatabase()
 	config.InitRedis()
 	config.InitSupabase()
+
 	defer config.CloseDatabase()
 
 	r := gin.Default()
-
-	r.MaxMultipartMemory = 1 << 20
-
+	r.Use(gin.Recovery())
 	r.Use(middlewares.CorsMiddleware())
 
-	router := r.Group("/")
-
-	router.GET("/", func(ctx *gin.Context) {
+	r.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 			Success: true,
 			Message: "Backend is running good babyy",
 		})
 	})
 
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	r.MaxMultipartMemory = 1 << 20
+
 	routes.SetUpRoutes(r)
 
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.Run(":8080")
 }

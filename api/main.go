@@ -17,30 +17,28 @@ import (
 var App *gin.Engine
 
 func init() {
-	config.InitDatabase()
-	config.InitRedis()
-	config.InitSupabase()
-
 	App = gin.New()
 	App.Use(gin.Recovery())
+	App.Use(middlewares.CorsMiddleware())
 
-	router := App.Group("/")
-
-	router.GET("/", func(ctx *gin.Context) {
+	App.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 			Success: true,
 			Message: "Backend is running well",
 		})
 	})
 
+	App.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	App.MaxMultipartMemory = 1 << 20
 
-	App.Use(middlewares.CorsMiddleware())
-
-	App.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	routes.SetUpRoutes(App)
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
+	config.InitDatabase()
+	config.InitRedis()
+	config.InitSupabase()
+
 	App.ServeHTTP(w, r)
 }
