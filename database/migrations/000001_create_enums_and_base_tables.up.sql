@@ -50,6 +50,7 @@ CREATE TABLE "order_methods" (
 
 CREATE TABLE "payment_methods" (
     "id" serial PRIMARY KEY,
+    "image" text,
     "name" varchar(30) UNIQUE NOT NULL,
     "admin_fee" numeric(10, 2) DEFAULT 0,
     "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),

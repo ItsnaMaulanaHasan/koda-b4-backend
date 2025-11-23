@@ -103,22 +103,59 @@ VALUES ('Dine In', 0, 1, 1),
 -- insert payment_methods
 INSERT INTO
     payment_methods (
+        image,
         name,
         admin_fee,
         created_by,
         updated_by
     )
-VALUES ('Transfer BRI', 2500, 1, 1),
-    ('Dana', 2500, 1, 1),
-    ('Transfer BCA', 0, 1, 1),
-    ('Gopay', 0, 1, 1),
-    ('Ovo', 2500, 1, 1),
-    ('Paypal', 5000, 1, 1);
+VALUES (
+        'https://hivhvrhnmbyosfjzobzq.supabase.co/storage/v1/object/public/payment-methods/icon-bri.svg',
+        'Transfer BRI',
+        2500,
+        1,
+        1
+    ),
+    (
+        'https://hivhvrhnmbyosfjzobzq.supabase.co/storage/v1/object/public/payment-methods/icon-dana.svg',
+        'Dana',
+        2500,
+        1,
+        1
+    ),
+    (
+        'https://hivhvrhnmbyosfjzobzq.supabase.co/storage/v1/object/public/payment-methods/icon-bca.svg',
+        'Transfer BCA',
+        0,
+        1,
+        1
+    ),
+    (
+        'https://hivhvrhnmbyosfjzobzq.supabase.co/storage/v1/object/public/payment-methods/icon-dana.svg',
+        'Gopay',
+        0,
+        1,
+        1
+    ),
+    (
+        'https://hivhvrhnmbyosfjzobzq.supabase.co/storage/v1/object/public/payment-methods/icon-ovo.svg',
+        'Ovo',
+        2500,
+        1,
+        1
+    ),
+    (
+        'https://hivhvrhnmbyosfjzobzq.supabase.co/storage/v1/object/public/payment-methods/icon-paypal.svg',
+        'Paypal',
+        5000,
+        1,
+        1
+    );
 
 -- insert status
 INSERT INTO
     status (name, created_by, updated_by)
-VALUES ('On Progess', 1, 1),
+VALUES ('On Progress', 1, 1),
     ('Sending Goods', 1, 1),
     ('Finish Order', 1, 1)
 
