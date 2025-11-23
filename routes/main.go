@@ -12,7 +12,7 @@ func SetUpRoutes(r *gin.Engine) {
 	// admin
 	admin := r.Group("/admin", middlewares.Auth(), middlewares.AdminOnly())
 	usersRoutes(admin)
-	categoriesRoutes(admin)
+	categoriesRoutes(r, admin)
 	productsRoutes(r, admin)
 	transactionsRoutes(r, admin)
 
