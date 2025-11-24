@@ -13,6 +13,8 @@ FROM alpine
 
 WORKDIR /app
 
+RUN mkdir -p /app/uploads/profiles /app/uploads/products
+
 COPY --from=builder /app/backend-app ./
 
 ENTRYPOINT [ "./backend-app" ]
