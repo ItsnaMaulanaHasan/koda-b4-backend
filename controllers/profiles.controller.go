@@ -228,6 +228,22 @@ func UploadProfilePhoto(ctx *gin.Context) {
 		savedImagePath = imageUrl
 	}
 
+	fileUrltoDelete, err := models.GetProfilePhotoById(userId.(int))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+			Success: false,
+			Message: "Failed to get file photo profile to update",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if !useSupabase {
+		os.Remove(fileUrltoDelete)
+	} else {
+		utils.DeleteFromSupabase(fileUrltoDelete, "profile-photos")
+	}
+
 	isSuccess, message, err := models.UploadProfilePhotoUser(userId.(int), savedImagePath)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{

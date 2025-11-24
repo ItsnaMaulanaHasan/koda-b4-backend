@@ -140,6 +140,16 @@ func UpdateDataProfile(userId int, bodyUpdate ProfileRequest) (bool, string, Use
 	return isSuccess, message, userProfile, nil
 }
 
+func GetProfilePhotoById(userId int) (string, error) {
+	var fileUrl string
+	err := config.DB.QueryRow(context.Background(), `SELECT profile_photo FROM profiles WHERE user_id = $1`, userId).Scan(&fileUrl)
+	if err != nil {
+		return fileUrl, err
+	}
+
+	return fileUrl, nil
+}
+
 func UploadProfilePhotoUser(userId int, savedFilePath string) (bool, string, error) {
 	isSuccess := false
 	message := ""
