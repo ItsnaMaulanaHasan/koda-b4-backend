@@ -11,6 +11,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -466,31 +467,61 @@ func CreateProduct(ctx *gin.Context) {
 
 	// process and save images
 	var savedImagePaths []string
+	uploadDir := "uploads/products"
+
+	useSupabase := os.Getenv("SUPABASE_KEY") != ""
+	if !useSupabase {
+		os.MkdirAll(uploadDir, 0755)
+	}
 
 	for i, file := range files {
+		ext := strings.ToLower(filepath.Ext(file.Filename))
 		fileName := fmt.Sprintf("product_%d_img%d_%d", bodyCreate.Id, i+1, time.Now().UnixNano())
-		imageUrl, err := utils.UploadToSupabase(file, fileName, "products")
-		if err != nil {
-			for _, url := range savedImagePaths {
-				utils.DeleteFromSupabase(url, "products")
+		if !useSupabase {
+			fileNameLocale := fmt.Sprintf("%s%s", fileName, ext)
+			savedFilePath := filepath.Join(uploadDir, fileNameLocale)
+			err := ctx.SaveUploadedFile(file, savedFilePath)
+			if err != nil {
+				for _, path := range savedImagePaths {
+					os.Remove(path)
+				}
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: fmt.Sprintf("Failed to save image %d", i+1),
+					Error:   err.Error(),
+				})
+				return
 			}
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: fmt.Sprintf("Failed to upload image %d to Cloudinary", i+1),
-				Error:   err.Error(),
-			})
-			return
+			savedImagePaths = append(savedImagePaths, savedFilePath)
+		} else {
+			imageUrl, err := utils.UploadToSupabase(file, fileName, "products")
+			if err != nil {
+				for _, url := range savedImagePaths {
+					utils.DeleteFromSupabase(url, "products")
+				}
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: fmt.Sprintf("Failed to upload image %d to Cloudinary", i+1),
+					Error:   err.Error(),
+				})
+				return
+			}
+			savedImagePaths = append(savedImagePaths, imageUrl)
 		}
-		savedImagePaths = append(savedImagePaths, imageUrl)
 	}
 
 	// insert images
 	if len(savedImagePaths) > 0 {
 		err = models.InsertProductImages(tx, bodyCreate.Id, savedImagePaths, userIdFromToken.(int))
 		if err != nil {
-			// clean up saved files on error
-			for _, url := range savedImagePaths {
-				utils.DeleteFromSupabase(url, "products")
+			if !useSupabase {
+				for _, path := range savedImagePaths {
+					os.Remove(path)
+				}
+			} else {
+				for _, url := range savedImagePaths {
+					utils.DeleteFromSupabase(url, "products")
+				}
 			}
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
