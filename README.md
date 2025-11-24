@@ -339,8 +339,12 @@ Before running this application, make sure you have:
 Create a `.env` file in the root directory with the following variables:
 
 ```env
+APP_URL=http://localhost:5173
+
 # origin url for cors
-ORIGIN_URL=http://localhost:3000
+ORIGIN_URL=http://localhost:5173
+ORIGIN_URL_VERCEL=<url_frontend_vercel>
+ORIGIN_URL_VERCEL2=<url_frontend_vercel>
 
 # app secret jwt
 APP_SECRET=<your_app_secret_key>
@@ -363,10 +367,11 @@ POSTGRES_DB_DOCKER=<db_name>
 POSTGRES_USER_DOCKER=<postgres_user>
 
 # smtp configuration
-SMTP_SERVER=smtp.gmail.com
+SMTP_HOST=smtp.gmail.com
 SMTP_PORT=port_smtp
-SMTP_USER=your_email@gmail.com
+SMTP_USERNAME=your_email@gmail.com
 SMTP_PASSWORD=your_email_password
+FROM_EMAIL=your_email_password
 ```
 
 ## Installation & Setup
