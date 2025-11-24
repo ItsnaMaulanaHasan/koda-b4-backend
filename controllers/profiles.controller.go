@@ -194,7 +194,7 @@ func UploadProfilePhoto(ctx *gin.Context) {
 	}
 
 	var savedImagePath string
-	uploadDir := "uploads/products"
+	uploadDir := "uploads/profiles"
 	useSupabase := os.Getenv("SUPABASE_KEY") != ""
 	if !useSupabase {
 		os.MkdirAll(uploadDir, 0755)
