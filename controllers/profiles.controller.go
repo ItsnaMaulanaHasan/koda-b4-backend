@@ -6,6 +6,7 @@ import (
 	"backend-daily-greens/utils"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -192,18 +193,42 @@ func UploadProfilePhoto(ctx *gin.Context) {
 		return
 	}
 
-	fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
-	imageUrl, err := utils.UploadToSupabase(file, fileName, "profile-photos")
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to upload profile photo",
-			Error:   err.Error(),
-		})
-		return
+	var savedImagePath string
+	uploadDir := "uploads/products"
+	useSupabase := os.Getenv("SUPABASE_KEY") != ""
+	if !useSupabase {
+		os.MkdirAll(uploadDir, 0755)
 	}
 
-	isSuccess, message, err := models.UploadProfilePhotoUser(userId.(int), imageUrl)
+	fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
+
+	if !useSupabase {
+		fileNameLocale := fmt.Sprintf("%s%s", fileName, ext)
+		savedFilePath := filepath.Join(uploadDir, fileNameLocale)
+		err := ctx.SaveUploadedFile(file, savedFilePath)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to save photo profile",
+				Error:   err.Error(),
+			})
+			return
+		}
+		savedImagePath = savedFilePath
+	} else {
+		imageUrl, err := utils.UploadToSupabase(file, fileName, "profile-photos")
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+				Success: false,
+				Message: "Failed to upload profile photo",
+				Error:   err.Error(),
+			})
+			return
+		}
+		savedImagePath = imageUrl
+	}
+
+	isSuccess, message, err := models.UploadProfilePhotoUser(userId.(int), savedImagePath)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: isSuccess,
@@ -217,7 +242,7 @@ func UploadProfilePhoto(ctx *gin.Context) {
 		Success: isSuccess,
 		Message: message,
 		Data: gin.H{
-			"profilePhoto": imageUrl,
+			"profilePhoto": savedImagePath,
 		},
 	})
 }
