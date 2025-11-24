@@ -806,6 +806,12 @@ func UpdateProduct(ctx *gin.Context) {
 		return
 	}
 
+	uploadDir := "uploads/products"
+	useSupabase := os.Getenv("SUPABASE_KEY") != ""
+	if !useSupabase {
+		os.MkdirAll(uploadDir, 0755)
+	}
+
 	// handle images update jika ada perubahan
 	if len(files) > 0 || len(keepExistingImages) > 0 {
 		// get current images from database
@@ -831,12 +837,16 @@ func UpdateProduct(ctx *gin.Context) {
 
 			// delete image jika tidak di-keep
 			if !shouldKeep {
-				// delete from storage
-				err = utils.DeleteFromSupabase(currentImg, "products")
-				if err != nil {
-					fmt.Printf("Warning: Failed to delete image from storage: %v\n", err)
+				// delete in local
+				if !useSupabase {
+					os.Remove(currentImg)
+				} else {
+					// delete in supabase
+					err = utils.DeleteFromSupabase(currentImg, "products")
+					if err != nil {
+						fmt.Printf("Warning: Failed to delete image from storage: %v\n", err)
+					}
 				}
-
 				// delete from database
 				err = models.DeleteProductImageByUrl(tx, id, currentImg)
 				if err != nil {
@@ -854,20 +864,39 @@ func UpdateProduct(ctx *gin.Context) {
 		if len(files) > 0 {
 			var savedImagePaths []string
 			for i, file := range files {
+				ext := strings.ToLower(filepath.Ext(file.Filename))
 				fileName := fmt.Sprintf("product_%d_img%d_%d", id, i+1, time.Now().UnixNano())
-				imageUrl, err := utils.UploadToSupabase(file, fileName, "products")
-				if err != nil {
-					for _, url := range savedImagePaths {
-						utils.DeleteFromSupabase(url, "products")
+				if !useSupabase {
+					fileNameLocale := fmt.Sprintf("%s%s", fileName, ext)
+					savedFilePath := filepath.Join(uploadDir, fileNameLocale)
+					err := ctx.SaveUploadedFile(file, savedFilePath)
+					if err != nil {
+						for _, path := range savedImagePaths {
+							os.Remove(path)
+						}
+						ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+							Success: false,
+							Message: fmt.Sprintf("Failed to save image %d", i+1),
+							Error:   err.Error(),
+						})
+						return
 					}
-					ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-						Success: false,
-						Message: fmt.Sprintf("Failed to upload image %d", i+1),
-						Error:   err.Error(),
-					})
-					return
+					savedImagePaths = append(savedImagePaths, savedFilePath)
+				} else {
+					imageUrl, err := utils.UploadToSupabase(file, fileName, "products")
+					if err != nil {
+						for _, url := range savedImagePaths {
+							utils.DeleteFromSupabase(url, "products")
+						}
+						ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+							Success: false,
+							Message: fmt.Sprintf("Failed to upload image %d", i+1),
+							Error:   err.Error(),
+						})
+						return
+					}
+					savedImagePaths = append(savedImagePaths, imageUrl)
 				}
-				savedImagePaths = append(savedImagePaths, imageUrl)
 			}
 
 			// insert new images
