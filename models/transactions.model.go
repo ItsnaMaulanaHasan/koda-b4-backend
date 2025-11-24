@@ -10,11 +10,12 @@ import (
 )
 
 type Transaction struct {
-	Id              int       `db:"id"`
-	NoInvoice       string    `db:"no_invoice"`
-	DateTransaction time.Time `db:"date_transaction"`
-	Status          string    `db:"status"`
-	Total           float64   `db:"total_transaction"`
+	Id               int       `db:"id" json:"id"`
+	NoInvoice        string    `db:"no_invoice" json:"noInvoice"`
+	DateTransaction  time.Time `db:"date_transaction" json:"dateTransaction"`
+	Status           string    `db:"status" json:"status"`
+	TransactionItems []string  `db:"transaction_items" json:"transactionItems"`
+	Total            float64   `db:"total_transaction" json:"total"`
 }
 
 type TransactionDetail struct {
@@ -100,10 +101,13 @@ func GetListAllTransactions(page int, limit int, search string) ([]Transaction, 
 				t.no_invoice,
 				t.date_transaction,
 				s.name AS status,
+				COALESCE(ARRAY_AGG(DISTINCT ti.product_name) FILTER (WHERE ti.product_name IS NOT NULL), '{}') AS transaction_items,
 				t.total_transaction
 			FROM transactions t
+			JOIN transaction_items ti ON t.id = ti.transaction_id
 			JOIN status s ON t.status_id = s.id
  			WHERE t.no_invoice ILIKE $3
+			GROUP BY t.id, s.name
 			ORDER BY date_transaction DESC, id DESC
 			LIMIT $1 OFFSET $2`, limit, offset, "%"+search+"%")
 	} else {
@@ -113,9 +117,12 @@ func GetListAllTransactions(page int, limit int, search string) ([]Transaction, 
 				t.no_invoice,
 				t.date_transaction,
 				s.name AS status,
+				COALESCE(ARRAY_AGG(DISTINCT ti.product_name) FILTER (WHERE ti.product_name IS NOT NULL), '{}') AS transaction_items,
 				t.total_transaction
 			FROM transactions t
+			JOIN transaction_items ti ON t.id = ti.transaction_id
 			JOIN status s ON t.status_id = s.id
+			GROUP BY t.id, s.name
 			ORDER BY date_transaction DESC, id DESC
 			LIMIT $1 OFFSET $2`, limit, offset)
 	}
