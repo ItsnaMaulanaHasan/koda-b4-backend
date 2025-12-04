@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// BuildHateoasPagination - Generic HATEOAS pagination builder untuk semua endpoint
 func BuildHateoasPagination(ctx *gin.Context, page int, limit int, total int) lib.HateoasLink {
 	totalPages := (total + limit - 1) / limit
 	if totalPages == 0 {
