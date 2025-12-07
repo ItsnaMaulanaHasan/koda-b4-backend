@@ -200,7 +200,7 @@ func UploadProfilePhoto(ctx *gin.Context) {
 		os.MkdirAll(uploadDir, 0755)
 	}
 
-	fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
+	fileName := fmt.Sprintf("%d", time.Now().Unix())
 
 	if !useSupabase {
 		fileNameLocale := fmt.Sprintf("%s%s", fileName, ext)
