@@ -15,6 +15,7 @@ func SetUpRoutes(r *gin.Engine) {
 	categoriesRoutes(r, admin)
 	productsRoutes(r, admin)
 	transactionsRoutes(r, admin)
+	statusRoutes(admin)
 
 	// public
 	cartsRouter(r.Group("/carts", middlewares.Auth()))
