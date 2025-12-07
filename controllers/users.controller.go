@@ -6,6 +6,7 @@ import (
 	"backend-daily-greens/utils"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -228,8 +229,7 @@ func CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	// get file from body request
-	savedFilePath := ""
+	var savedImagePath string
 	file, err := ctx.FormFile("filePhoto")
 	if err == nil {
 		// check file size
@@ -272,22 +272,54 @@ func CreateUser(ctx *gin.Context) {
 			return
 		}
 
-		fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
-		imageUrl, err := utils.UploadToSupabase(file, fileName, "photo-profiles")
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-				Success: false,
-				Message: "Failed to upload profile photo to Cloudinary",
-				Error:   err.Error(),
-			})
-			return
+		uploadDir := "uploads/profiles"
+		useSupabase := os.Getenv("SUPABASE_KEY") != ""
+		if !useSupabase {
+			os.MkdirAll(uploadDir, 0755)
 		}
-		bodyCreate.ProfilePhoto = imageUrl
+
+		fileName := fmt.Sprintf("%d", time.Now().Unix())
+
+		if !useSupabase {
+			fileNameLocale := fmt.Sprintf("%s%s", fileName, ext)
+			savedFilePath := filepath.Join(uploadDir, fileNameLocale)
+			err := ctx.SaveUploadedFile(file, savedFilePath)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Failed to save profile photo",
+					Error:   err.Error(),
+				})
+				return
+			}
+			savedImagePath = savedFilePath
+		} else {
+			imageUrl, err := utils.UploadToSupabase(file, fileName, "profile-photos")
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Failed to upload profile photo to Supabase",
+					Error:   err.Error(),
+				})
+				return
+			}
+			savedImagePath = imageUrl
+		}
+
+		bodyCreate.ProfilePhoto = savedImagePath
 	}
 
-	// insert data user
-	isSuccess, message, err := models.InsertDataUser(userId.(int), &bodyCreate, savedFilePath)
+	isSuccess, message, err := models.InsertDataUser(userId.(int), &bodyCreate, bodyCreate.ProfilePhoto)
 	if err != nil {
+		if savedImagePath != "" {
+			useSupabase := os.Getenv("SUPABASE_KEY") != ""
+			if !useSupabase {
+				os.Remove(savedImagePath)
+			} else {
+				utils.DeleteFromSupabase(savedImagePath, "profile-photos")
+			}
+		}
+
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: isSuccess,
 			Message: message,
@@ -356,9 +388,10 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
+	var savedImagePath string
+	var oldImagePath string
 	file, err := ctx.FormFile("filePhoto")
 	if err == nil {
-		// check file size
 		if file.Size > 3<<20 {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
 				Success: false,
@@ -378,7 +411,6 @@ func UpdateUser(ctx *gin.Context) {
 			".png":  true,
 		}
 
-		// check content type
 		contentType := file.Header.Get("Content-Type")
 		if !allowedTypes[contentType] {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -388,7 +420,6 @@ func UpdateUser(ctx *gin.Context) {
 			return
 		}
 
-		// check file extension
 		ext := strings.ToLower(filepath.Ext(file.Filename))
 		if !allowedExt[ext] {
 			ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -398,21 +429,127 @@ func UpdateUser(ctx *gin.Context) {
 			return
 		}
 
-		fileName := fmt.Sprintf("user_%d_%d", userId, time.Now().Unix())
-		imageUrl, err := utils.UploadToSupabase(file, fileName, "photo-profiles")
+		oldImagePath, err = models.GetProfilePhotoById(id)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 				Success: false,
-				Message: "Failed to upload profile photo to Cloudinary",
+				Message: "Failed to get old profile photo",
 				Error:   err.Error(),
 			})
 			return
 		}
-		bodyUpdate.ProfilePhoto = imageUrl
+
+		uploadDir := "uploads/profiles"
+		useSupabase := os.Getenv("SUPABASE_KEY") != ""
+		if !useSupabase {
+			os.MkdirAll(uploadDir, 0755)
+		}
+
+		fileName := fmt.Sprintf("%d", time.Now().Unix())
+
+		if !useSupabase {
+			fileNameLocale := fmt.Sprintf("%s%s", fileName, ext)
+			savedFilePath := filepath.Join(uploadDir, fileNameLocale)
+			err := ctx.SaveUploadedFile(file, savedFilePath)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Failed to save profile photo",
+					Error:   err.Error(),
+				})
+				return
+			}
+			savedImagePath = savedFilePath
+		} else {
+			imageUrl, err := utils.UploadToSupabase(file, fileName, "profile-photos")
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
+					Success: false,
+					Message: "Failed to upload profile photo to Supabase",
+					Error:   err.Error(),
+				})
+				return
+			}
+			savedImagePath = imageUrl
+		}
+
+		bodyUpdate.ProfilePhoto = savedImagePath
 	}
 
-	// update data user
 	isSuccess, message, err := models.UpdateDataUser(id, userId.(int), &bodyUpdate, bodyUpdate.ProfilePhoto)
+	if err != nil {
+		if savedImagePath != "" {
+			useSupabase := os.Getenv("SUPABASE_KEY") != ""
+			if !useSupabase {
+				os.Remove(savedImagePath)
+			} else {
+				utils.DeleteFromSupabase(savedImagePath, "profile-photos")
+			}
+		}
+
+		statusHttp := http.StatusInternalServerError
+		if message == "user not found" {
+			statusHttp = http.StatusNotFound
+		}
+		ctx.JSON(statusHttp, lib.ResponseError{
+			Success: isSuccess,
+			Message: message,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if savedImagePath != "" && oldImagePath != "" {
+		useSupabase := os.Getenv("SUPABASE_KEY") != ""
+		if !useSupabase {
+			os.Remove(oldImagePath)
+		} else {
+			utils.DeleteFromSupabase(oldImagePath, "profile-photos")
+		}
+	}
+
+	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
+		Success: isSuccess,
+		Message: "User updated successfully",
+	})
+}
+
+// ResetPasswordUser godoc
+// @Summary      Reset user password
+// @Description  Reset user password to default password (Password@123)
+// @Tags         admin/users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        Authorization  header  string  true  "Bearer token"  default(Bearer <token>)
+// @Param        id             path    int     true  "User Id"
+// @Success      200  {object}  lib.ResponseSuccess  "Password reset successfully"
+// @Failure      400  {object}  lib.ResponseError  "Invalid Id format"
+// @Failure      401  {object}  lib.ResponseError  "User unauthorized"
+// @Failure      404  {object}  lib.ResponseError  "User not found"
+// @Failure      500  {object}  lib.ResponseError  "Internal server error while resetting password"
+// @Router       /admin/users/{id}/reset-password [patch]
+func ResetPasswordUser(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Invalid Id format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userId, exists := ctx.Get("userId")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, lib.ResponseError{
+			Success: false,
+			Message: "User Id not found in token",
+		})
+		return
+	}
+
+	isSuccess, message, err := models.ResetUserPassword(id, userId.(int))
 	if err != nil {
 		statusHttp := http.StatusInternalServerError
 		if message == "user not found" {
@@ -428,7 +565,7 @@ func UpdateUser(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
 		Success: isSuccess,
-		Message: "User updated successfully",
+		Message: message,
 	})
 }
 
@@ -457,26 +594,36 @@ func DeleteUser(ctx *gin.Context) {
 		return
 	}
 
-	commandTag, err := models.DeleteDataUser(id)
+	isSuccess, message, profilePhotoURL, err := models.DeleteDataUser(id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Internal server error while deleting user data",
+		statusHttp := http.StatusInternalServerError
+
+		if message == "user not found" {
+			statusHttp = http.StatusNotFound
+		}
+
+		ctx.JSON(statusHttp, lib.ResponseError{
+			Success: isSuccess,
+			Message: message,
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	if commandTag.RowsAffected() == 0 {
-		ctx.JSON(http.StatusNotFound, lib.ResponseError{
-			Success: false,
-			Message: "User not found",
-		})
-		return
+	if profilePhotoURL != "" {
+		useSupabase := os.Getenv("SUPABASE_KEY") != ""
+		if !useSupabase {
+			_, err := os.Stat(profilePhotoURL)
+			if err == nil {
+				os.Remove(profilePhotoURL)
+			}
+		} else {
+			utils.DeleteFromSupabase(profilePhotoURL, "profile-photos")
+		}
 	}
 
 	ctx.JSON(http.StatusOK, lib.ResponseSuccess{
-		Success: true,
-		Message: "User deleted successfully",
+		Success: isSuccess,
+		Message: message,
 	})
 }
