@@ -2,13 +2,12 @@ package models
 
 import (
 	"backend-daily-greens/config"
-	"backend-daily-greens/utils"
+	"backend-daily-greens/lib"
 	"context"
 	"errors"
 	"mime/multipart"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type User struct {
@@ -220,7 +219,7 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, imageUrl 
 	defer tx.Rollback(ctx)
 
 	commandTag, err := tx.Exec(
-		context.Background(),
+		ctx,
 		`UPDATE users 
 		 SET email      = COALESCE(NULLIF($1, ''), email),
 		     role       = COALESCE(NULLIF($2, ''), role),
@@ -242,14 +241,9 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, imageUrl 
 		return isSuccess, message, errors.New(message)
 	}
 
-	err = utils.DeleteFromSupabase(bodyUpdate.ProfilePhoto, "photo-profile")
-	if err != nil {
-		message = "Failed to delete photo profile from cloudinary"
-		return isSuccess, message, err
-	}
-
+	// Update profile
 	_, err = tx.Exec(
-		context.Background(),
+		ctx,
 		`UPDATE profiles 
 		 SET full_name     = COALESCE(NULLIF($1, ''), full_name),
 		 	 profile_photo = COALESCE(NULLIF($2, ''), profile_photo),
@@ -270,7 +264,7 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, imageUrl 
 		return isSuccess, message, err
 	}
 
-	// commit transaction
+	// Commit transaction
 	err = tx.Commit(ctx)
 	if err != nil {
 		message = "Failed to commit transaction"
@@ -282,11 +276,96 @@ func UpdateDataUser(userId int, userIdFromToken int, bodyUpdate *User, imageUrl 
 	return isSuccess, message, nil
 }
 
-func DeleteDataUser(userId int) (pgconn.CommandTag, error) {
-	commandTag, err := config.DB.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, userId)
+func ResetUserPassword(userId int, updatedBy int) (bool, string, error) {
+	ctx := context.Background()
+	isSuccess := false
+	message := ""
+
+	defaultPassword := "Password@123"
+	hashedPassword, err := lib.HashPassword(defaultPassword)
 	if err != nil {
-		return commandTag, err
+		message = "Failed to hash default password"
+		return isSuccess, message, err
 	}
 
-	return commandTag, err
+	commandTag, err := config.DB.Exec(
+		ctx,
+		`UPDATE users 
+		 SET password = $1,
+		     updated_by = $2,
+		     updated_at = NOW()
+		 WHERE id = $3`,
+		string(hashedPassword),
+		updatedBy,
+		userId,
+	)
+	if err != nil {
+		message = "Internal server error while resetting password"
+		return isSuccess, message, err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		message = "user not found"
+		return isSuccess, message, errors.New(message)
+	}
+
+	isSuccess = true
+	message = "Password reset successfully"
+	return isSuccess, message, nil
+}
+
+func DeleteDataUser(userId int) (bool, string, string, error) {
+	ctx := context.Background()
+	isSuccess := false
+	message := ""
+	profilePhotoURL := ""
+
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		message = "Failed to start database transaction"
+		return isSuccess, message, profilePhotoURL, err
+	}
+	defer tx.Rollback(ctx)
+
+	err = tx.QueryRow(ctx,
+		`SELECT COALESCE(p.profile_photo, '') 
+		 FROM users u
+		 LEFT JOIN profiles p ON u.id = p.user_id
+		 WHERE u.id = $1`,
+		userId,
+	).Scan(&profilePhotoURL)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			message = "user not found"
+			return isSuccess, message, profilePhotoURL, err
+		}
+		message = "Failed to get user data"
+		return isSuccess, message, profilePhotoURL, err
+	}
+
+	commandTag, err := tx.Exec(ctx,
+		`DELETE FROM users WHERE id = $1`,
+		userId,
+	)
+	if err != nil {
+		message = "Internal server error while deleting user data"
+		return isSuccess, message, profilePhotoURL, err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		message = "user not found"
+		return isSuccess, message, profilePhotoURL, errors.New(message)
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		message = "Failed to commit transaction"
+		return isSuccess, message, profilePhotoURL, err
+	}
+
+	isSuccess = true
+	message = "User deleted successfully"
+
+	return isSuccess, message, profilePhotoURL, nil
 }
