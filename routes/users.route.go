@@ -14,5 +14,6 @@ func usersRoutes(r *gin.RouterGroup) {
 		users.POST("", controllers.CreateUser)
 		users.PATCH("/:id", controllers.UpdateUser)
 		users.DELETE("/:id", controllers.DeleteUser)
+		users.PATCH("/:id/reset-password", controllers.ResetPasswordUser)
 	}
 }
