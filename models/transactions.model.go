@@ -4,6 +4,7 @@ import (
 	"backend-daily-greens/config"
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -27,10 +28,10 @@ type TransactionDetail struct {
 	Email            string             `json:"email" db:"email"`
 	Address          string             `json:"address" db:"address"`
 	Phone            string             `json:"phone" db:"phone"`
-	PaymentMethod    string             `json:"payment_method" db:"payment_method"`
+	PaymentMethod    string             `json:"paymentMethod" db:"payment_method"`
 	OrderMethod      string             `json:"orderMethod" db:"order_method"`
 	Status           string             `json:"status" db:"status"`
-	DeliveryFee      float64            `json:"delivery_fee" db:"delivery_fee"`
+	DeliveryFee      float64            `json:"deliveryFee" db:"delivery_fee"`
 	AdminFee         float64            `json:"adminFee" db:"admin_fee"`
 	Tax              float64            `json:"tax" db:"tax"`
 	TotalTransaction float64            `json:"totalTransaction" db:"total_transaction"`
@@ -40,14 +41,15 @@ type TransactionDetail struct {
 type TransactionItems struct {
 	Id              int     `json:"id" db:"id"`
 	TransactionId   int     `json:"transactionId" db:"transaction_id"`
-	ProductId       int     `json:"product_id" db:"product_id"`
-	ProductName     string  `json:"product_name" db:"product_name"`
-	ProductPrice    float64 `json:"product_price" db:"product_price"`
-	DiscountPercent float64 `json:"discount_percent" db:"discount_percent"`
-	DiscountPrice   float64 `json:"discount_price" db:"discount_price"`
-	Size            string  `json:"size" db:"size"`
+	ProductId       int     `json:"productId" db:"product_id"`
+	ProductImage    string  `json:"productImage" db:"product_image"`
+	ProductName     string  `json:"productName" db:"product_name"`
+	ProductPrice    float64 `json:"productPrice" db:"product_price"`
+	DiscountPercent float64 `json:"discountPercent" db:"discount_percent"`
+	DiscountPrice   float64 `json:"discountPrice" db:"discount_price"`
+	SizeName        string  `json:"sizeName" db:"size"`
 	SizeCost        float64 `json:"sizeCost" db:"size_cost"`
-	Variant         string  `json:"variant" db:"variant"`
+	VariantName     string  `json:"variantName" db:"variant"`
 	VariantCost     float64 `json:"variantCost" db:"variant_cost"`
 	Amount          int     `json:"amount" db:"amount"`
 	Subtotal        float64 `json:"subtotal" db:"subtotal"`
@@ -68,18 +70,26 @@ type TransactionRequest struct {
 	TotalTransaction float64   `json:"-" swaggerignore:"true"`
 }
 
-func GetTotalDataTransactions(search string) (int, error) {
+func GetTotalDataTransactions(search string, statusID int) (int, error) {
 	totalData := 0
 	var err error
+
+	query := `SELECT COUNT(*) FROM transactions WHERE 1=1`
+	args := []any{}
+	argIndex := 1
+
 	if search != "" {
-		err = config.DB.QueryRow(context.Background(),
-			`SELECT COUNT(*) 
-			 FROM transactions
-			 WHERE no_invoice ILIKE $1`, "%"+search+"%").Scan(&totalData)
-	} else {
-		err = config.DB.QueryRow(context.Background(),
-			`SELECT COUNT(*) FROM transactions`).Scan(&totalData)
+		query += fmt.Sprintf(" AND no_invoice ILIKE $%d", argIndex)
+		args = append(args, "%"+search+"%")
+		argIndex++
 	}
+
+	if statusID > 0 {
+		query += fmt.Sprintf(" AND status_id = $%d", argIndex)
+		args = append(args, statusID)
+	}
+
+	err = config.DB.QueryRow(context.Background(), query, args...).Scan(&totalData)
 	if err != nil {
 		return totalData, err
 	}
@@ -87,46 +97,45 @@ func GetTotalDataTransactions(search string) (int, error) {
 	return totalData, nil
 }
 
-func GetListAllTransactions(page int, limit int, search string) ([]Transaction, string, error) {
+func GetListAllTransactions(page int, limit int, search string, statusID int) ([]Transaction, string, error) {
 	offset := (page - 1) * limit
 	var rows pgx.Rows
 	var err error
 	message := ""
 	transactions := []Transaction{}
 
+	query := `SELECT 
+		t.id,
+		t.no_invoice,
+		t.date_transaction,
+		s.name AS status,
+		COALESCE(ARRAY_AGG(DISTINCT ti.product_name) FILTER (WHERE ti.product_name IS NOT NULL), '{}') AS transaction_items,
+		t.total_transaction
+	FROM transactions t
+	JOIN transaction_items ti ON t.id = ti.transaction_id
+	JOIN status s ON t.status_id = s.id
+	WHERE 1=1`
+
+	args := []interface{}{limit, offset}
+	argIndex := 3
+
 	if search != "" {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT 
-				t.id,
-				t.no_invoice,
-				t.date_transaction,
-				s.name AS status,
-				COALESCE(ARRAY_AGG(DISTINCT ti.product_name) FILTER (WHERE ti.product_name IS NOT NULL), '{}') AS transaction_items,
-				t.total_transaction
-			FROM transactions t
-			JOIN transaction_items ti ON t.id = ti.transaction_id
-			JOIN status s ON t.status_id = s.id
- 			WHERE t.no_invoice ILIKE $3
-			GROUP BY t.id, s.name
-			ORDER BY date_transaction DESC, id DESC
-			LIMIT $1 OFFSET $2`, limit, offset, "%"+search+"%")
-	} else {
-		rows, err = config.DB.Query(context.Background(),
-			`SELECT 
-				t.id,
-				t.no_invoice,
-				t.date_transaction,
-				s.name AS status,
-				COALESCE(ARRAY_AGG(DISTINCT ti.product_name) FILTER (WHERE ti.product_name IS NOT NULL), '{}') AS transaction_items,
-				t.total_transaction
-			FROM transactions t
-			JOIN transaction_items ti ON t.id = ti.transaction_id
-			JOIN status s ON t.status_id = s.id
-			GROUP BY t.id, s.name
-			ORDER BY date_transaction DESC, id DESC
-			LIMIT $1 OFFSET $2`, limit, offset)
+		query += fmt.Sprintf(" AND t.no_invoice ILIKE $%d", argIndex)
+		args = append(args, "%"+search+"%")
+		argIndex++
 	}
 
+	if statusID > 0 {
+		query += fmt.Sprintf(" AND t.status_id = $%d", argIndex)
+		args = append(args, statusID)
+	}
+
+	query += `
+	GROUP BY t.id, s.name
+	ORDER BY date_transaction DESC, id DESC
+	LIMIT $1 OFFSET $2`
+
+	rows, err = config.DB.Query(context.Background(), query, args...)
 	if err != nil {
 		message = "Failed to fetch transactions from database"
 		return transactions, message, err
@@ -199,21 +208,25 @@ func GetTransactionItems(transactionId int) ([]TransactionItems, string, error) 
 
 	productRows, err := config.DB.Query(context.Background(),
 		`SELECT 
-			id,
-			transaction_id,
-			product_id,
-			product_name,
-			product_price,
-			discount_percent,
-			discount_price,
-			size,
-			size_cost,
-			variant,
-			variant_cost,
-			amount,
-			subtotal
-		FROM transaction_items
+			ti.id,
+			ti.transaction_id,
+			ti.product_id,
+			COALESCE(MAX(pi.product_image), '') AS product_image, 
+			ti.product_name,
+			ti.product_price,
+			ti.discount_percent,
+			ti.discount_price,
+			ti.size,
+			ti.size_cost,
+			ti.variant,
+			ti.variant_cost,
+			ti.amount,
+			ti.subtotal
+		FROM transaction_items ti
+		LEFT JOIN products p ON p.id = ti.product_id
+		LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
 		WHERE transaction_id = $1
+		GROUP BY ti.id
 		ORDER BY id ASC`, transactionId)
 	if err != nil {
 		message = "Failed to fetch ordered products from database"
