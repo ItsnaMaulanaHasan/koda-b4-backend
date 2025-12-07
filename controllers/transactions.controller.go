@@ -182,7 +182,7 @@ func DetailTransactions(ctx *gin.Context) {
 // @Param        id             path      int     true  "Transaction Id"
 // @Param        statusId       formData  string  true  "Transaction status (1(On Progess), 2(Sending Goods), 3(Finish Order))"
 // @Success      200  {object}  lib.ResponseSuccess  "Transaction status updated successfully"
-// @Failure      400  {object}  lib.ResponseError   "Invalid Id format or invalid request body"
+// @Failure      400  {object}  lib.ResponseError   "Invalid Id format, invalid request body, or invalid status transition"
 // @Failure      404  {object}  lib.ResponseError   "Transaction not found"
 // @Failure      500  {object}  lib.ResponseError   "Internal server error while updating transaction status"
 // @Router       /admin/transactions/{id} [patch]
@@ -206,6 +206,17 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 		return
 	}
 
+	// Validate statusId is a valid integer
+	statusIdInt, err := strconv.Atoi(statusId)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: "Status ID must be a valid integer",
+			Error:   err.Error(),
+		})
+		return
+	}
+
 	// get user id from token
 	userId, exists := ctx.Get("userId")
 	if !exists {
@@ -216,21 +227,31 @@ func UpdateTransactionStatus(ctx *gin.Context) {
 		return
 	}
 
-	// check transaction exists
-	isExists, err := models.CheckTransactionExists(id)
+	// Get transaction details including order method
+	transaction, err := models.GetTransactionById(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
-			Message: "Internal server error while checking transaction existence",
+			Message: "Internal server error while fetching transaction",
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	if !isExists {
+	if transaction == nil {
 		ctx.JSON(http.StatusNotFound, lib.ResponseError{
 			Success: false,
 			Message: "Transaction not found",
+		})
+		return
+	}
+
+	// Validate status transition based on order method
+	isValid, validationMessage := models.ValidateStatusTransition(transaction.OrderMethodId, statusIdInt)
+	if !isValid {
+		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
+			Success: false,
+			Message: validationMessage,
 		})
 		return
 	}

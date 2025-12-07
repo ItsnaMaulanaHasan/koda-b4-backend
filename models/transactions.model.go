@@ -70,6 +70,24 @@ type TransactionRequest struct {
 	TotalTransaction float64   `json:"-" swaggerignore:"true"`
 }
 
+type TransactionInfo struct {
+	Id            int
+	OrderMethodId int
+	StatusId      int
+}
+
+const (
+	StatusOnProgress   = 1
+	StatusSendingGoods = 2
+	StatusFinishOrder  = 3
+)
+
+const (
+	OrderMethodDineIn       = 1
+	OrderMethodDoorDelivery = 2
+	OrderMethodPickUp       = 3
+)
+
 func GetTotalDataTransactions(search string, statusID int) (int, error) {
 	totalData := 0
 	var err error
@@ -242,6 +260,47 @@ func GetTransactionItems(transactionId int) ([]TransactionItems, string, error) 
 
 	message = "Success get transaction items"
 	return transactionItems, message, nil
+}
+
+func GetTransactionById(id int) (*TransactionInfo, error) {
+	var transaction TransactionInfo
+
+	err := config.DB.QueryRow(
+		context.Background(),
+		`SELECT id, order_method_id, status_id 
+		 FROM transactions 
+		 WHERE id = $1`,
+		id,
+	).Scan(&transaction.Id, &transaction.OrderMethodId, &transaction.StatusId)
+
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &transaction, nil
+}
+
+func ValidateStatusTransition(orderMethodId int, newStatusId int) (bool, string) {
+	if (orderMethodId == OrderMethodDineIn || orderMethodId == OrderMethodPickUp) &&
+		newStatusId == StatusSendingGoods {
+
+		var orderMethodName string
+		if orderMethodId == OrderMethodDineIn {
+			orderMethodName = "Dine In"
+		} else {
+			orderMethodName = "Pick Up"
+		}
+
+		return false, fmt.Sprintf(
+			"Cannot set status to 'Sending Goods' for %s orders. Valid statuses are 'On Progress' or 'Finish Order'.",
+			orderMethodName,
+		)
+	}
+
+	return true, "Status transition is valid"
 }
 
 func CheckTransactionExists(id int) (bool, error) {
