@@ -515,8 +515,8 @@ git push origin feature/your-feature-name
 
 For questions or support, please contact:
 
-- Email: your.email@example.com
-- GitHub: [@yourusername](https://github.com/yourusername)
+- Email: hasanmaulana453@gmail.com
+- GitHub: [ItsnaMaulanaHasan](https://github.com/ItsnaMaulanaHasan)
 
 # Tabel Perbandingan Penggunaan Cache
 
