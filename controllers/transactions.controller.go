@@ -24,6 +24,7 @@ import (
 // @Param        	 page           query     int     false  "Page number"  default(1)  minimum(1)
 // @Param        	 limit          query     int     false  "Number of items per page"  default(10)  minimum(1)  maximum(100)
 // @Param        	 search         query     string  false  "Search value"
+// @Param        	 status_id      query     int     false  "Filter by status ID"
 // @Success      	 200            {object}  object{success=bool,message=string,data=[]models.History,meta=object{currentPage=int,perPage=int,totalData=int,totalPages=int},_links=lib.HateoasLink}  "Successfully retrieved transaction list"
 // @Failure      	 400            {object}  lib.ResponseError  "Invalid pagination parameters or page out of range."
 // @Failure      	 500            {object}  lib.ResponseError  "Internal server error while fetching or processing transaction data."
@@ -32,6 +33,10 @@ func ListTransactions(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 	search := ctx.Query("search")
+	statusID := 0
+	if ctx.Query("status_id") != "" {
+		statusID, _ = strconv.Atoi(ctx.Query("status_id"))
+	}
 
 	if page < 1 {
 		ctx.JSON(http.StatusBadRequest, lib.ResponseError{
@@ -58,7 +63,7 @@ func ListTransactions(ctx *gin.Context) {
 	}
 
 	// get total data transactions
-	totalData, err := models.GetTotalDataTransactions(search)
+	totalData, err := models.GetTotalDataTransactions(search, statusID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
@@ -69,7 +74,7 @@ func ListTransactions(ctx *gin.Context) {
 	}
 
 	// get list all transactions
-	transactions, message, err := models.GetListAllTransactions(page, limit, search)
+	transactions, message, err := models.GetListAllTransactions(page, limit, search, statusID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
