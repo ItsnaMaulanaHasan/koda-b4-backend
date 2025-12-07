@@ -5,7 +5,6 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -166,18 +165,6 @@ func Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
 			Success: false,
 			Message: "Failed to generate token. Please try again",
-			Error:   err.Error(),
-		})
-		return
-	}
-
-	userTokenKey := fmt.Sprintf("user_%d_token", user.Id)
-
-	err = config.Rdb.Set(context.Background(), userTokenKey, jwtToken, 24*time.Hour).Err()
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, lib.ResponseError{
-			Success: false,
-			Message: "Failed to save token. Please try again",
 			Error:   err.Error(),
 		})
 		return

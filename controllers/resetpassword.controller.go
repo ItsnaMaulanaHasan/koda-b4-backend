@@ -5,7 +5,6 @@ import (
 	"backend-daily-greens/lib"
 	"backend-daily-greens/models"
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/redis/go-redis/v9"
 )
 
 // GetTokenReset  godoc
@@ -243,11 +241,9 @@ func ResetPassword(ctx *gin.Context) {
 		return
 	}
 
-	userTokenKey := fmt.Sprintf("user_%d_token", userId)
-	// get token from redis
-	tokenUser, err := config.Rdb.Get(context.Background(), userTokenKey).Result()
-	if err != redis.Nil || tokenUser != "" {
-		token, err := jwt.ParseWithClaims(tokenUser, &lib.UserPayload{}, func(token *jwt.Token) (any, error) {
+	tokenUser, _ := ctx.Get("token")
+	if tokenUser != "" {
+		token, err := jwt.ParseWithClaims(tokenUser.(string), &lib.UserPayload{}, func(token *jwt.Token) (any, error) {
 			return []byte(os.Getenv("APP_SECRET")), nil
 		})
 
@@ -280,7 +276,7 @@ func ResetPassword(ctx *gin.Context) {
 			return
 		}
 
-		blacklistKey := "blacklist:" + tokenUser
+		blacklistKey := "blacklist:" + tokenUser.(string)
 		config.Rdb.Set(context.Background(), blacklistKey, tokenUser, ttl)
 	}
 
